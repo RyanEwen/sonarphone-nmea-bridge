@@ -369,8 +369,14 @@ class BridgeService : Service() {
             for (i in col.indices) col[i] = rnd.nextInt(0, 26).toByte()
             for (i in 0 until 6) col[i] = (110 + rnd.nextInt(70)).toByte() // surface clutter
             val bottom = (depth * EchoHistory.SAMPLES_PER_M).toInt()
+            // hardness cycles so the white-line band visibly varies in demo:
+            // hard = bright return with a long tail, soft = dim and fast-fading
+            val hard = 0.5 + 0.5 * sin(t / 45)
+            val peak = 195 + 60 * hard
+            val decay = 8.5 - 6.0 * hard
             for (i in bottom until minOf(bottom + 45, col.size)) {
-                col[i] = (245 - (i - bottom) * 5 + rnd.nextInt(12)).coerceIn(28, 255).toByte()
+                col[i] = (peak - (i - bottom) * decay + rnd.nextInt(12))
+                    .toInt().coerceIn(24, 255).toByte()
             }
             for (f in fish) {
                 val fi = (f.depth * EchoHistory.SAMPLES_PER_M).toInt()

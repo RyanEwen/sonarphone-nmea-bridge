@@ -41,6 +41,7 @@ class SonarView(context: Context) : android.view.View(context) {
         val RANGE_STEPS_M = listOf(2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 60.0, 80.0)
         const val FIT = 1.25
         const val STEP_DOWN_MS = 6000L
+        const val HARDNESS_BAND_M = 2.5 // raw echo shown below the bottom line
     }
 
     private val dens = resources.displayMetrics.density
@@ -318,8 +319,13 @@ class SonarView(context: Context) : android.view.View(context) {
                 )
             }
 
-            // ---- vector bottom: crisp line + gradient earth fill
+            // ---- vector bottom: crisp line at the interface; the raw echo
+            // stays visible for HARDNESS_BAND_M below it (white-line style —
+            // band thickness/brightness is how you judge bottom hardness),
+            // then the earth fill takes over.
+            val bandPx = (HARDNESS_BAND_M * EchoHistory.SAMPLES_PER_M / window * h).toFloat()
             bottomPath.rewind()
+            fillPath.rewind()
             var lastYv = h + dp(8f)
             for (k in 0 until visible) {
                 val idx = (oldest + k) % COLS
@@ -332,15 +338,15 @@ class SonarView(context: Context) : android.view.View(context) {
                 val x = x0 + k * colW + colW / 2f
                 if (k == 0) {
                     bottomPath.moveTo(x0, y)
-                    bottomPath.lineTo(x, y)
-                } else {
-                    bottomPath.lineTo(x, y)
+                    fillPath.moveTo(x0, y + bandPx)
                 }
+                bottomPath.lineTo(x, y)
+                fillPath.lineTo(x, y + bandPx)
                 lastYv = y
             }
             bottomPath.lineTo(plotW, lastYv)
+            fillPath.lineTo(plotW, lastYv + bandPx)
 
-            fillPath.set(bottomPath)
             fillPath.lineTo(plotW, h + dp(8f))
             fillPath.lineTo(x0, h + dp(8f))
             fillPath.close()
