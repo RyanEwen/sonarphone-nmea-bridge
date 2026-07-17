@@ -41,7 +41,7 @@ class SonarView(context: Context) : android.view.View(context) {
         val RANGE_STEPS_M = listOf(2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 60.0, 80.0)
         const val FIT = 1.25
         const val STEP_DOWN_MS = 6000L
-        const val HARDNESS_BAND_M = 2.5 // raw echo shown below the bottom line
+        const val HARDNESS_WIN = 12 // samples (~1.2 m) below bottom used for hardness
     }
 
     private val dens = resources.displayMetrics.density
@@ -52,6 +52,7 @@ class SonarView(context: Context) : android.view.View(context) {
     private val colBuf = IntArray(HI)
     private val smooth = FloatArray(HI)
     private val depthRing = FloatArray(COLS) { -1f }
+    private val hardnessRing = FloatArray(COLS) { -1f }
     private var writeCol = 0
     private var filled = 0
     private var lastSeq = 0L
@@ -139,6 +140,19 @@ class SonarView(context: Context) : android.view.View(context) {
         color = Color.rgb(255, 179, 64)
         isAntiAlias = true
     }
+    private val hardnessPaint = Paint()
+
+    /** dull brown (soft) -> orange -> intense orange-red (hard), Deeper-style. */
+    private fun hardnessColor(t: Float): Int {
+        fun lerp(a: Int, b: Int, f: Float) = (a + (b - a) * f).toInt()
+        return if (t < 0.5f) {
+            val f = t * 2f
+            Color.rgb(lerp(112, 205, f), lerp(82, 120, f), lerp(52, 40, f))
+        } else {
+            val f = (t - 0.5f) * 2f
+            Color.rgb(lerp(205, 255, f), lerp(120, 84, f), lerp(40, 8, f))
+        }
+    }
 
     private val bgColor = Color.rgb(3, 8, 34)
     private val bottomPath = Path()
@@ -181,6 +195,22 @@ class SonarView(context: Context) : android.view.View(context) {
         super.onDetachedFromWindow()
     }
 
+    /**
+     * 0..1 hardness from mean return strength in the first ~1.2 m below the
+     * detected bottom (Deeper-style: strong sustained return = hard).
+     */
+    private fun hardnessOf(c: EchoHistory.Column): Float {
+        if (c.depthM <= 0.3) return -1f
+        val start = (c.depthM * EchoHistory.SAMPLES_PER_M).toInt()
+        if (start >= c.samples.size) return -1f
+        val end = minOf(start + HARDNESS_WIN, c.samples.size)
+        var sum = 0
+        for (i in start until end) sum += c.samples[i].toInt() and 0xFF
+        val mean = sum.toFloat() / (end - start) / 255f
+        // widen the useful part of the scale
+        return ((mean - 0.30f) / 0.55f).coerceIn(0f, 1f)
+    }
+
     /** Catmull-Rom upsample + mild contrast curve, then LUT into colBuf. */
     private fun expandColumn(samples: ByteArray) {
         val n = SAMPLES
@@ -215,6 +245,7 @@ class SonarView(context: Context) : android.view.View(context) {
             bitmap.setPixels(colBuf, 0, 1, writeCol, 0, 1, HI)
             ascopeBmp.setPixels(colBuf, 0, 1, 0, 0, 1, HI)
             depthRing[writeCol] = if (c.depthM > 0.3) c.depthM.toFloat() else -1f
+            hardnessRing[writeCol] = hardnessOf(c)
             writeCol = (writeCol + 1) % COLS
             if (filled < COLS) filled++
             changed = true
@@ -319,13 +350,10 @@ class SonarView(context: Context) : android.view.View(context) {
                 )
             }
 
-            // ---- vector bottom: crisp line at the interface; the raw echo
-            // stays visible for HARDNESS_BAND_M below it (white-line style —
-            // band thickness/brightness is how you judge bottom hardness),
-            // then the earth fill takes over.
-            val bandPx = (HARDNESS_BAND_M * EchoHistory.SAMPLES_PER_M / window * h).toFloat()
+            // ---- vector bottom: earth fill, then a Deeper-style hardness cap
+            // (per-column color: dull brown = soft -> intense orange = hard),
+            // then the crisp interface line on top.
             bottomPath.rewind()
-            fillPath.rewind()
             var lastYv = h + dp(8f)
             for (k in 0 until visible) {
                 val idx = (oldest + k) % COLS
@@ -338,19 +366,34 @@ class SonarView(context: Context) : android.view.View(context) {
                 val x = x0 + k * colW + colW / 2f
                 if (k == 0) {
                     bottomPath.moveTo(x0, y)
-                    fillPath.moveTo(x0, y + bandPx)
                 }
                 bottomPath.lineTo(x, y)
-                fillPath.lineTo(x, y + bandPx)
                 lastYv = y
             }
             bottomPath.lineTo(plotW, lastYv)
-            fillPath.lineTo(plotW, lastYv + bandPx)
 
+            fillPath.set(bottomPath)
             fillPath.lineTo(plotW, h + dp(8f))
             fillPath.lineTo(x0, h + dp(8f))
             fillPath.close()
             canvas.drawPath(fillPath, earthPaint)
+
+            // hardness cap: fixed screen thickness, color per column
+            val capH = dp(16f)
+            for (k in 0 until visible) {
+                val idx = (oldest + k) % COLS
+                val d = depthRing[idx]
+                val hard = hardnessRing[idx]
+                if (d <= 0f || hard < 0f) continue
+                val y = (d * EchoHistory.SAMPLES_PER_M / window * h).toFloat()
+                if (y >= h) continue
+                hardnessPaint.color = hardnessColor(hard)
+                canvas.drawRect(
+                    x0 + k * colW, y,
+                    x0 + (k + 1) * colW, minOf(y + capH, h),
+                    hardnessPaint,
+                )
+            }
             canvas.drawPath(bottomPath, bottomLinePaint)
 
             // ---- live A-scope strip
