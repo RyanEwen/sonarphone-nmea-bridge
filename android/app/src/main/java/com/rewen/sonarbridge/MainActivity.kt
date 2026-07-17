@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textGroup: MaterialButtonToggleGroup
     private lateinit var beamGroup: MaterialButtonToggleGroup
     private lateinit var alarmEdit: TextInputEditText
+    private lateinit var rangeEdit: TextInputEditText
     private lateinit var gainSlider: Slider
     private lateinit var clarityGroup: MaterialButtonToggleGroup
 
@@ -375,16 +376,46 @@ class MainActivity : AppCompatActivity() {
         root.addView(header("Device (T-Box)"))
         beamGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "20° narrow"))
-            addView(segBtn(2, "40° wide"))
-            check(if (prefs.getString("beam", "20") == "40") 2 else 1)
+            addView(segBtn(1, "200 kHz · 20°"))
+            addView(segBtn(2, "83 kHz · 40°"))
+            addView(segBtn(3, "125 kHz"))
+            check(
+                when (prefs.getString("beam", "20")) {
+                    "40" -> 2; "125" -> 3; else -> 1
+                }
+            )
         }
         root.addView(beamGroup)
         root.addView(
             note(
-                "Transducer beam requested from the sonar: narrow focuses " +
-                    "deeper with more detail, wide covers more area. Applies " +
-                    "on next connect."
+                "Transducer beam: narrow (200 kHz) focuses deeper with more " +
+                    "detail, wide (83 kHz) covers more area. 125 kHz is the " +
+                    "single-beam models' frequency — experimental on an SP200A. " +
+                    "Applies on next connect."
+            )
+        )
+        rangeEdit = TextInputEditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            val m = prefs.getFloat("dev_range_m", 0f)
+            if (m > 0f) {
+                val v = if (Units.feet) m * 3.28084 else m.toDouble()
+                setText(String.format(Locale.US, "%.0f", v))
+            }
+        }
+        root.addView(
+            TextInputLayout(this).apply {
+                hint = "Device depth range (${if (Units.feet) "ft" else "m"}, blank = auto)"
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(8) }
+                addView(rangeEdit)
+            }
+        )
+        root.addView(
+            note(
+                "Locks the sonar's own range instead of auto (max 240 ft / 73 m). " +
+                    "May sharpen shallow-water detail if the unit re-spans its " +
+                    "samples — experimental. Applies on next connect."
             )
         )
 
@@ -446,6 +477,8 @@ class MainActivity : AppCompatActivity() {
         if (!::modeGroup.isInitialized) return
         val alarmDisp = alarmEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
         val alarmM = if (Units.feet) alarmDisp * 0.3048 else alarmDisp
+        val rangeDisp = rangeEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
+        val rangeM = (if (Units.feet) rangeDisp * 0.3048 else rangeDisp).coerceIn(0.0, 73.0)
         prefs.edit()
             .putInt("mode", (modeGroup.checkedRadioButtonId - 1).coerceIn(0, 2))
             .putString("ssid", ssidEdit.text?.toString() ?: "")
@@ -457,7 +490,11 @@ class MainActivity : AppCompatActivity() {
                 "text_size",
                 when (textGroup.checkedButtonId) { 2 -> "large"; 3 -> "xl"; else -> "normal" }
             )
-            .putString("beam", if (beamGroup.checkedButtonId == 2) "40" else "20")
+            .putString(
+                "beam",
+                when (beamGroup.checkedButtonId) { 2 -> "40"; 3 -> "125"; else -> "20" }
+            )
+            .putFloat("dev_range_m", rangeM.toFloat())
             .putFloat("alarm_m", alarmM.toFloat())
             .putInt("gain_pct", gainSlider.value.toInt())
             .putInt("surface_clarity", (clarityGroup.checkedButtonId - 1).coerceIn(0, 2))

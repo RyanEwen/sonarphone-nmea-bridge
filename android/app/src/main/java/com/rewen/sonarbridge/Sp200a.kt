@@ -25,12 +25,18 @@ object Sp200a {
      * FC request: settings + master MAC + additive 16-bit LE checksum of bytes 0..18.
      * MAC sits at 21..26, outside the checksummed range.
      */
+    // byte 13: transducer frequency/beam selection (SonarPhony findings —
+    // the value is echoed back at REDYFC byte 32)
+    const val BEAM_200KHZ_20DEG = 0x08 // SP200/SP300 narrow
+    const val BEAM_80KHZ_40DEG = 0x02  // SP200/SP300 wide
+    const val BEAM_125KHZ_30DEG = 0x04 // SP100/T-POD single beam (experimental on SP200A)
+
     fun buildFc(
         mac: ByteArray,
         feet: Boolean = false,
         depthMin: Int = 0,
-        depthMax: Int = 0, // 0 = auto range
-        beam20: Boolean = true,
+        depthMax: Int = 0, // 0 = auto range; whole units of `feet` flag, ≤240 ft
+        beam: Int = BEAM_200KHZ_20DEG,
     ): ByteArray {
         require(mac.size == 6)
         val b = ByteArray(29)
@@ -44,7 +50,7 @@ object Sp200a {
         b[8] = (depthMax and 0xFF).toByte()
         b[9] = ((depthMax ushr 8) and 0xFF).toByte()
         b[11] = if (feet) 1 else 0
-        b[13] = if (beam20) 0x08 else 0x02
+        b[13] = beam.toByte()
         var sum = 0
         for (i in 0 until 19) sum += b[i].toInt() and 0xFF
         b[19] = (sum and 0xFF).toByte()

@@ -76,7 +76,7 @@ data isn't ready; just retry.
 | 10 | 0 (const) |
 | 11 | Units: `00` = meters, `01` = feet |
 | 12 | 0 (const) |
-| 13 | Beam width: `08` = 20°, `02` = 40° |
+| 13 | Frequency/beam select (per SonarPhony; echoed at REDYFC byte 32): `08` = 200 kHz/20°, `02` = 80 kHz/40° (SP200/SP300 dual beam), `04` = 125 kHz/30° (SP100/T-POD single beam — untested on SP200A) |
 | 14–18 | 0 (const) |
 | 19–20 | **Checksum**: 16-bit LE, additive sum of bytes 0–18. *Note: the PDF's worked example is internally inconsistent — its byte column (max=0xF0) doesn't match its checksum (0x01A7, which balances for max=0x0A/feet/20°). The additive algorithm itself is confirmed by the FX (0xB3) / FV (0xB1) constants and the working ESP32 code.* |
 | 21–26 | Master MAC (from REDYFX bytes 26–31, same order) |
@@ -117,6 +117,16 @@ Open items to verify on-unit (see §7): behavior when no bottom lock (expect
 depth 0 or frozen), and whether packet size varies with beam/frequency (SP200
 units reported 360-byte pings to SonarPhony vs 340 on T-POD, so parse by
 `REDYFC` tag + offsets, never by packet length).
+
+**Conflicts between sources — verify on-unit:**
+- Byte 25 (depth fraction): McKeown says hundredths (0x33 = 0.51); SonarPhony
+  (T-POD era) reads tenths [0–9] (`depth + byte*0.1`). Watch the byte's
+  observed range: values >9 confirm hundredths.
+- Byte 26 (temperature): SonarPhony applies a −2 °C bias (sea-water
+  freezing-point conjecture); McKeown reads plain °C. Check against a
+  thermometer.
+- Whether a manual max range makes the 758 echo samples re-span the set range
+  (huge shallow-water resolution win) or they always cover 80 m.
 
 ### 3.6 FV request/response — optional keep-alive
 

@@ -281,10 +281,19 @@ class BridgeService : Service() {
 
                 // ---- RUN: FC every 10 s, parse stream, watchdog on 15 s silence
                 setPhase("RUN")
-                val beam20 = getSharedPreferences("cfg", MODE_PRIVATE)
-                    .getString("beam", "20") != "40"
-                log("FC settings: meters, auto-range, beam=${if (beam20) "20°" else "40°"}")
-                val fc = Sp200a.buildFc(mac, beam20 = beam20) // meters, auto-range
+                val cfg = getSharedPreferences("cfg", MODE_PRIVATE)
+                val beam = when (cfg.getString("beam", "20")) {
+                    "40" -> Sp200a.BEAM_80KHZ_40DEG
+                    "125" -> Sp200a.BEAM_125KHZ_30DEG
+                    else -> Sp200a.BEAM_200KHZ_20DEG
+                }
+                // device range in whole meters (we request meters); 0 = auto
+                val devRangeM = cfg.getFloat("dev_range_m", 0f).toInt()
+                log(
+                    "FC settings: meters, range=${if (devRangeM > 0) "0-${devRangeM}m" else "auto"}, " +
+                        "beam=0x%02x".format(beam)
+                )
+                val fc = Sp200a.buildFc(mac, depthMax = devRangeM, beam = beam)
                 var lastFc = 0L
                 var lastFrame = SystemClock.elapsedRealtime()
                 var lastFrameLog = 0L
