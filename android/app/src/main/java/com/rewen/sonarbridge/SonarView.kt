@@ -4,9 +4,13 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.CornerPathEffect
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.SystemClock
 import java.util.Locale
@@ -14,14 +18,18 @@ import kotlin.math.abs
 
 /**
  * Fish-finder waterfall: newest echo column on the right, scrolling left,
- * with a live A-scope strip on the right edge (standard on modern units,
- * e.g. Deeper). Columns land in a ring-buffer bitmap (one setPixels per
- * column); onDraw unrolls the ring with two scaled drawBitmap calls.
+ * with a live A-scope strip on the right edge.
+ *
+ * Echo returns render from a ring-buffer bitmap (soft/bilinear — echo data is
+ * only ~9.5 samples/m, softness reads as organic). The bottom, however, is
+ * drawn as VECTOR geometry from each column's reported depth: a crisp
+ * hardness line + gradient earth fill that stay sharp at any zoom. Columns
+ * get a fixed on-screen width so recent history stays chunky and legible
+ * instead of stretching the whole ring across the plot.
  *
  * Range handling follows real-unit practice: discrete range steps chosen so
  * the bottom sits ~3/4 down the screen, stepping deeper immediately but
- * shallower only after the depth has stayed well inside the smaller range
- * for a few seconds (hysteresis), and the zoom eases rather than jumps.
+ * shallower only after a dwell (hysteresis), with an eased zoom.
  */
 class SonarView(context: Context) : android.view.View(context) {
 
@@ -29,8 +37,8 @@ class SonarView(context: Context) : android.view.View(context) {
         const val COLS = 600
         const val SAMPLES = EchoHistory.SAMPLES
         val RANGE_STEPS_M = listOf(2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 60.0, 80.0)
-        const val FIT = 1.25          // range must exceed depth * FIT
-        const val STEP_DOWN_MS = 6000L // dwell before zooming back in
+        const val FIT = 1.25
+        const val STEP_DOWN_MS = 6000L
     }
 
     private val dens = resources.displayMetrics.density
@@ -39,17 +47,26 @@ class SonarView(context: Context) : android.view.View(context) {
     private val bitmap = Bitmap.createBitmap(COLS, SAMPLES, Bitmap.Config.ARGB_8888)
     private val ascopeBmp = Bitmap.createBitmap(1, SAMPLES, Bitmap.Config.ARGB_8888)
     private val colBuf = IntArray(SAMPLES)
+    private val depthRing = FloatArray(COLS) { -1f }
     private var writeCol = 0
     private var filled = 0
     private var lastSeq = 0L
     private var latestDepth = 0.0
 
     // range state
-    private var rangeM = 10.0            // current step
+    private var rangeM = 10.0
     private var windowF = (rangeM * EchoHistory.SAMPLES_PER_M).toFloat()
     private var fitsSmallerSince = 0L
 
     private val bmpPaint = Paint().apply { isFilterBitmap = true }
+    private val earthPaint = Paint().apply { isAntiAlias = true }
+    private val bottomLinePaint = Paint().apply {
+        color = Color.rgb(255, 236, 190)
+        style = Paint.Style.STROKE
+        strokeWidth = dp(2.5f)
+        isAntiAlias = true
+        pathEffect = CornerPathEffect(dp(6f))
+    }
     private val gridPaint = Paint().apply {
         color = Color.argb(36, 255, 255, 255)
         strokeWidth = dp(1f)
@@ -97,6 +114,8 @@ class SonarView(context: Context) : android.view.View(context) {
     }
 
     private val bgColor = Color.rgb(3, 8, 34)
+    private val bottomPath = Path()
+    private val fillPath = Path()
 
     // intensity -> color: deep blue -> cyan -> yellow -> red
     private val lut = IntArray(256) { v ->
@@ -107,6 +126,15 @@ class SonarView(context: Context) : android.view.View(context) {
             v < 192 -> Color.rgb(c((v - 128) * 4), c(190 + (v - 128)), c(195 - (v - 128) * 3))
             else -> Color.rgb(255, c(255 - (v - 192) * 3), 0)
         }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        earthPaint.shader = LinearGradient(
+            0f, 0f, 0f, h.toFloat(),
+            Color.rgb(148, 99, 55), Color.rgb(88, 58, 32),
+            Shader.TileMode.CLAMP,
+        )
     }
 
     private val tick = object : Runnable {
@@ -126,51 +154,30 @@ class SonarView(context: Context) : android.view.View(context) {
         super.onDetachedFromWindow()
     }
 
-    /** Crisp interface line at the water/bottom boundary. */
-    private val bottomLineColor = Color.rgb(255, 232, 176)
-
-    /** Sediment fill below the detected bottom, textured by echo intensity. */
-    private fun earth(v: Int, depthBelow: Int): Int {
-        val t = 0.70f + 0.30f * (v / 255f)
-        val fade = (1f - depthBelow / 2200f).coerceAtLeast(0.78f)
-        val s = t * fade
-        return Color.rgb((150 * s).toInt(), (100 * s).toInt(), (56 * s).toInt())
-    }
-
     private fun step() {
         var changed = false
         val fresh = EchoHistory.since(lastSeq)
         for (c in fresh) {
             lastSeq = c.seq
             latestDepth = c.depthM
-            // water column above the detected bottom, solid earth below it
-            val bottomIdx = if (c.depthM > 0.3) {
-                (c.depthM * EchoHistory.SAMPLES_PER_M).toInt()
-            } else {
-                Int.MAX_VALUE // no bottom lock: all water
-            }
             for (i in 0 until SAMPLES) {
-                val v = if (i < c.samples.size) c.samples[i].toInt() and 0xFF else 0
-                colBuf[i] = when {
-                    i < bottomIdx -> lut[v]
-                    i < bottomIdx + 3 -> bottomLineColor
-                    else -> earth(v, i - bottomIdx)
-                }
+                colBuf[i] = lut[if (i < c.samples.size) c.samples[i].toInt() and 0xFF else 0]
             }
             bitmap.setPixels(colBuf, 0, 1, writeCol, 0, 1, SAMPLES)
             ascopeBmp.setPixels(colBuf, 0, 1, 0, 0, 1, SAMPLES)
+            depthRing[writeCol] = if (c.depthM > 0.3) c.depthM.toFloat() else -1f
             writeCol = (writeCol + 1) % COLS
             if (filled < COLS) filled++
             changed = true
         }
 
-        // ---- stepped auto-range with hysteresis (see class doc)
+        // stepped auto-range with hysteresis
         if (fresh.isNotEmpty()) {
             val need = latestDepth * FIT
             val fitStep = RANGE_STEPS_M.firstOrNull { it >= need } ?: RANGE_STEPS_M.last()
             val now = SystemClock.elapsedRealtime()
             if (fitStep > rangeM) {
-                rangeM = fitStep // deepening: react immediately, bottom must stay visible
+                rangeM = fitStep
                 fitsSmallerSince = 0L
             } else if (fitStep < rangeM) {
                 if (fitsSmallerSince == 0L) fitsSmallerSince = now
@@ -183,7 +190,7 @@ class SonarView(context: Context) : android.view.View(context) {
             }
         }
 
-        // ---- eased zoom toward the selected range
+        // eased zoom toward the selected range
         val target = (rangeM * EchoHistory.SAMPLES_PER_M).toFloat().coerceAtMost(SAMPLES.toFloat())
         if (abs(target - windowF) > 0.5f) {
             windowF += (target - windowF) * 0.10f
@@ -201,18 +208,64 @@ class SonarView(context: Context) : android.view.View(context) {
         val plotW = w - ascopeW - dp(4f)
         val window = windowF.coerceIn(30f, SAMPLES.toFloat())
 
-        // ---- waterfall (ring unroll: oldest [writeCol..COLS) then [0..writeCol))
-        if (filled > 0) {
-            val oldW = (COLS - writeCol) * plotW / COLS
-            canvas.drawBitmap(
-                bitmap, Rect(writeCol, 0, COLS, window.toInt()),
-                RectF(0f, 0f, oldW, h), bmpPaint,
-            )
-            canvas.drawBitmap(
-                bitmap, Rect(0, 0, writeCol, window.toInt()),
-                RectF(oldW, 0f, plotW, h), bmpPaint,
-            )
-            // live A-scope strip
+        // fixed column width: recent history, chunky and legible
+        val colW = dp(3f)
+        val visible = minOf(filled, (plotW / colW).toInt(), COLS)
+
+        if (visible > 0) {
+            val x0 = plotW - visible * colW
+            val newest = (writeCol - 1 + COLS) % COLS
+            val oldest = (newest - visible + 1 + COLS) % COLS
+
+            // ---- echo bitmap (one or two ring segments), soft
+            if (oldest <= newest) {
+                canvas.drawBitmap(
+                    bitmap, Rect(oldest, 0, newest + 1, window.toInt()),
+                    RectF(x0, 0f, plotW, h), bmpPaint,
+                )
+            } else {
+                val seg1 = COLS - oldest // [oldest..COLS)
+                val seg1W = seg1 * colW
+                canvas.drawBitmap(
+                    bitmap, Rect(oldest, 0, COLS, window.toInt()),
+                    RectF(x0, 0f, x0 + seg1W, h), bmpPaint,
+                )
+                canvas.drawBitmap(
+                    bitmap, Rect(0, 0, newest + 1, window.toInt()),
+                    RectF(x0 + seg1W, 0f, plotW, h), bmpPaint,
+                )
+            }
+
+            // ---- vector bottom: crisp line + gradient earth fill
+            bottomPath.rewind()
+            var started = false
+            for (k in 0 until visible) {
+                val idx = (oldest + k) % COLS
+                val d = depthRing[idx]
+                val y = if (d > 0f) {
+                    (d * EchoHistory.SAMPLES_PER_M / window * h).toFloat()
+                } else {
+                    h + dp(8f) // no bottom lock: dive off-screen
+                }
+                val x = x0 + k * colW + colW / 2f
+                if (!started) {
+                    bottomPath.moveTo(x0, y)
+                    bottomPath.lineTo(x, y)
+                    started = true
+                } else {
+                    bottomPath.lineTo(x, y)
+                }
+            }
+            bottomPath.lineTo(plotW, bottomPathLastY())
+
+            fillPath.set(bottomPath)
+            fillPath.lineTo(plotW, h + dp(8f))
+            fillPath.lineTo(x0, h + dp(8f))
+            fillPath.close()
+            canvas.drawPath(fillPath, earthPaint)
+            canvas.drawPath(bottomPath, bottomLinePaint)
+
+            // ---- live A-scope strip
             canvas.drawBitmap(
                 ascopeBmp, Rect(0, 0, 1, window.toInt()),
                 RectF(plotW + dp(4f), 0f, w, h), bmpPaint,
@@ -277,6 +330,19 @@ class SonarView(context: Context) : android.view.View(context) {
             canvas.drawRoundRect(pill, dp(12f), dp(12f), demoStroke)
             canvas.drawText(txt, pill.left + dp(10f), pill.bottom - dp(7f), demoPaint)
         }
+    }
+
+    private var lastY = 0f
+    private fun bottomPathLastY(): Float {
+        val newest = (writeCol - 1 + COLS) % COLS
+        val d = depthRing[newest]
+        val window = windowF.coerceIn(30f, SAMPLES.toFloat())
+        lastY = if (d > 0f) {
+            (d * EchoHistory.SAMPLES_PER_M / window * height).toFloat()
+        } else {
+            height + dp(8f)
+        }
+        return lastY
     }
 
     /** 1/2/5×10^k interval that yields ~4–6 gridlines. */
