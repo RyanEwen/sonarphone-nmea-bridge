@@ -12,8 +12,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
+        android:name=".App"
         android:label="SP200A Bridge"
-        android:icon="@drawable/ic_stat">
+        android:icon="@drawable/ic_stat"
+        android:theme="@style/Theme.SonarBridge">
 
         <activity
             android:name=".MainActivity"

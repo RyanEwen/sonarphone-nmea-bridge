@@ -92,3 +92,5 @@ vary across models/modes). `FV` keep-alive is unnecessary — ignore it.
 - Validator/tooling: Python 3.8+, stdlib only.
 - App: Kotlin, minSdk 29 (WifiNetworkSpecifier requirement), coroutines for
   socket loops, no third-party networking deps for the core path.
+- UI: Material 3 views + DynamicColors (Material You on API 31+), programmatic
+  layouts (no XML layouts, no Compose), custom Canvas view for sonar rendering.
