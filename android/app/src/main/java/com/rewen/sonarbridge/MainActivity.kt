@@ -235,6 +235,7 @@ class MainActivity : AppCompatActivity() {
             appendLine("rx units: ${if (s.unitsFeet) "feet (converted)" else "meters"}")
             appendLine("last rx:  ${if (s.lastFrameWallMs > 0) ts.format(Date(s.lastFrameWallMs)) else "-"}")
             appendLine("NMEA:     ${s.nmeaClients} client(s) on 127.0.0.1:10110")
+            appendLine("app:      v${BuildConfig.VERSION_NAME}")
             appendLine()
             append("Navionics: Paired devices > +\n  Host 127.0.0.1  Port 10110  TCP")
         }
@@ -431,6 +432,7 @@ class MainActivity : AppCompatActivity() {
         battery.visibility =
             if (pm.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE
         renderStatus(BridgeState.flow.value)
+        UpdateCheck.maybeCheck(this, scope)
     }
 
     override fun onPause() {

@@ -1,0 +1,91 @@
+name: release
+
+# Build a signed Android APK and attach it to a GitHub Release whenever a
+# `v*` tag is pushed (e.g. `git tag v0.2.0 && git push origin v0.2.0`).
+# The in-app update check (android/.../UpdateCheck.kt) reads the latest
+# release and prompts to download the new APK. Same pattern as the
+# persistent app's release.yml.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. v0.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history + tags for the changelog
+
+      - name: Resolve version
+        id: ver
+        run: |
+          TAG="${{ github.event.inputs.version || github.ref_name }}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "name=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        run: |
+          TAG="${{ github.event.inputs.version || github.ref_name }}"
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          RANGE="${TAG}"
+          [ -n "$PREV" ] && RANGE="${PREV}..${TAG}"
+          # Shown verbatim in the in-app update prompt — user-facing changes
+          # only; internal commits are filtered out.
+          EXCLUDE='^- (bump version|merge )|\b(docs?|documentation|readme|changelog|chore|ci|workflow|lint|typecheck|devcontainer|dockerfile|compose|gitignore|deps?|dependency|dependencies|refactor|rename|cleanup|clean up|tidy|reorganize|restructure|test|tests|spec|checklist|runbook|co-?authored?)\b'
+          CHANGES=$(git log --no-merges --pretty=format:'- %s' "$RANGE" | grep -viE "$EXCLUDE" || true)
+          [ -z "$CHANGES" ] && CHANGES="- Maintenance and behind-the-scenes improvements"
+          {
+            echo "## What's changed"
+            echo
+            echo "$CHANGES"
+            if [ -n "$PREV" ]; then
+              echo
+              echo "**Full changelog**: https://github.com/${{ github.repository }}/compare/${PREV}...${TAG}"
+            fi
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Decode release keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Build signed APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_NAME: ${{ steps.ver.outputs.name }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Stage APK
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             "sonarbridge-${{ steps.ver.outputs.name }}.apk"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          body_path: RELEASE_NOTES.md
+          files: sonarbridge-*.apk

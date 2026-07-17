@@ -11,18 +11,42 @@ android {
         applicationId = "com.rewen.sonarbridge"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1-dev"
+        // CI (release.yml) injects the tag version; local builds stay 0.1-dev
+        versionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.1-dev"
     }
 
-    // Pinned so containerized builds don't regenerate a fresh keystore each run
-    // (which breaks `adb install -r` with UPDATE_INCOMPATIBLE).
+    buildFeatures {
+        buildConfig = true
+    }
+
+    // Debug pinned so containerized builds don't regenerate a fresh keystore
+    // each run (breaks `adb install -r`); release key comes from env/CI
+    // secrets (android/keystore/release.keystore locally, gitignored).
     signingConfigs {
         getByName("debug") {
             storeFile = file("../keystore/debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        create("release") {
+            val ks = System.getenv("ANDROID_KEYSTORE_FILE")
+            if (ks != null) {
+                storeFile = file(ks)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            if (System.getenv("ANDROID_KEYSTORE_FILE") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
