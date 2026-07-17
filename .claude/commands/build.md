@@ -1,29 +1,36 @@
 ---
-description: Build the debug APK (persistent builder container, warm gradle daemon)
+description: Build the debug APK (arm64-native builder container, warm gradle daemon)
 ---
 
-Build via the long-lived builder container — its Gradle daemon stays warm
-between builds, which matters a lot here because the host is **arm64 WSL2**
-and the amd64 SDK image runs under qemu (JVM startup alone costs ~1–2 min):
+Build via the long-lived **arm64-native** builder container (no qemu):
 
 ```sh
 docker exec sonarbridge-builder ./gradlew assembleDebug
 ```
 
 Output: `android/app/build/outputs/apk/debug/app-debug.apk`.
+Typical times: incremental ~6 s, clean build ~10 s, cold daemon ~1 min.
 
-Typical times: source-only edit 15–45 s; build-script edit ~1 min; first
-build after daemon restart ~2 min. (One-shot `docker run --no-daemon` costs
-4–7 min — don't.)
+The image is built from `android/docker/Dockerfile.arm64`: arm64 temurin JDK
++ SDK platform 34 + a pinned arm64 `aapt2` static build
+(lzhiyong/android-sdk-tools 35.0.2 — the one binary Google doesn't ship for
+linux-arm64), wired in via `android.aapt2FromMavenOverride` in the
+container-local `android/.gradle/gradle.properties` (gitignored — do not put
+that override in the committed gradle.properties; it would break non-arm64
+machines).
 
 If the container is missing (`docker ps -a | grep sonarbridge-builder`),
 recreate it:
 
 ```sh
+docker build -t sonarbridge-build:arm64 \
+  -f android/docker/Dockerfile.arm64 android/docker
+printf 'android.aapt2FromMavenOverride=/opt/android-tools/aapt2\n' \
+  > android/.gradle/gradle.properties
 docker run -d --name sonarbridge-builder --restart unless-stopped \
   -u $(id -u):$(id -g) -e HOME=/project/.home -e GRADLE_USER_HOME=/project/.gradle \
   -v ~/development/sonarphone-nmea-bridge/android:/project -w /project \
-  mobiledevops/android-sdk-image:34.0.0-jdk17 sleep infinity
+  sonarbridge-build:arm64 sleep infinity
 ```
 
 Notes:
@@ -31,8 +38,7 @@ Notes:
   `androiddebugkey` / `android`) so rebuilds stay `adb install -r`-compatible.
   Never let AGP regenerate a keystore (throwaway keystores →
   INSTALL_FAILED_UPDATE_INCOMPATIBLE).
-- Don't use alpine-based SDK images (AAPT2 is glibc x86_64; no loader there).
 - gradle.properties enables build cache + configuration cache + parallel.
-- Future speedup if needed: arm64-native aapt2 via
-  `android.aapt2FromMavenOverride` (third-party binary — evaluate before
-  trusting) would eliminate qemu entirely.
+- amd64 fallback (works anywhere, slow under qemu here):
+  `mobiledevops/android-sdk-image:34.0.0-jdk17` with the same mounts, minus
+  the aapt2 override. Don't use alpine-based SDK images (AAPT2 needs glibc).
