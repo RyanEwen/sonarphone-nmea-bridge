@@ -10,8 +10,11 @@ a modern sonar display, and feeds live depth into the Navionics app — all on
 one phone, without giving up your internet connection.
 
 <p align="center">
-  <img src="docs/sonar-view.png" alt="SonarBridge sonar view: waterfall with bottom hardness, fish echoes, and depth scale" width="320">
+  <img src="docs/sonar-view.png" alt="Sonar view: fish-finder waterfall with fish markers, bottom, and depth scale" width="260">
+  <img src="docs/status-view.png" alt="Status view: live depth, temperature, battery and connection state" width="260">
+  <img src="docs/settings-view.png" alt="Settings: network, units, and sonar display controls" width="260">
 </p>
+<p align="center"><em>Sonar view · Status · Settings (shown in demo mode)</em></p>
 
 ## What it does
 
