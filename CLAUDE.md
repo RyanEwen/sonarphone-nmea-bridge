@@ -82,7 +82,7 @@ vary across models/modes). `FV` keep-alive is unnecessary — ignore it.
 
 | Risk | Mitigation |
 |---|---|
-| Navionics-Android rejects 127.0.0.1 paired device (UNVERIFIED — test early) | UDP 127.0.0.1:2000 fallback; ESP32 WIFI_AP_STA plan C |
+| ~~Navionics-Android rejects 127.0.0.1 paired device~~ **RETIRED 2026-07-17: Navionics pairs to 127.0.0.1:10110 TCP and displays depth (verified against the bridge's demo feed).** Note: Navionics shows "connected" only once NMEA sentences actually flow — a silent socket reads as not-connected | n/a — verified working |
 | Doze/OEM kills service on the water | foreground service + battery exemption + reconnect loop |
 | requestNetwork drops on screen-off | hold callback in service, watchdog re-handshake |
 | Unit-specific REDYFC deviations | phase 0 validator gates all app work |

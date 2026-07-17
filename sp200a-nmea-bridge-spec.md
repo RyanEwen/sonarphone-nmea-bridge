@@ -177,7 +177,7 @@ Rules learned from working setups:
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Navionics-Android rejects `127.0.0.1` paired device | low-med | UDP→`127.0.0.1:2000` fallback; worst case ESP32 plan C |
+| ~~Navionics-Android rejects `127.0.0.1` paired device~~ | **RETIRED 2026-07-17** | Verified: pairs to 127.0.0.1:10110 TCP and shows depth (demo feed). Caveat: "connected" appears only once sentences flow |
 | REDYFC offsets differ on this unit | low (spec is SP200A-verified) | Step-0 validator script confirms before app work |
 | Doze/battery-optimization kills service on the water | med | Foreground service + battery-optimization exemption prompt |
 | `requestNetwork` drops on screen-off (OEM quirks) | low-med | Hold callback in service; auto-reconnect loop |
