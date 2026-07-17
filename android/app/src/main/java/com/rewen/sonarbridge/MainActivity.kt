@@ -394,6 +394,15 @@ class MainActivity : AppCompatActivity() {
             )
         )
 
+        root.addView(header("Updates"))
+        root.addView(
+            MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
+                text = "Check for updates"
+                setOnClickListener { UpdateCheck.manualCheck(this@MainActivity, scope) }
+            }
+        )
+        root.addView(note("Installed version: v${BuildConfig.VERSION_NAME}. Updates are also offered automatically when the app opens."))
+
         val mode = prefs.getInt("mode", 0)
         modeGroup.check(mode + 1)
         ssidLayout.isEnabled = MODE_PATTERNS[mode] == null

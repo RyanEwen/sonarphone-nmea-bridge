@@ -32,6 +32,7 @@ object UpdateCheck {
     private const val RESUME_THROTTLE_MS = 3 * 60 * 60 * 1000L
     private var checkedThisProcess = false
 
+    /** Automatic check: throttled, and muted versions stay quiet. */
     fun maybeCheck(activity: Activity, scope: CoroutineScope) {
         val prefs = activity.getSharedPreferences("cfg", Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
@@ -40,24 +41,45 @@ object UpdateCheck {
         }
         checkedThisProcess = true
         prefs.edit().putLong("upd_last_check", now).apply()
+        runCheck(activity, scope, silent = true)
+    }
 
+    /** Settings-button check: always runs, always gives feedback. */
+    fun manualCheck(activity: Activity, scope: CoroutineScope) {
+        runCheck(activity, scope, silent = false)
+    }
+
+    private fun runCheck(activity: Activity, scope: CoroutineScope, silent: Boolean) {
+        val prefs = activity.getSharedPreferences("cfg", Context.MODE_PRIVATE)
         scope.launch(Dispatchers.IO) {
-            val rel = runCatching { fetchLatest() }.getOrNull() ?: return@launch
-            val current = BuildConfig.VERSION_NAME
-            if (rel.version == current) return@launch
-            if (prefs.getString("upd_seen", "") == rel.version) return@launch
+            val rel = runCatching { fetchLatest() }.getOrNull()
             withContext(Dispatchers.Main) {
                 if (activity.isFinishing || activity.isDestroyed) return@withContext
-                MaterialAlertDialogBuilder(activity)
-                    .setTitle("Update available: ${rel.version}")
-                    .setMessage(rel.notes.replace(Regex("^#+\\s*", RegexOption.MULTILINE), "").trim())
-                    .setPositiveButton("Update") { _, _ ->
-                        downloadAndInstall(activity, rel)
+                when {
+                    rel == null -> if (!silent) {
+                        Toast.makeText(activity, "Couldn't check for updates", Toast.LENGTH_LONG).show()
                     }
-                    .setNegativeButton("Later") { _, _ ->
-                        prefs.edit().putString("upd_seen", rel.version).apply()
+                    rel.version == BuildConfig.VERSION_NAME -> if (!silent) {
+                        Toast.makeText(
+                            activity,
+                            "Up to date (v${BuildConfig.VERSION_NAME})",
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     }
-                    .show()
+                    silent && prefs.getString("upd_seen", "") == rel.version -> Unit // muted
+                    else -> MaterialAlertDialogBuilder(activity)
+                        .setTitle("Update available: ${rel.version}")
+                        .setMessage(
+                            rel.notes.replace(Regex("^#+\\s*", RegexOption.MULTILINE), "").trim()
+                        )
+                        .setPositiveButton("Update") { _, _ ->
+                            downloadAndInstall(activity, rel)
+                        }
+                        .setNegativeButton("Later") { _, _ ->
+                            prefs.edit().putString("upd_seen", rel.version).apply()
+                        }
+                        .show()
+                }
             }
         }
     }
