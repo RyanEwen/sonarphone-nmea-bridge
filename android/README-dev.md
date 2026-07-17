@@ -88,3 +88,15 @@ UDP option — this is the key risk to validate.
    phone GPS should draw live personal bathymetry contours (the bridge acts
    as a free Digital Yacht Sonar Server). Raw-sonar split view is NOT
    possible — Garmin removed third-party sonar rendering after v19.
+
+## Releases & updates
+
+- Cut a release: `git tag v0.2.0 && git push origin v0.2.0` — GitHub Actions
+  builds a signed APK and publishes a Release with a filtered changelog.
+- The app checks the latest release on open/resume (3 h throttle) and offers
+  the APK with the release notes; "Later" mutes that version.
+- Release signing: keystore lives only in GitHub secrets + gitignored
+  `android/keystore/release.keystore` (creds in `release.env` beside it).
+- NOTE: release APKs are signed with the release key — a phone running a
+  debug build must uninstall once before its first release install
+  (signature mismatch; settings are lost that one time).
