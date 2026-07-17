@@ -24,6 +24,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
         <!-- exported=true so `adb shell am start-foreground-service` can drive it; dev build only -->
         <service
             android:name=".BridgeService"

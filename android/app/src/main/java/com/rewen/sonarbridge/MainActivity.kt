@@ -8,15 +8,10 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
-import android.text.InputType
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Spinner
 import android.widget.TextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,19 +26,8 @@ class MainActivity : Activity() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var status: TextView
-    private lateinit var networkMode: Spinner
-    private lateinit var customSsid: EditText
-    private lateinit var pass: EditText
     private lateinit var toggle: Button
     private lateinit var battery: Button
-
-    // spinner order; first two are prefix patterns, last shows the SSID box
-    private val modePatterns = listOf("SonarPhone_", "T-BOX-", null)
-    private val modeLabels = listOf(
-        "SonarPhone_* — pick from list",
-        "T-BOX-* — pick from list",
-        "Exact SSID…",
-    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,50 +36,23 @@ class MainActivity : Activity() {
             requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 1)
         }
 
-        val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
         val pad = (16 * resources.displayMetrics.density).toInt()
-
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, pad)
         }
 
-        networkMode = Spinner(this).apply {
-            adapter = ArrayAdapter(
-                this@MainActivity, android.R.layout.simple_spinner_dropdown_item, modeLabels
-            )
-            setSelection(prefs.getInt("mode", 0))
-            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                    customSsid.visibility =
-                        if (modePatterns[pos] == null) View.VISIBLE else View.GONE
-                }
-                override fun onNothingSelected(p: AdapterView<*>?) {}
-            }
-        }
-        customSsid = EditText(this).apply {
-            hint = "SSID"
-            setText(prefs.getString("ssid", "SonarPhone_65C0"))
-            visibility = if (modePatterns[prefs.getInt("mode", 0)] == null)
-                View.VISIBLE else View.GONE
-        }
-        pass = EditText(this).apply {
-            hint = "WiFi password"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setText(prefs.getString("pass", "12345678"))
-        }
-
         toggle = Button(this).apply { text = "Start bridge" }
+        val settings = Button(this).apply { text = "Settings" }
         battery = Button(this).apply { text = "Disable battery optimization" }
-
         status = TextView(this).apply {
             typeface = Typeface.MONOSPACE
             textSize = 13f
             setPadding(0, pad, 0, 0)
         }
 
-        root.addView(networkMode); root.addView(customSsid); root.addView(pass)
-        root.addView(toggle); root.addView(battery); root.addView(status)
+        root.addView(toggle); root.addView(settings)
+        root.addView(battery); root.addView(status)
         setContentView(ScrollView(this).apply { addView(root) })
 
         toggle.setOnClickListener {
@@ -104,20 +61,18 @@ class MainActivity : Activity() {
                     Intent(this, BridgeService::class.java).setAction(BridgeService.ACTION_STOP)
                 )
             } else {
-                val mode = networkMode.selectedItemPosition
-                val pattern = modePatterns[mode]
-                prefs.edit()
-                    .putInt("mode", mode)
-                    .putString("ssid", customSsid.text.toString())
-                    .putString("pass", pass.text.toString())
-                    .apply()
+                val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
+                val pattern = SettingsActivity.MODE_PATTERNS[prefs.getInt("mode", 0)]
                 val intent = Intent(this, BridgeService::class.java)
                     .setAction(BridgeService.ACTION_START)
-                    .putExtra("pass", pass.text.toString())
+                    .putExtra("pass", prefs.getString("pass", "12345678"))
                 if (pattern != null) intent.putExtra("pattern", pattern)
-                else intent.putExtra("ssid", customSsid.text.toString())
+                else intent.putExtra("ssid", prefs.getString("ssid", "SonarPhone_65C0"))
                 startForegroundService(intent)
             }
+        }
+        settings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
         battery.setOnClickListener {
             startActivity(
@@ -137,6 +92,16 @@ class MainActivity : Activity() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         battery.visibility =
             if (pm.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE
+        render(BridgeState.flow.value) // config summary may have changed
+    }
+
+    private fun configSummary(): String {
+        val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
+        return when (SettingsActivity.MODE_PATTERNS.getOrNull(prefs.getInt("mode", 0))) {
+            "SonarPhone_" -> "any SonarPhone_*"
+            "T-BOX-" -> "any T-BOX-*"
+            else -> prefs.getString("ssid", "?")!!
+        }
     }
 
     private fun render(s: BridgeState.Snapshot) {
@@ -144,7 +109,7 @@ class MainActivity : Activity() {
         val ts = SimpleDateFormat("HH:mm:ss", Locale.US)
         status.text = buildString {
             appendLine("state:    ${s.phase}")
-            appendLine("ssid:     ${s.ssid ?: "-"}")
+            appendLine("network:  ${if (s.running) s.ssid ?: "-" else configSummary()}")
             appendLine("serial:   ${s.serial ?: "-"}")
             appendLine("master:   ${s.masterMac ?: "-"}")
             appendLine()
