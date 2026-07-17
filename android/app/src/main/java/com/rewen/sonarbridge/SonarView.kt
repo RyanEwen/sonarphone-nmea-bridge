@@ -77,14 +77,23 @@ class SonarView(context: Context) : android.view.View(context) {
         pathEffect = CornerPathEffect(dp(6f))
     }
     private val tickPaint = Paint().apply {
-        color = Color.argb(140, 255, 255, 255)
-        strokeWidth = dp(1.5f)
+        color = Color.WHITE
+        strokeWidth = dp(1.8f)
+    }
+    private val tickHalo = Paint().apply {
+        color = Color.argb(170, 0, 0, 0)
+        strokeWidth = dp(4.5f)
     }
     private val labelPaint = Paint().apply {
-        color = Color.argb(200, 255, 255, 255)
+        color = Color.WHITE
         textSize = dp(12f)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         textAlign = Paint.Align.RIGHT
+        isAntiAlias = true
+        setShadowLayer(dp(2.5f), 0f, 0f, Color.BLACK)
+    }
+    private val labelScrim = Paint().apply {
+        color = Color.argb(120, 0, 0, 0)
         isAntiAlias = true
     }
     private val chipBgPaint = Paint().apply {
@@ -367,21 +376,32 @@ class SonarView(context: Context) : android.view.View(context) {
             )
         }
 
-        // ---- depth scale: ticks + labels only (no lines across, per Deeper)
+        // ---- depth scale: ticks + labels, guaranteed contrast on any
+        // background (dark halo under ticks, scrim chip under labels)
         val windowDisp = window / EchoHistory.SAMPLES_PER_M * if (Units.feet) 3.28084 else 1.0
         val unit = if (Units.feet) "ft" else "m"
         val interval = niceInterval(windowDisp / 4.5)
+        fun scaleText(txt: String, y: Float) {
+            val xR = plotW - dp(14f)
+            val tw = labelPaint.measureText(txt)
+            canvas.drawRoundRect(
+                RectF(
+                    xR - tw - dp(6f), y - labelPaint.textSize,
+                    xR + dp(5f), y + dp(5f),
+                ),
+                dp(6f), dp(6f), labelScrim,
+            )
+            canvas.drawText(txt, xR, y, labelPaint)
+        }
         var d = interval
         while (d < windowDisp) {
             val y = (d / windowDisp * h).toFloat()
+            canvas.drawLine(plotW - dp(10f), y, plotW, y, tickHalo)
             canvas.drawLine(plotW - dp(10f), y, plotW, y, tickPaint)
-            canvas.drawText(
-                String.format(Locale.US, "%.0f", d),
-                plotW - dp(14f), y + dp(5f), labelPaint,
-            )
+            scaleText(String.format(Locale.US, "%.0f", d), y + dp(5f))
             d += interval
         }
-        canvas.drawText(unit, plotW - dp(14f), h - dp(8f), labelPaint)
+        scaleText(unit, h - dp(8f))
 
         // ---- depth marker on the A-scope
         if (latestDepth > 0) {
