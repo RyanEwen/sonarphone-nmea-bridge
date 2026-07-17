@@ -1,24 +1,29 @@
 ---
-description: Find and connect Rewen's Pixel 9 Pro over wireless adb
+description: Find and connect Rewen's Pixel over wireless adb
 ---
 
-Connect to the test phone (Pixel 9 Pro, home LAN 192.168.2.0/24). The trusted
-adb key is already in host `~/.android` — no pairing needed, but Rewen must
-have Wireless debugging toggled ON (it turns itself off; ask if unreachable).
+Connect to the test phone (Pixel 9 Pro) over wireless adb. The trusted adb key
+is already in host `~/.android` — no pairing needed, but Rewen must have
+**Wireless debugging ON for the current network** (it disables itself when the
+phone changes networks).
 
-1. Try discovery with the last known IP (check `adb devices` first — may
-   already be connected):
-   ```sh
-   python3 ~/development/persistent/.devcontainer/adb-discover.py <last-ip>
-   ```
-   Last known: 192.168.2.98 (2026-07-16). The script tier-scans ports (they
-   rotate every toggle) and persists last-good to `~/.android/adb-endpoint`.
+Use the retry-hardened discovery script (lives in this repo):
 
-2. If the IP moved: ping-sweep the /24, then read the **Windows** ARP table
-   (`/mnt/c/Windows/System32/ARP.EXE -a`) and shortlist locally-administered
-   MACs (second hex digit 2/6/a/e = Android MAC randomization). Feed each
-   candidate to adb-discover.py. Phones may not answer ping — trust ARP over
-   ping.
+```sh
+python3 scripts/find-phone.py <phone-ip>
+```
 
-mDNS does NOT work here (multicast doesn't cross the WSL2 NAT) — don't waste
-time on `adb mdns services`.
+- Get `<phone-ip>` from the phone: Settings → Developer options → Wireless
+  debugging → the **IP address & Port** line (use the IP; the port rotates and
+  the script re-finds it). The IP is DHCP-stable per network, so once given it
+  is saved to `~/.android/adb-endpoint` and future reconnects on that network
+  need no argument.
+- The script scans the host's ephemeral range, distinguishing *refused* (truly
+  closed) from *timed-out* (retried, in case of a dropped SYN), then
+  `adb connect`s the first port that speaks adb.
+
+**Do NOT try to auto-guess the phone's IP by MAC.** Learned 2026-07-17 the hard
+way: MAC-randomization is not unique to Android (an Apple device on the LAN also
+had a locally-administered MAC), the wireless-debug port rotates every toggle,
+and mDNS (`adb mdns services`) does not cross the WSL2 NAT. The phone's IP is
+the one reliable seed — ask for it rather than scanning the whole /24.
