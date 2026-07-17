@@ -5,12 +5,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.CornerPathEffect
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.SystemClock
 import android.view.MotionEvent
@@ -41,7 +39,6 @@ class SonarView(context: Context) : android.view.View(context) {
         val RANGE_STEPS_M = listOf(2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 60.0, 80.0)
         const val FIT = 1.25
         const val STEP_DOWN_MS = 6000L
-        const val HARDNESS_WIN = 12 // samples (~1.2 m) below bottom used for hardness
     }
 
     private val dens = resources.displayMetrics.density
@@ -52,7 +49,6 @@ class SonarView(context: Context) : android.view.View(context) {
     private val colBuf = IntArray(HI)
     private val smooth = FloatArray(HI)
     private val depthRing = FloatArray(COLS) { -1f }
-    private val hardnessRing = FloatArray(COLS) { -1f }
     private var writeCol = 0
     private var filled = 0
     private var lastSeq = 0L
@@ -71,17 +67,14 @@ class SonarView(context: Context) : android.view.View(context) {
     private val plusRect = RectF()
 
     private val bmpPaint = Paint().apply { isFilterBitmap = true }
-    private val earthPaint = Paint().apply { isAntiAlias = true }
+    // subtle hairline keeping the interface crisp; Deeper relies on contrast
+    // alone, our 9.5 samples/m needs a little help
     private val bottomLinePaint = Paint().apply {
-        color = Color.rgb(255, 236, 190)
+        color = Color.argb(215, 255, 214, 140)
         style = Paint.Style.STROKE
-        strokeWidth = dp(2.5f)
+        strokeWidth = dp(1.5f)
         isAntiAlias = true
         pathEffect = CornerPathEffect(dp(6f))
-    }
-    private val gridPaint = Paint().apply {
-        color = Color.argb(36, 255, 255, 255)
-        strokeWidth = dp(1f)
     }
     private val tickPaint = Paint().apply {
         color = Color.argb(140, 255, 255, 255)
@@ -140,18 +133,11 @@ class SonarView(context: Context) : android.view.View(context) {
         color = Color.rgb(255, 179, 64)
         isAntiAlias = true
     }
-    /**
-     * Hardness cap: ONE color whose density (opacity + thickness) tracks
-     * hardness — solid heavy crust on rock, faint thin wash on mud. Matches
-     * the Deeper look preferred over a color-changing scale.
-     */
-    private val hardnessPaint = Paint().apply { color = Color.rgb(242, 122, 32) }
-
-    private val bgColor = Color.rgb(3, 8, 34)
+    // near-black water, Deeper-style high contrast
+    private val bgColor = Color.rgb(1, 3, 10)
     private val bottomPath = Path()
-    private val fillPath = Path()
 
-    // intensity -> color: deep blue -> cyan -> yellow -> red
+    // water-column echoes: deep blue -> cyan -> yellow -> red
     private val lut = IntArray(256) { v ->
         fun c(x: Int) = x.coerceIn(0, 255)
         when {
@@ -162,13 +148,23 @@ class SonarView(context: Context) : android.view.View(context) {
         }
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        earthPaint.shader = LinearGradient(
-            0f, 0f, 0f, h.toFloat(),
-            Color.rgb(148, 99, 55), Color.rgb(88, 58, 32),
-            Shader.TileMode.CLAMP,
-        )
+    /**
+     * Below the detected bottom the echo renders in Deeper's orange
+     * monochrome: intensity = brightness, weak returns fall to black — so
+     * hard bottom reads as a thick dense blazing mass, soft as sparse dim
+     * grain, and a hard second return appears as a parallel dim band.
+     */
+    private val bottomLut = IntArray(256) { v ->
+        if (v < 26) {
+            bgColor
+        } else {
+            val t = (v - 26) / 229f
+            Color.rgb(
+                (95 + 160 * t).toInt(),
+                (32 + 112 * t).toInt(),
+                (4 + 26 * t).toInt(),
+            )
+        }
     }
 
     private val tick = object : Runnable {
@@ -188,24 +184,9 @@ class SonarView(context: Context) : android.view.View(context) {
         super.onDetachedFromWindow()
     }
 
-    /**
-     * 0..1 hardness from mean return strength in the first ~1.2 m below the
-     * detected bottom (Deeper-style: strong sustained return = hard).
-     */
-    private fun hardnessOf(c: EchoHistory.Column): Float {
-        if (c.depthM <= 0.3) return -1f
-        val start = (c.depthM * EchoHistory.SAMPLES_PER_M).toInt()
-        if (start >= c.samples.size) return -1f
-        val end = minOf(start + HARDNESS_WIN, c.samples.size)
-        var sum = 0
-        for (i in start until end) sum += c.samples[i].toInt() and 0xFF
-        val mean = sum.toFloat() / (end - start) / 255f
-        // widen the useful part of the scale
-        return ((mean - 0.30f) / 0.55f).coerceIn(0f, 1f)
-    }
-
-    /** Catmull-Rom upsample + mild contrast curve, then LUT into colBuf. */
-    private fun expandColumn(samples: ByteArray) {
+    /** Catmull-Rom upsample + mild contrast curve, then LUT into colBuf —
+     *  water palette above the reported bottom, orange monochrome below. */
+    private fun expandColumn(samples: ByteArray, depthM: Double) {
         val n = SAMPLES
         fun s(i: Int) = (samples.getOrElse(i.coerceIn(0, n - 1)) { 0 }.toInt() and 0xFF).toFloat()
         for (j in 0 until HI) {
@@ -221,10 +202,15 @@ class SonarView(context: Context) : android.view.View(context) {
                 )
             smooth[j] = v
         }
+        val bottomHi = if (depthM > 0.3) {
+            (depthM * EchoHistory.SAMPLES_PER_M * UP).toInt()
+        } else {
+            Int.MAX_VALUE // no bottom lock: all water
+        }
         for (j in 0 until HI) {
             // noise-floor cut + slight gain firms edges without inventing data
-            val v = ((smooth[j] - 18f) * 1.18f).coerceIn(0f, 255f)
-            colBuf[j] = lut[v.toInt()]
+            val v = ((smooth[j] - 18f) * 1.18f).coerceIn(0f, 255f).toInt()
+            colBuf[j] = if (j < bottomHi) lut[v] else bottomLut[v]
         }
     }
 
@@ -234,11 +220,10 @@ class SonarView(context: Context) : android.view.View(context) {
         for (c in fresh) {
             lastSeq = c.seq
             latestDepth = c.depthM
-            expandColumn(c.samples)
+            expandColumn(c.samples, c.depthM)
             bitmap.setPixels(colBuf, 0, 1, writeCol, 0, 1, HI)
             ascopeBmp.setPixels(colBuf, 0, 1, 0, 0, 1, HI)
             depthRing[writeCol] = if (c.depthM > 0.3) c.depthM.toFloat() else -1f
-            hardnessRing[writeCol] = hardnessOf(c)
             writeCol = (writeCol + 1) % COLS
             if (filled < COLS) filled++
             changed = true
@@ -352,9 +337,9 @@ class SonarView(context: Context) : android.view.View(context) {
                 )
             }
 
-            // ---- vector bottom: earth fill, then a Deeper-style hardness cap
-            // (per-column color: dull brown = soft -> intense orange = hard),
-            // then the crisp interface line on top.
+            // ---- bottom: the orange-monochrome echo texture (already in the
+            // bitmap, Deeper-style — density IS hardness) plus a thin vector
+            // hairline to keep the interface crisp.
             bottomPath.rewind()
             var lastYv = h + dp(8f)
             for (k in 0 until visible) {
@@ -373,29 +358,6 @@ class SonarView(context: Context) : android.view.View(context) {
                 lastYv = y
             }
             bottomPath.lineTo(plotW, lastYv)
-
-            fillPath.set(bottomPath)
-            fillPath.lineTo(plotW, h + dp(8f))
-            fillPath.lineTo(x0, h + dp(8f))
-            fillPath.close()
-            canvas.drawPath(fillPath, earthPaint)
-
-            // hardness cap: single hue; opacity and thickness carry hardness
-            for (k in 0 until visible) {
-                val idx = (oldest + k) % COLS
-                val d = depthRing[idx]
-                val hard = hardnessRing[idx]
-                if (d <= 0f || hard < 0f) continue
-                val y = (d * EchoHistory.SAMPLES_PER_M / window * h).toFloat()
-                if (y >= h) continue
-                hardnessPaint.alpha = (60 + 195 * hard).toInt()
-                val capH = dp(9f) + dp(11f) * hard
-                canvas.drawRect(
-                    x0 + k * colW, y,
-                    x0 + (k + 1) * colW, minOf(y + capH, h),
-                    hardnessPaint,
-                )
-            }
             canvas.drawPath(bottomPath, bottomLinePaint)
 
             // ---- live A-scope strip
@@ -405,22 +367,21 @@ class SonarView(context: Context) : android.view.View(context) {
             )
         }
 
-        // ---- depth grid at nice intervals (display units)
+        // ---- depth scale: ticks + labels only (no lines across, per Deeper)
         val windowDisp = window / EchoHistory.SAMPLES_PER_M * if (Units.feet) 3.28084 else 1.0
         val unit = if (Units.feet) "ft" else "m"
         val interval = niceInterval(windowDisp / 4.5)
         var d = interval
         while (d < windowDisp) {
             val y = (d / windowDisp * h).toFloat()
-            canvas.drawLine(0f, y, plotW, y, gridPaint)
-            canvas.drawLine(plotW - dp(6f), y, plotW, y, tickPaint)
+            canvas.drawLine(plotW - dp(10f), y, plotW, y, tickPaint)
             canvas.drawText(
                 String.format(Locale.US, "%.0f", d),
-                plotW - dp(10f), y + dp(4f), labelPaint,
+                plotW - dp(14f), y + dp(5f), labelPaint,
             )
             d += interval
         }
-        canvas.drawText(unit, plotW - dp(10f), h - dp(8f), labelPaint)
+        canvas.drawText(unit, plotW - dp(14f), h - dp(8f), labelPaint)
 
         // ---- depth marker on the A-scope
         if (latestDepth > 0) {

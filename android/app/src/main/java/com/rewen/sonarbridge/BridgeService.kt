@@ -400,9 +400,28 @@ class BridgeService : Service() {
             val hard = 0.5 + 0.5 * sin(t / 8)
             val peak = 195 + 60 * hard
             val decay = 8.5 - 6.0 * hard
-            for (i in bottom until minOf(bottom + 45, col.size)) {
+            val bandEnd = minOf(bottom + 45, col.size)
+            for (i in bottom until bandEnd) {
                 col[i] = (peak - (i - bottom) * decay + rnd.nextInt(12))
                     .toInt().coerceIn(24, 255).toByte()
+            }
+            // sub-bottom tail: hard bottoms keep echoing far down (thick
+            // glow), soft ones die out fast (thin shell) — the Deeper cue
+            var tail = peak - 45 * decay
+            var i = bandEnd
+            while (i < col.size && tail > 18) {
+                val v = (tail + rnd.nextInt(14)).toInt()
+                if (v > (col[i].toInt() and 0xFF)) col[i] = v.coerceAtMost(255).toByte()
+                tail -= 0.35
+                i++
+            }
+            // hard bottoms bounce a second return at ~2x depth (Deeper cue)
+            val second = bottom * 2
+            if (hard > 0.55 && second < col.size) {
+                for (i in second until minOf(second + 22, col.size)) {
+                    val v = (peak - 130 - (i - second) * 5 + rnd.nextInt(10)).toInt()
+                    if (v > (col[i].toInt() and 0xFF)) col[i] = v.coerceIn(0, 255).toByte()
+                }
             }
             for (f in fish) {
                 val fi = (f.depth * EchoHistory.SAMPLES_PER_M).toInt()
