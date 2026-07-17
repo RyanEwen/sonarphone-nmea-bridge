@@ -150,7 +150,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         toggle = MaterialButton(this).apply {
-            text = "Start bridge"
+            text = "Connect"
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(20) }
@@ -217,7 +217,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderStatus(s: BridgeState.Snapshot) {
-        toggle.text = if (s.running) "Stop bridge" else "Start bridge"
+        toggle.text = if (s.running) "Disconnect" else "Connect"
         depthBig.text = s.depthM?.let { Units.depth(it) } ?: "—"
         subLine.text = if (s.depthM != null) {
             "${Units.temp(s.tempC ?: 0.0)}  ·  ${
@@ -283,7 +283,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(ssidLayout)
         root.addView(
             note(
-                "When the bridge starts, Android shows the matching networks in " +
+                "When connecting, Android shows the matching networks in " +
                     "range — tap your sonar in that list."
             )
         )
@@ -353,7 +353,7 @@ class MainActivity : AppCompatActivity() {
             note(
                 "Transducer beam requested from the sonar: narrow focuses " +
                     "deeper with more detail, wide covers more area. Applies " +
-                    "on next bridge start."
+                    "on next connect."
             )
         )
 
@@ -372,7 +372,7 @@ class MainActivity : AppCompatActivity() {
                 addView(alarmEdit)
             }
         )
-        root.addView(note("Repeating tone when the depth reads shallower than this. Applies on next bridge start."))
+        root.addView(note("Repeating tone when the depth reads shallower than this. Applies on next connect."))
 
         root.addView(header("Demo mode"))
         demoSwitch = MaterialSwitch(this).apply {
@@ -388,8 +388,8 @@ class MainActivity : AppCompatActivity() {
         )
         root.addView(
             note(
-                "Settings apply the next time the bridge starts — if it's " +
-                    "already running, stop and start it again."
+                "Settings apply the next time you connect — if already " +
+                    "connected, disconnect and reconnect."
             )
         )
 
