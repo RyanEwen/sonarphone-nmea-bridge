@@ -6,10 +6,11 @@ Drive the installed bridge (package `com.rewen.sonarbridge`) without touching
 the phone UI:
 
 ```sh
-# start (defaults: ssid SonarPhone_65C0, pass 12345678)
+# start (defaults: pattern "SonarPhone_" prefix picker, pass 12345678)
 adb shell am start-foreground-service \
   -n com.rewen.sonarbridge/.BridgeService -a com.rewen.sonarbridge.START
-# extras: -e ssid X  -e pass Y  -e lograw true  -e udp 2000
+# extras: -e ssid X (exact) OR -e pattern "SonarPhone_" (prefix picker; default)
+#         -e pass Y  -e lograw true  -e udp 2000
 
 # stop
 adb shell am start-foreground-service \

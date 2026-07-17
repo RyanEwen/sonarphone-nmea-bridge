@@ -33,11 +33,11 @@ hex digit 2/6/a/e — Android per-network MAC randomization) and scan those.
 ```sh
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 
-# start (extras optional; defaults SonarPhone_65C0 / 12345678)
+# start (defaults: pattern "SonarPhone_" prefix picker, pass 12345678)
 adb shell am start-foreground-service \
   -n com.rewen.sonarbridge/.BridgeService \
   -a com.rewen.sonarbridge.START \
-  -e ssid "SonarPhone_65C0" -e pass "12345678"
+  -e pass "12345678"   # add -e ssid "X" for exact, -e pattern "T-BOX-" for prefix
 
 # optional extras:
 #   -e lograw true   log raw REDYFC frames (timestamped) to app files dir

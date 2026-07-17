@@ -13,6 +13,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
+import android.os.PatternMatcher
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
@@ -79,12 +80,16 @@ class BridgeService : Service() {
         }
 
         val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
-        val ssid = intent?.getStringExtra("ssid") ?: prefs.getString("ssid", "SonarPhone_65C0")!!
+        // exact SSID wins if given; otherwise a prefix pattern — the system
+        // connect dialog lists all matching APs in range (the "picker")
+        val ssid = intent?.getStringExtra("ssid")
+        val pattern = if (ssid != null) null
+            else intent?.getStringExtra("pattern") ?: prefs.getString("pattern", "SonarPhone_")!!
         val pass = intent?.getStringExtra("pass") ?: prefs.getString("pass", "12345678")!!
         val logRaw = intent?.getStringExtra("lograw") == "true"
         udpFallbackPort = intent?.getStringExtra("udp")?.toIntOrNull() ?: 0
 
-        log("START ssid=$ssid lograw=$logRaw udpFallback=$udpFallbackPort")
+        log("START ssid=$ssid pattern=$pattern lograw=$logRaw udpFallback=$udpFallbackPort")
         startForeground(
             NOTIF_ID,
             buildNotification("starting…"),
@@ -92,14 +97,15 @@ class BridgeService : Service() {
         )
 
         stopBridge() // restart cleanly if already running
-        startBridge(ssid, pass, logRaw)
+        startBridge(ssid, pattern, pass, logRaw)
         return START_STICKY
     }
 
     // ---------------------------------------------------------------- bridge
 
-    private fun startBridge(ssid: String, pass: String, logRaw: Boolean) {
-        BridgeState.update { BridgeState.Snapshot(running = true, phase = "WIFI_WAIT", ssid = ssid) }
+    private fun startBridge(ssid: String?, pattern: String?, pass: String, logRaw: Boolean) {
+        val label = ssid ?: "$pattern*"
+        BridgeState.update { BridgeState.Snapshot(running = true, phase = "WIFI_WAIT", ssid = label) }
 
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$TAG:bridge")
@@ -122,7 +128,7 @@ class BridgeService : Service() {
         }
 
         emitJob = scope.launch { nmeaEmitLoop() }
-        requestWifi(ssid, pass)
+        requestWifi(ssid, pattern, pass)
     }
 
     private fun stopBridge() {
@@ -138,8 +144,16 @@ class BridgeService : Service() {
 
     // ---------------------------------------------------------------- wifi
 
-    private fun requestWifi(ssid: String, pass: String) {
-        val specBuilder = WifiNetworkSpecifier.Builder().setSsid(ssid)
+    private fun requestWifi(ssid: String?, pattern: String?, pass: String) {
+        val specBuilder = WifiNetworkSpecifier.Builder()
+        if (ssid != null) {
+            specBuilder.setSsid(ssid)
+        } else {
+            // system dialog lists every AP whose SSID starts with the prefix
+            specBuilder.setSsidPattern(
+                PatternMatcher(pattern ?: "SonarPhone_", PatternMatcher.PATTERN_PREFIX)
+            )
+        }
         if (pass.isNotBlank()) specBuilder.setWpa2Passphrase(pass)
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -168,13 +182,13 @@ class BridgeService : Service() {
                     delay(5_000)
                     if (isActive && netCallback != null) {
                         netCallback?.let { runCatching { cm.unregisterNetworkCallback(it) } }
-                        requestWifi(ssid, pass)
+                        requestWifi(ssid, pattern, pass)
                     }
                 }
             }
         }
         netCallback = cb
-        log("requesting WiFi network \"$ssid\" via WifiNetworkSpecifier (approval dialog may appear)")
+        log("requesting WiFi ${ssid?.let { "\"$it\"" } ?: "matching \"$pattern*\""} via WifiNetworkSpecifier (picker/approval dialog may appear)")
         cm.requestNetwork(request, cb)
     }
 

@@ -10,10 +10,13 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.text.InputType
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,10 +31,19 @@ class MainActivity : Activity() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var status: TextView
-    private lateinit var ssid: EditText
+    private lateinit var networkMode: Spinner
+    private lateinit var customSsid: EditText
     private lateinit var pass: EditText
     private lateinit var toggle: Button
     private lateinit var battery: Button
+
+    // spinner order; first two are prefix patterns, last shows the SSID box
+    private val modePatterns = listOf("SonarPhone_", "T-BOX-", null)
+    private val modeLabels = listOf(
+        "SonarPhone_* — pick from list",
+        "T-BOX-* — pick from list",
+        "Exact SSID…",
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,9 +60,24 @@ class MainActivity : Activity() {
             setPadding(pad, pad, pad, pad)
         }
 
-        ssid = EditText(this).apply {
-            hint = "T-Box SSID"
+        networkMode = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@MainActivity, android.R.layout.simple_spinner_dropdown_item, modeLabels
+            )
+            setSelection(prefs.getInt("mode", 0))
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                    customSsid.visibility =
+                        if (modePatterns[pos] == null) View.VISIBLE else View.GONE
+                }
+                override fun onNothingSelected(p: AdapterView<*>?) {}
+            }
+        }
+        customSsid = EditText(this).apply {
+            hint = "SSID"
             setText(prefs.getString("ssid", "SonarPhone_65C0"))
+            visibility = if (modePatterns[prefs.getInt("mode", 0)] == null)
+                View.VISIBLE else View.GONE
         }
         pass = EditText(this).apply {
             hint = "WiFi password"
@@ -67,8 +94,8 @@ class MainActivity : Activity() {
             setPadding(0, pad, 0, 0)
         }
 
-        root.addView(ssid); root.addView(pass); root.addView(toggle)
-        root.addView(battery); root.addView(status)
+        root.addView(networkMode); root.addView(customSsid); root.addView(pass)
+        root.addView(toggle); root.addView(battery); root.addView(status)
         setContentView(ScrollView(this).apply { addView(root) })
 
         toggle.setOnClickListener {
@@ -77,16 +104,19 @@ class MainActivity : Activity() {
                     Intent(this, BridgeService::class.java).setAction(BridgeService.ACTION_STOP)
                 )
             } else {
+                val mode = networkMode.selectedItemPosition
+                val pattern = modePatterns[mode]
                 prefs.edit()
-                    .putString("ssid", ssid.text.toString())
+                    .putInt("mode", mode)
+                    .putString("ssid", customSsid.text.toString())
                     .putString("pass", pass.text.toString())
                     .apply()
-                startForegroundService(
-                    Intent(this, BridgeService::class.java)
-                        .setAction(BridgeService.ACTION_START)
-                        .putExtra("ssid", ssid.text.toString())
-                        .putExtra("pass", pass.text.toString())
-                )
+                val intent = Intent(this, BridgeService::class.java)
+                    .setAction(BridgeService.ACTION_START)
+                    .putExtra("pass", pass.text.toString())
+                if (pattern != null) intent.putExtra("pattern", pattern)
+                else intent.putExtra("ssid", customSsid.text.toString())
+                startForegroundService(intent)
             }
         }
         battery.setOnClickListener {
