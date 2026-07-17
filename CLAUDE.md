@@ -36,10 +36,10 @@ phone-only.
 ## Protocol
 
 Full byte-level spec: `sp200a-nmea-bridge-spec.md` (in this repo).
-Primary sources (also in repo): `SP200AProtocol_20221223.pdf` and
-`SonarPhone_V1.00.ino` from https://github.com/jim-mckeown/SP200A-Client
-(verified against real SP200A hardware). Community background:
-https://github.com/scherererer/SonarPhony/issues/1
+Primary sources: `SP200AProtocol_20221223.pdf` and `SonarPhone_V1.00.ino`
+from https://github.com/jim-mckeown/SP200A-Client (verified against real
+SP200A hardware; copies were in this repo until 26b7661 — see git history).
+Community background: https://github.com/scherererer/SonarPhony/issues/1
 
 Summary: UDP to 192.168.1.1:5000. Send constant 29-byte `FX` → `REDYFX`
 returns serial + master MAC. Build `FC` (settings + MAC + additive 16-bit LE
@@ -63,10 +63,11 @@ vary across models/modes). `FV` keep-alive is unnecessary — ignore it.
   see `android/README-dev.md`) performs the same validation checklist on the
   phone itself, which also exercises the two riskiest unknowns
   (WifiNetworkSpecifier behavior, Navionics loopback pairing) that a laptop
-  never could. `sp200a_validate.py` is kept as protocol reference/desktop
-  fallback; its two known bugs (keepalive dies on stream silence; trusts
-  requested instead of reported units byte) are fixed in the Kotlin code but
-  NOT in the script.
+  never could. `sp200a_validate.py` (desktop validator) was removed once the
+  app superseded it — recover from git history if a desktop harness is ever
+  needed, and note it had two known bugs fixed only in the Kotlin code
+  (keepalive died on stream silence; trusted requested instead of reported
+  units byte).
 - **Phase 1 (Android app):** Kotlin, foreground service
   (dataSync/connectedDevice type). State machine:
   `DISCOVER (FX @1 Hz) → RUN (FC @10 s, parse stream) → DISCOVER on 15 s
@@ -89,7 +90,6 @@ vary across models/modes). `FV` keep-alive is unnecessary — ignore it.
 
 ## Conventions
 
-- Validator/tooling: Python 3.8+, stdlib only.
 - App: Kotlin, minSdk 29 (WifiNetworkSpecifier requirement), coroutines for
   socket loops, no third-party networking deps for the core path.
 - UI: Material 3 views + DynamicColors (Material You on API 31+), programmatic
