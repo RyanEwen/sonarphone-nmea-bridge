@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -65,6 +67,23 @@ class BridgeService : Service() {
     /** elapsedRealtime of the last parsed REDYFC; drives NMEA freshness/staleness. */
     @Volatile private var lastDataAt = 0L
 
+    // shallow-water alarm (meters; 0 = off), tone throttled to one per 4 s
+    private var alarmM = 0.0
+    private var lastAlarmAt = 0L
+    private var toneGen: ToneGenerator? = null
+
+    private fun checkShallowAlarm(depthM: Double) {
+        if (alarmM <= 0.0 || depthM <= 0.1 || depthM >= alarmM) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastAlarmAt < 4_000) return
+        lastAlarmAt = now
+        runCatching {
+            (toneGen ?: ToneGenerator(AudioManager.STREAM_ALARM, 90).also { toneGen = it })
+                .startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 700)
+        }
+        log(String.format(Locale.US, "SHALLOW ALARM: %.2f m < %.2f m", depthM, alarmM))
+    }
+
     override fun onBind(intent: Intent?) = null
 
     override fun onCreate() {
@@ -118,6 +137,9 @@ class BridgeService : Service() {
                 ssid = label,
             )
         }
+
+        alarmM = getSharedPreferences("cfg", MODE_PRIVATE).getFloat("alarm_m", 0f).toDouble()
+        if (alarmM > 0) log(String.format(Locale.US, "shallow alarm armed at %.2f m", alarmM))
 
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$TAG:bridge")
@@ -259,7 +281,10 @@ class BridgeService : Service() {
 
                 // ---- RUN: FC every 10 s, parse stream, watchdog on 15 s silence
                 setPhase("RUN")
-                val fc = Sp200a.buildFc(mac) // meters, auto-range, 20°
+                val beam20 = getSharedPreferences("cfg", MODE_PRIVATE)
+                    .getString("beam", "20") != "40"
+                log("FC settings: meters, auto-range, beam=${if (beam20) "20°" else "40°"}")
+                val fc = Sp200a.buildFc(mac, beam20 = beam20) // meters, auto-range
                 var lastFc = 0L
                 var lastFrame = SystemClock.elapsedRealtime()
                 var lastFrameLog = 0L
@@ -306,6 +331,7 @@ class BridgeService : Service() {
                                 )
                             }
                             EchoHistory.push(reply.echo, depthM)
+                            checkShallowAlarm(depthM)
                             rawLog?.let { out ->
                                 val hdr = ByteBuffer.allocate(10).order(ByteOrder.LITTLE_ENDIAN)
                                     .putLong(System.currentTimeMillis())
@@ -403,6 +429,7 @@ class BridgeService : Service() {
                 )
             }
             EchoHistory.push(col, depth)
+            checkShallowAlarm(depth)
         }
     }
 
@@ -491,6 +518,7 @@ class BridgeService : Service() {
 
     override fun onDestroy() {
         log("service destroyed")
+        toneGen?.release(); toneGen = null
         stopBridge()
         BridgeState.update { BridgeState.Snapshot() }
         scope.cancel()

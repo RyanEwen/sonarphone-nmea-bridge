@@ -74,6 +74,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var demoSwitch: MaterialSwitch
     private lateinit var distGroup: MaterialButtonToggleGroup
     private lateinit var tempGroup: MaterialButtonToggleGroup
+    private lateinit var textGroup: MaterialButtonToggleGroup
+    private lateinit var beamGroup: MaterialButtonToggleGroup
+    private lateinit var alarmEdit: TextInputEditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -324,6 +327,53 @@ class MainActivity : AppCompatActivity() {
         root.addView(tempGroup)
         root.addView(note("Display only — the NMEA feed to Navionics always uses standard units."))
 
+        root.addView(header("Text size (sonar view)"))
+        textGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            addView(segBtn(1, "Normal"))
+            addView(segBtn(2, "Large"))
+            addView(segBtn(3, "XL"))
+            check(
+                when (prefs.getString("text_size", "normal")) {
+                    "large" -> 2; "xl" -> 3; else -> 1
+                }
+            )
+        }
+        root.addView(textGroup)
+
+        root.addView(header("Device (T-Box)"))
+        beamGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            addView(segBtn(1, "20° narrow"))
+            addView(segBtn(2, "40° wide"))
+            check(if (prefs.getString("beam", "20") == "40") 2 else 1)
+        }
+        root.addView(beamGroup)
+        root.addView(
+            note(
+                "Transducer beam requested from the sonar: narrow focuses " +
+                    "deeper with more detail, wide covers more area. Applies " +
+                    "on next bridge start."
+            )
+        )
+
+        root.addView(header("Shallow water alarm"))
+        alarmEdit = TextInputEditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            val m = prefs.getFloat("alarm_m", 0f)
+            if (m > 0f) {
+                val v = if (Units.feet) m * 3.28084 else m.toDouble()
+                setText(String.format(Locale.US, "%.1f", v))
+            }
+        }
+        root.addView(
+            TextInputLayout(this).apply {
+                hint = "Alarm depth (${if (Units.feet) "ft" else "m"}, blank = off)"
+                addView(alarmEdit)
+            }
+        )
+        root.addView(note("Repeating tone when the depth reads shallower than this. Applies on next bridge start."))
+
         root.addView(header("Demo mode"))
         demoSwitch = MaterialSwitch(this).apply {
             text = "Generate fake sonar data (no hardware needed)"
@@ -354,6 +404,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         if (!::modeGroup.isInitialized) return
+        val alarmDisp = alarmEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
+        val alarmM = if (Units.feet) alarmDisp * 0.3048 else alarmDisp
         prefs.edit()
             .putInt("mode", (modeGroup.checkedRadioButtonId - 1).coerceIn(0, 2))
             .putString("ssid", ssidEdit.text?.toString() ?: "")
@@ -361,6 +413,12 @@ class MainActivity : AppCompatActivity() {
             .putBoolean("demo", demoSwitch.isChecked)
             .putString("unit_dist", if (distGroup.checkedButtonId == 2) "m" else "ft")
             .putString("unit_temp", if (tempGroup.checkedButtonId == 2) "F" else "C")
+            .putString(
+                "text_size",
+                when (textGroup.checkedButtonId) { 2 -> "large"; 3 -> "xl"; else -> "normal" }
+            )
+            .putString("beam", if (beamGroup.checkedButtonId == 2) "40" else "20")
+            .putFloat("alarm_m", alarmM.toFloat())
             .apply()
         Units.load(prefs)
     }

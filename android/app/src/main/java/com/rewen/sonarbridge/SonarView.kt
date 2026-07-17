@@ -140,19 +140,12 @@ class SonarView(context: Context) : android.view.View(context) {
         color = Color.rgb(255, 179, 64)
         isAntiAlias = true
     }
-    private val hardnessPaint = Paint()
-
-    /** dull brown (soft) -> orange -> intense orange-red (hard), Deeper-style. */
-    private fun hardnessColor(t: Float): Int {
-        fun lerp(a: Int, b: Int, f: Float) = (a + (b - a) * f).toInt()
-        return if (t < 0.5f) {
-            val f = t * 2f
-            Color.rgb(lerp(112, 205, f), lerp(82, 120, f), lerp(52, 40, f))
-        } else {
-            val f = (t - 0.5f) * 2f
-            Color.rgb(lerp(205, 255, f), lerp(120, 84, f), lerp(40, 8, f))
-        }
-    }
+    /**
+     * Hardness cap: ONE color whose density (opacity + thickness) tracks
+     * hardness — solid heavy crust on rock, faint thin wash on mud. Matches
+     * the Deeper look preferred over a color-changing scale.
+     */
+    private val hardnessPaint = Paint().apply { color = Color.rgb(242, 122, 32) }
 
     private val bgColor = Color.rgb(3, 8, 34)
     private val bottomPath = Path()
@@ -317,6 +310,15 @@ class SonarView(context: Context) : android.view.View(context) {
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(bgColor)
+        // boat-legible text: generous bases × user scale (settings > text size)
+        val sc = Units.sonarScale
+        labelPaint.textSize = dp(15f) * sc
+        chipTextPaint.textSize = dp(18f) * sc
+        chipTextActive.textSize = dp(18f) * sc
+        depthPaint.textSize = dp(40f) * sc
+        depthUnitPaint.textSize = dp(19f) * sc
+        tempPaint.textSize = dp(17f) * sc
+        demoPaint.textSize = dp(15f) * sc
         val w = width.toFloat()
         val h = height.toFloat()
         val ascopeW = dp(14f)
@@ -378,8 +380,7 @@ class SonarView(context: Context) : android.view.View(context) {
             fillPath.close()
             canvas.drawPath(fillPath, earthPaint)
 
-            // hardness cap: fixed screen thickness, color per column
-            val capH = dp(16f)
+            // hardness cap: single hue; opacity and thickness carry hardness
             for (k in 0 until visible) {
                 val idx = (oldest + k) % COLS
                 val d = depthRing[idx]
@@ -387,7 +388,8 @@ class SonarView(context: Context) : android.view.View(context) {
                 if (d <= 0f || hard < 0f) continue
                 val y = (d * EchoHistory.SAMPLES_PER_M / window * h).toFloat()
                 if (y >= h) continue
-                hardnessPaint.color = hardnessColor(hard)
+                hardnessPaint.alpha = (60 + 195 * hard).toInt()
+                val capH = dp(9f) + dp(11f) * hard
                 canvas.drawRect(
                     x0 + k * colW, y,
                     x0 + (k + 1) * colW, minOf(y + capH, h),
@@ -439,33 +441,34 @@ class SonarView(context: Context) : android.view.View(context) {
         val tempTxt = tempC?.let { Units.temp(it) }
         val numW = depthPaint.measureText(depthTxt)
         val unitW = depthUnitPaint.measureText(" $unit")
-        val chipW = numW + unitW + dp(28f)
-        val chipH = if (tempTxt != null) dp(74f) else dp(54f)
+        val chipW = numW + unitW + dp(28f) * sc
+        val chipH = (if (tempTxt != null) dp(84f) else dp(62f)) * sc
         val chip = RectF(inset, inset, inset + chipW, inset + chipH)
         canvas.drawRoundRect(chip, dp(14f), dp(14f), chipBgPaint)
-        canvas.drawText(depthTxt, chip.left + dp(14f), chip.top + dp(38f), depthPaint)
-        canvas.drawText(" $unit", chip.left + dp(14f) + numW, chip.top + dp(38f), depthUnitPaint)
+        canvas.drawText(depthTxt, chip.left + dp(14f) * sc, chip.top + dp(44f) * sc, depthPaint)
+        canvas.drawText(" $unit", chip.left + dp(14f) * sc + numW, chip.top + dp(44f) * sc, depthUnitPaint)
         if (tempTxt != null) {
-            canvas.drawText(tempTxt, chip.left + dp(14f), chip.top + dp(62f), tempPaint)
+            canvas.drawText(tempTxt, chip.left + dp(14f) * sc, chip.top + dp(70f) * sc, tempPaint)
         }
 
         // ---- DEMO pill
         if (BridgeState.flow.value.phase == "DEMO") {
             val txt = "DEMO"
             val tw = demoPaint.measureText(txt)
+            val pillH = dp(28f) * sc
             val pill = RectF(
-                plotW - tw - dp(26f), inset,
-                plotW - dp(6f), inset + dp(24f),
+                plotW - tw - dp(26f) * sc, inset,
+                plotW - dp(6f), inset + pillH,
             )
-            canvas.drawRoundRect(pill, dp(12f), dp(12f), chipBgPaint)
-            canvas.drawRoundRect(pill, dp(12f), dp(12f), demoStroke)
-            canvas.drawText(txt, pill.left + dp(10f), pill.bottom - dp(7f), demoPaint)
+            canvas.drawRoundRect(pill, pillH / 2f, pillH / 2f, chipBgPaint)
+            canvas.drawRoundRect(pill, pillH / 2f, pillH / 2f, demoStroke)
+            canvas.drawText(txt, pill.left + dp(10f) * sc, pill.bottom - dp(9f) * sc, demoPaint)
         }
 
         // ---- range chips: [ − ] [ AUTO | range ] [ + ]  (bottom-left)
-        val chipH2 = dp(36f)
+        val chipH2 = dp(46f) * sc
         val chipY = h - chipH2 - dp(14f)
-        val bw = dp(44f)
+        val bw = dp(56f) * sc
         minusRect.set(inset, chipY, inset + bw, chipY + chipH2)
         val midLabel = if (autoRange) {
             "AUTO"
@@ -473,15 +476,16 @@ class SonarView(context: Context) : android.view.View(context) {
             val r = rangeM * if (Units.feet) 3.28084 else 1.0
             String.format(Locale.US, "%.0f %s", r, unit)
         }
-        val midW = maxOf(chipTextPaint.measureText(midLabel) + dp(24f), dp(64f))
+        val midW = maxOf(chipTextPaint.measureText(midLabel) + dp(28f) * sc, dp(76f) * sc)
         autoRect.set(minusRect.right + dp(8f), chipY, minusRect.right + dp(8f) + midW, chipY + chipH2)
         plusRect.set(autoRect.right + dp(8f), chipY, autoRect.right + dp(8f) + bw, chipY + chipH2)
 
+        val chipR = chipH2 / 2f
         for ((rect, label) in listOf(minusRect to "−", autoRect to midLabel, plusRect to "+")) {
-            canvas.drawRoundRect(rect, dp(18f), dp(18f), chipBgPaint)
-            canvas.drawRoundRect(rect, dp(18f), dp(18f), chipStrokePaint)
+            canvas.drawRoundRect(rect, chipR, chipR, chipBgPaint)
+            canvas.drawRoundRect(rect, chipR, chipR, chipStrokePaint)
             val p = if (rect === autoRect && autoRange) chipTextActive else chipTextPaint
-            canvas.drawText(label, rect.centerX(), rect.centerY() + dp(5f), p)
+            canvas.drawText(label, rect.centerX(), rect.centerY() + dp(6f) * sc, p)
         }
     }
 
