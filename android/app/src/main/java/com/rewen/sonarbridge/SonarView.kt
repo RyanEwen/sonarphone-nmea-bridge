@@ -13,6 +13,7 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.SystemClock
+import android.view.MotionEvent
 import java.util.Locale
 import kotlin.math.abs
 
@@ -20,22 +21,23 @@ import kotlin.math.abs
  * Fish-finder waterfall: newest echo column on the right, scrolling left,
  * with a live A-scope strip on the right edge.
  *
- * Echo returns render from a ring-buffer bitmap (soft/bilinear — echo data is
- * only ~9.5 samples/m, softness reads as organic). The bottom, however, is
- * drawn as VECTOR geometry from each column's reported depth: a crisp
- * hardness line + gradient earth fill that stay sharp at any zoom. Columns
- * get a fixed on-screen width so recent history stays chunky and legible
- * instead of stretching the whole ring across the plot.
+ * Echo columns are upsampled 4x in intensity space (Catmull-Rom + a mild
+ * contrast curve) before hitting the ring bitmap, so the residual on-screen
+ * upscale is small and marks stay defined instead of smearing. The bottom is
+ * vector geometry from each column's reported depth: crisp hardness line +
+ * gradient earth fill at any zoom.
  *
- * Range handling follows real-unit practice: discrete range steps chosen so
- * the bottom sits ~3/4 down the screen, stepping deeper immediately but
- * shallower only after a dwell (hysteresis), with an eased zoom.
+ * Range: AUTO follows real-unit practice (discrete steps, deepen instantly,
+ * shallow only after a dwell, eased zoom). The -/AUTO/+ chips switch to
+ * manual stepping through the same table.
  */
 class SonarView(context: Context) : android.view.View(context) {
 
     private companion object {
         const val COLS = 600
         const val SAMPLES = EchoHistory.SAMPLES
+        const val UP = 4 // vertical data-space upsample factor
+        const val HI = SAMPLES * UP
         val RANGE_STEPS_M = listOf(2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 60.0, 80.0)
         const val FIT = 1.25
         const val STEP_DOWN_MS = 6000L
@@ -44,9 +46,10 @@ class SonarView(context: Context) : android.view.View(context) {
     private val dens = resources.displayMetrics.density
     private fun dp(v: Float) = v * dens
 
-    private val bitmap = Bitmap.createBitmap(COLS, SAMPLES, Bitmap.Config.ARGB_8888)
-    private val ascopeBmp = Bitmap.createBitmap(1, SAMPLES, Bitmap.Config.ARGB_8888)
-    private val colBuf = IntArray(SAMPLES)
+    private val bitmap = Bitmap.createBitmap(COLS, HI, Bitmap.Config.ARGB_8888)
+    private val ascopeBmp = Bitmap.createBitmap(1, HI, Bitmap.Config.ARGB_8888)
+    private val colBuf = IntArray(HI)
+    private val smooth = FloatArray(HI)
     private val depthRing = FloatArray(COLS) { -1f }
     private var writeCol = 0
     private var filled = 0
@@ -54,9 +57,16 @@ class SonarView(context: Context) : android.view.View(context) {
     private var latestDepth = 0.0
 
     // range state
-    private var rangeM = 10.0
+    private var autoRange = true
+    private var rangeIdx = 2 // 10 m
+    private var rangeM = RANGE_STEPS_M[rangeIdx]
     private var windowF = (rangeM * EchoHistory.SAMPLES_PER_M).toFloat()
     private var fitsSmallerSince = 0L
+
+    // chip hit areas (filled during onDraw)
+    private val minusRect = RectF()
+    private val autoRect = RectF()
+    private val plusRect = RectF()
 
     private val bmpPaint = Paint().apply { isFilterBitmap = true }
     private val earthPaint = Paint().apply { isAntiAlias = true }
@@ -85,6 +95,22 @@ class SonarView(context: Context) : android.view.View(context) {
     private val chipBgPaint = Paint().apply {
         color = Color.argb(140, 0, 0, 0)
         isAntiAlias = true
+    }
+    private val chipStrokePaint = Paint().apply {
+        color = Color.argb(90, 255, 255, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = dp(1.2f)
+        isAntiAlias = true
+    }
+    private val chipTextPaint = Paint().apply {
+        color = Color.WHITE
+        textSize = dp(15f)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        textAlign = Paint.Align.CENTER
+        isAntiAlias = true
+    }
+    private val chipTextActive = Paint(chipTextPaint).apply {
+        color = Color.rgb(255, 179, 64)
     }
     private val depthPaint = Paint().apply {
         color = Color.WHITE
@@ -154,25 +180,47 @@ class SonarView(context: Context) : android.view.View(context) {
         super.onDetachedFromWindow()
     }
 
+    /** Catmull-Rom upsample + mild contrast curve, then LUT into colBuf. */
+    private fun expandColumn(samples: ByteArray) {
+        val n = SAMPLES
+        fun s(i: Int) = (samples.getOrElse(i.coerceIn(0, n - 1)) { 0 }.toInt() and 0xFF).toFloat()
+        for (j in 0 until HI) {
+            val x = j.toFloat() / UP
+            val i = x.toInt()
+            val t = x - i
+            val p0 = s(i - 1); val p1 = s(i); val p2 = s(i + 1); val p3 = s(i + 2)
+            val v = 0.5f * (
+                (2f * p1) +
+                    (-p0 + p2) * t +
+                    (2f * p0 - 5f * p1 + 4f * p2 - p3) * t * t +
+                    (-p0 + 3f * p1 - 3f * p2 + p3) * t * t * t
+                )
+            smooth[j] = v
+        }
+        for (j in 0 until HI) {
+            // noise-floor cut + slight gain firms edges without inventing data
+            val v = ((smooth[j] - 18f) * 1.18f).coerceIn(0f, 255f)
+            colBuf[j] = lut[v.toInt()]
+        }
+    }
+
     private fun step() {
         var changed = false
         val fresh = EchoHistory.since(lastSeq)
         for (c in fresh) {
             lastSeq = c.seq
             latestDepth = c.depthM
-            for (i in 0 until SAMPLES) {
-                colBuf[i] = lut[if (i < c.samples.size) c.samples[i].toInt() and 0xFF else 0]
-            }
-            bitmap.setPixels(colBuf, 0, 1, writeCol, 0, 1, SAMPLES)
-            ascopeBmp.setPixels(colBuf, 0, 1, 0, 0, 1, SAMPLES)
+            expandColumn(c.samples)
+            bitmap.setPixels(colBuf, 0, 1, writeCol, 0, 1, HI)
+            ascopeBmp.setPixels(colBuf, 0, 1, 0, 0, 1, HI)
             depthRing[writeCol] = if (c.depthM > 0.3) c.depthM.toFloat() else -1f
             writeCol = (writeCol + 1) % COLS
             if (filled < COLS) filled++
             changed = true
         }
 
-        // stepped auto-range with hysteresis
-        if (fresh.isNotEmpty()) {
+        // AUTO: stepped range with hysteresis; manual: rangeM pinned by chips
+        if (autoRange && fresh.isNotEmpty()) {
             val need = latestDepth * FIT
             val fitStep = RANGE_STEPS_M.firstOrNull { it >= need } ?: RANGE_STEPS_M.last()
             val now = SystemClock.elapsedRealtime()
@@ -188,6 +236,7 @@ class SonarView(context: Context) : android.view.View(context) {
             } else {
                 fitsSmallerSince = 0L
             }
+            rangeIdx = RANGE_STEPS_M.indexOf(rangeM).coerceAtLeast(0)
         }
 
         // eased zoom toward the selected range
@@ -200,6 +249,40 @@ class SonarView(context: Context) : android.view.View(context) {
         if (changed) invalidate()
     }
 
+    // ---------------------------------------------------------------- input
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> return true
+            MotionEvent.ACTION_UP -> {
+                val x = event.x
+                val y = event.y
+                when {
+                    minusRect.contains(x, y) -> setManualRange(rangeIdx - 1)
+                    plusRect.contains(x, y) -> setManualRange(rangeIdx + 1)
+                    autoRect.contains(x, y) -> {
+                        autoRange = true
+                        fitsSmallerSince = 0L
+                    }
+                    else -> return performClick().let { true }
+                }
+                invalidate()
+                return true
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean = super.performClick()
+
+    private fun setManualRange(idx: Int) {
+        autoRange = false
+        rangeIdx = idx.coerceIn(0, RANGE_STEPS_M.size - 1)
+        rangeM = RANGE_STEPS_M[rangeIdx]
+    }
+
+    // ---------------------------------------------------------------- draw
+
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(bgColor)
         val w = width.toFloat()
@@ -207,8 +290,8 @@ class SonarView(context: Context) : android.view.View(context) {
         val ascopeW = dp(14f)
         val plotW = w - ascopeW - dp(4f)
         val window = windowF.coerceIn(30f, SAMPLES.toFloat())
+        val windowHi = (window * UP).toInt().coerceAtMost(HI)
 
-        // fixed column width: recent history, chunky and legible
         val colW = dp(3f)
         val visible = minOf(filled, (plotW / colW).toInt(), COLS)
 
@@ -217,46 +300,45 @@ class SonarView(context: Context) : android.view.View(context) {
             val newest = (writeCol - 1 + COLS) % COLS
             val oldest = (newest - visible + 1 + COLS) % COLS
 
-            // ---- echo bitmap (one or two ring segments), soft
+            // ---- echo bitmap (one or two ring segments)
             if (oldest <= newest) {
                 canvas.drawBitmap(
-                    bitmap, Rect(oldest, 0, newest + 1, window.toInt()),
+                    bitmap, Rect(oldest, 0, newest + 1, windowHi),
                     RectF(x0, 0f, plotW, h), bmpPaint,
                 )
             } else {
-                val seg1 = COLS - oldest // [oldest..COLS)
-                val seg1W = seg1 * colW
+                val seg1W = (COLS - oldest) * colW
                 canvas.drawBitmap(
-                    bitmap, Rect(oldest, 0, COLS, window.toInt()),
+                    bitmap, Rect(oldest, 0, COLS, windowHi),
                     RectF(x0, 0f, x0 + seg1W, h), bmpPaint,
                 )
                 canvas.drawBitmap(
-                    bitmap, Rect(0, 0, newest + 1, window.toInt()),
+                    bitmap, Rect(0, 0, newest + 1, windowHi),
                     RectF(x0 + seg1W, 0f, plotW, h), bmpPaint,
                 )
             }
 
             // ---- vector bottom: crisp line + gradient earth fill
             bottomPath.rewind()
-            var started = false
+            var lastYv = h + dp(8f)
             for (k in 0 until visible) {
                 val idx = (oldest + k) % COLS
                 val d = depthRing[idx]
                 val y = if (d > 0f) {
                     (d * EchoHistory.SAMPLES_PER_M / window * h).toFloat()
                 } else {
-                    h + dp(8f) // no bottom lock: dive off-screen
+                    h + dp(8f)
                 }
                 val x = x0 + k * colW + colW / 2f
-                if (!started) {
+                if (k == 0) {
                     bottomPath.moveTo(x0, y)
                     bottomPath.lineTo(x, y)
-                    started = true
                 } else {
                     bottomPath.lineTo(x, y)
                 }
+                lastYv = y
             }
-            bottomPath.lineTo(plotW, bottomPathLastY())
+            bottomPath.lineTo(plotW, lastYv)
 
             fillPath.set(bottomPath)
             fillPath.lineTo(plotW, h + dp(8f))
@@ -267,7 +349,7 @@ class SonarView(context: Context) : android.view.View(context) {
 
             // ---- live A-scope strip
             canvas.drawBitmap(
-                ascopeBmp, Rect(0, 0, 1, window.toInt()),
+                ascopeBmp, Rect(0, 0, 1, windowHi),
                 RectF(plotW + dp(4f), 0f, w, h), bmpPaint,
             )
         }
@@ -330,19 +412,28 @@ class SonarView(context: Context) : android.view.View(context) {
             canvas.drawRoundRect(pill, dp(12f), dp(12f), demoStroke)
             canvas.drawText(txt, pill.left + dp(10f), pill.bottom - dp(7f), demoPaint)
         }
-    }
 
-    private var lastY = 0f
-    private fun bottomPathLastY(): Float {
-        val newest = (writeCol - 1 + COLS) % COLS
-        val d = depthRing[newest]
-        val window = windowF.coerceIn(30f, SAMPLES.toFloat())
-        lastY = if (d > 0f) {
-            (d * EchoHistory.SAMPLES_PER_M / window * height).toFloat()
+        // ---- range chips: [ − ] [ AUTO | range ] [ + ]  (bottom-left)
+        val chipH2 = dp(36f)
+        val chipY = h - chipH2 - dp(14f)
+        val bw = dp(44f)
+        minusRect.set(inset, chipY, inset + bw, chipY + chipH2)
+        val midLabel = if (autoRange) {
+            "AUTO"
         } else {
-            height + dp(8f)
+            val r = rangeM * if (Units.feet) 3.28084 else 1.0
+            String.format(Locale.US, "%.0f %s", r, unit)
         }
-        return lastY
+        val midW = maxOf(chipTextPaint.measureText(midLabel) + dp(24f), dp(64f))
+        autoRect.set(minusRect.right + dp(8f), chipY, minusRect.right + dp(8f) + midW, chipY + chipH2)
+        plusRect.set(autoRect.right + dp(8f), chipY, autoRect.right + dp(8f) + bw, chipY + chipH2)
+
+        for ((rect, label) in listOf(minusRect to "−", autoRect to midLabel, plusRect to "+")) {
+            canvas.drawRoundRect(rect, dp(18f), dp(18f), chipBgPaint)
+            canvas.drawRoundRect(rect, dp(18f), dp(18f), chipStrokePaint)
+            val p = if (rect === autoRect && autoRange) chipTextActive else chipTextPaint
+            canvas.drawText(label, rect.centerX(), rect.centerY() + dp(5f), p)
+        }
     }
 
     /** 1/2/5×10^k interval that yields ~4–6 gridlines. */

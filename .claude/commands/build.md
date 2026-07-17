@@ -5,7 +5,11 @@ description: Build the debug APK (arm64-native builder container, warm gradle da
 Build via the long-lived **arm64-native** builder container (no qemu):
 
 ```sh
-docker exec sonarbridge-builder ./gradlew assembleDebug
+set -o pipefail; docker exec sonarbridge-builder ./gradlew assembleDebug 2>&1 | tail -20
+# ALWAYS check: "BUILD SUCCESSFUL" present AND the APK mtime advanced.
+# A FAILED build also ends with "Configuration cache entry reused" — tail -1
+# without pipefail reads as success and silently reinstalls the stale APK.
+ls -l android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Output: `android/app/build/outputs/apk/debug/app-debug.apk`.
