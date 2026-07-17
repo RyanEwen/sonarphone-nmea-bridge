@@ -25,6 +25,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.CoroutineScope
@@ -77,6 +78,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textGroup: MaterialButtonToggleGroup
     private lateinit var beamGroup: MaterialButtonToggleGroup
     private lateinit var alarmEdit: TextInputEditText
+    private lateinit var gainSlider: Slider
+    private lateinit var clarityGroup: MaterialButtonToggleGroup
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -342,6 +345,33 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(textGroup)
 
+        root.addView(header("Sonar display"))
+        gainSlider = Slider(this).apply {
+            valueFrom = 50f
+            valueTo = 200f
+            stepSize = 10f
+            value = prefs.getInt("gain_pct", 100).coerceIn(50, 200).toFloat()
+            setLabelFormatter { v -> "${v.toInt()}%" }
+        }
+        root.addView(TextView(this).apply { text = "Gain (sensitivity)" })
+        root.addView(gainSlider)
+        clarityGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            addView(segBtn(1, "Clarity off"))
+            addView(segBtn(2, "Low"))
+            addView(segBtn(3, "High"))
+            check(prefs.getInt("surface_clarity", 0).coerceIn(0, 2) + 1)
+        }
+        root.addView(clarityGroup)
+        root.addView(
+            note(
+                "Gain brightens or quiets all echoes (display only — the sonar " +
+                    "itself has no gain control). Surface clarity fades the " +
+                    "clutter band at the top of the water column. Both apply " +
+                    "to new data immediately."
+            )
+        )
+
         root.addView(header("Device (T-Box)"))
         beamGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
@@ -429,6 +459,8 @@ class MainActivity : AppCompatActivity() {
             )
             .putString("beam", if (beamGroup.checkedButtonId == 2) "40" else "20")
             .putFloat("alarm_m", alarmM.toFloat())
+            .putInt("gain_pct", gainSlider.value.toInt())
+            .putInt("surface_clarity", (clarityGroup.checkedButtonId - 1).coerceIn(0, 2))
             .apply()
         Units.load(prefs)
     }

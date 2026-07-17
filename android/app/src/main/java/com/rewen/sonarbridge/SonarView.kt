@@ -212,10 +212,21 @@ class SonarView(context: Context) : android.view.View(context) {
         } else {
             Int.MAX_VALUE // no bottom lock: all water
         }
+        // user gain (sensitivity) on top of the fixed noise-floor cut
+        val g = 1.18f * Units.gain
+        // surface clarity: fade the top clutter band (low ~0.8 m, high ~1.5 m)
+        val clarityRows = when (Units.surfaceClarity) {
+            1 -> (0.8 * EchoHistory.SAMPLES_PER_M * UP).toInt()
+            2 -> (1.5 * EchoHistory.SAMPLES_PER_M * UP).toInt()
+            else -> 0
+        }
         for (j in 0 until HI) {
-            // noise-floor cut + slight gain firms edges without inventing data
-            val v = ((smooth[j] - 18f) * 1.18f).coerceIn(0f, 255f).toInt()
-            colBuf[j] = if (j < bottomHi) lut[v] else bottomLut[v]
+            var v = ((smooth[j] - 18f) * g).coerceIn(0f, 255f)
+            if (j < clarityRows) {
+                // strongest suppression at the surface, easing to none
+                v *= 0.15f + 0.85f * (j.toFloat() / clarityRows)
+            }
+            colBuf[j] = if (j < bottomHi) lut[v.toInt()] else bottomLut[v.toInt()]
         }
     }
 
