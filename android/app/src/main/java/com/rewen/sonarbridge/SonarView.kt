@@ -223,6 +223,16 @@ class SonarView(context: Context) : android.view.View(context) {
         super.onDetachedFromWindow()
     }
 
+    /** True if any of the last ~14 columns already marked a fish within ~1.5 m. */
+    private fun recentFishNear(depthM: Float): Boolean {
+        for (back in 1..14) {
+            val idx = (writeCol - back + COLS) % COLS
+            val f = fishRing[idx]
+            if (f > 0f && abs(f - depthM) < 1.5f) return true
+        }
+        return false
+    }
+
     /**
      * Fish detector: the strongest isolated mid-water return (below the
      * surface clutter, clear of the bottom) that stands well above its local
@@ -307,7 +317,11 @@ class SonarView(context: Context) : android.view.View(context) {
             bitmap.setPixels(colBuf, 0, 1, writeCol, 0, 1, HI)
             ascopeBmp.setPixels(colBuf, 0, 1, 0, 0, 1, HI)
             depthRing[writeCol] = if (c.depthM > 0.3) c.depthM.toFloat() else -1f
-            fishRing[writeCol] = detectFish(c.samples, c.depthM)
+            // one marker per target: suppress a detection if a recent column
+            // already flagged a fish at a similar depth (a target spans many
+            // columns as the boat passes over it)
+            val fd = detectFish(c.samples, c.depthM)
+            fishRing[writeCol] = if (fd > 0f && recentFishNear(fd)) -1f else fd
             writeCol = (writeCol + 1) % COLS
             if (filled < COLS) filled++
             changed = true

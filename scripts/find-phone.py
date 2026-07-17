@@ -17,6 +17,11 @@ The fix: distinguish the two failure modes.
 Then every port that ever answered is tested with `adb connect` (polling until
 adb reports it `device`, since the TLS handshake completes a beat after connect).
 
+Seed with the phone's IP (from its Wireless-debugging screen). Don't try to
+find the host by ping-sweep: the Pixel does NOT answer ICMP, so it won't show
+up (observed 2026-07-17 — the phone was at .194, invisible to ping, found
+instantly once its IP was given).
+
 Usage:
   find-phone.py [host] [--quiet]
     host     phone IP or IP:port to try first (default: saved / 192.168.1.61)
