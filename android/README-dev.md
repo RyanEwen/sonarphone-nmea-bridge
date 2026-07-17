@@ -84,3 +84,7 @@ UDP option — this is the key risk to validate.
 5. Phone keeps internet while attached to T-Box AP (browse in another app).
 6. Navionics pairs to 127.0.0.1:10110 and shows depth — THE unverified risk.
 7. Screen off 10+ min: stream continues (check FRAME counter in logcat).
+8. Enable Menu > SonarChart Live in Navionics while moving: our NMEA depth +
+   phone GPS should draw live personal bathymetry contours (the bridge acts
+   as a free Digital Yacht Sonar Server). Raw-sonar split view is NOT
+   possible — Garmin removed third-party sonar rendering after v19.
