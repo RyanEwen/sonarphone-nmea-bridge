@@ -1,26 +1,34 @@
 package com.rewen.sonarbridge
 
 import android.app.Activity
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * In-app update prompt (same pattern as the persistent app): check the GitHub
- * latest release on cold start and on resume (throttled), and offer the APK
- * when a version we haven't seen/dismissed is out. "Update" opens the asset
- * URL — Android's installer takes it from there.
+ * In-app updater (same pattern as the persistent app's UpdatePlugin): check
+ * the GitHub latest release on cold start and on resume (throttled). "Update"
+ * downloads the APK via the system DownloadManager and launches the package
+ * installer when it completes — no browser round-trip. "Later" mutes that
+ * version; an accepted-but-not-installed update prompts again next time.
  */
 object UpdateCheck {
     private const val REPO = "RyanEwen/sonarphone-nmea-bridge"
+    private const val APK_NAME = "sonarbridge-update.apk"
     private const val RESUME_THROTTLE_MS = 3 * 60 * 60 * 1000L
     private var checkedThisProcess = false
 
@@ -44,8 +52,7 @@ object UpdateCheck {
                     .setTitle("Update available: ${rel.version}")
                     .setMessage(rel.notes.replace(Regex("^#+\\s*", RegexOption.MULTILINE), "").trim())
                     .setPositiveButton("Update") { _, _ ->
-                        prefs.edit().putString("upd_seen", rel.version).apply()
-                        activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(rel.apkUrl)))
+                        downloadAndInstall(activity, rel)
                     }
                     .setNegativeButton("Later") { _, _ ->
                         prefs.edit().putString("upd_seen", rel.version).apply()
@@ -53,6 +60,45 @@ object UpdateCheck {
                     .show()
             }
         }
+    }
+
+    /** DownloadManager fetch -> package installer on completion. */
+    private fun downloadAndInstall(activity: Activity, rel: Release) {
+        val app = activity.applicationContext
+        val dm = app.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        File(app.getExternalFilesDir(null), APK_NAME).delete() // avoid -1 suffixed dupes
+        val request = DownloadManager.Request(Uri.parse(rel.apkUrl))
+            .setTitle("SonarBridge ${rel.version}")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalFilesDir(app, null, APK_NAME)
+            .setMimeType("application/vnd.android.package-archive")
+        val downloadId = dm.enqueue(request)
+        Toast.makeText(app, "Downloading update…", Toast.LENGTH_SHORT).show()
+
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                if (intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) != downloadId) return
+                runCatching { app.unregisterReceiver(this) }
+                val uri = dm.getUriForDownloadedFile(downloadId)
+                if (uri != null) {
+                    app.startActivity(
+                        Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                    )
+                } else {
+                    Toast.makeText(app, "Update download failed", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            app,
+            receiver,
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
     }
 
     private class Release(val version: String, val notes: String, val apkUrl: String)
