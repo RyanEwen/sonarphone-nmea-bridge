@@ -49,6 +49,21 @@ object UpdateCheck {
         runCheck(activity, scope, silent = false)
     }
 
+    /** Is release version `a` strictly newer than installed `b`? (semver-ish;
+     *  suffixes like -dev/-pre are ignored, so 0.1.5-pre is not < 0.1.4) */
+    private fun isNewer(a: String, b: String): Boolean {
+        fun parts(v: String) =
+            v.removePrefix("v").substringBefore("-").split(".").map { it.toIntOrNull() ?: 0 }
+        val pa = parts(a)
+        val pb = parts(b)
+        for (i in 0 until 3) {
+            val da = pa.getOrElse(i) { 0 }
+            val db = pb.getOrElse(i) { 0 }
+            if (da != db) return da > db
+        }
+        return false
+    }
+
     private fun runCheck(activity: Activity, scope: CoroutineScope, silent: Boolean) {
         val prefs = activity.getSharedPreferences("cfg", Context.MODE_PRIVATE)
         scope.launch(Dispatchers.IO) {
@@ -59,7 +74,7 @@ object UpdateCheck {
                     rel == null -> if (!silent) {
                         Toast.makeText(activity, "Couldn't check for updates", Toast.LENGTH_LONG).show()
                     }
-                    rel.version == BuildConfig.VERSION_NAME -> if (!silent) {
+                    !isNewer(rel.version, BuildConfig.VERSION_NAME) -> if (!silent) {
                         Toast.makeText(
                             activity,
                             "Up to date (v${BuildConfig.VERSION_NAME})",

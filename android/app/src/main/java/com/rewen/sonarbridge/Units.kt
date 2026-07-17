@@ -30,6 +30,12 @@ object Units {
     /** Temperature offset (°C): added to raw temperature. */
     @Volatile var tempOffsetC = 0f
 
+    /** Display style: 0 = modern (Deeper-like), 1 = classic (original navy). */
+    @Volatile var displayStyle = 0
+
+    /** Fish markers: 0 off, 1 symbols, 2 symbols + depth. */
+    @Volatile var fishMarkers = 0
+
     fun load(prefs: SharedPreferences) {
         feet = prefs.getString("unit_dist", "ft") == "ft"
         fahrenheit = prefs.getString("unit_temp", "C") == "F"
@@ -43,6 +49,8 @@ object Units {
         noiseFilter = prefs.getInt("noise_filter", 0).coerceIn(0, 3)
         keelOffsetM = prefs.getFloat("keel_offset_m", 0f)
         tempOffsetC = prefs.getFloat("temp_offset_c", 0f)
+        displayStyle = prefs.getInt("display_style", 0).coerceIn(0, 1)
+        fishMarkers = prefs.getInt("fish_markers", 0).coerceIn(0, 2)
     }
 
     fun depth(m: Double): String =

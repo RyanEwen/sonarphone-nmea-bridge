@@ -82,6 +82,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gainSlider: Slider
     private lateinit var clarityGroup: MaterialButtonToggleGroup
     private lateinit var noiseGroup: MaterialButtonToggleGroup
+    private lateinit var styleGroup: MaterialButtonToggleGroup
+    private lateinit var fishGroup: MaterialButtonToggleGroup
     private lateinit var keelEdit: TextInputEditText
     private lateinit var tempOffEdit: TextInputEditText
 
@@ -359,6 +361,31 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(TextView(this).apply { text = "Gain (sensitivity)" })
         root.addView(gainSlider)
+        root.addView(TextView(this).apply { text = "Display style" })
+        styleGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            addView(segBtn(1, "Modern"))
+            addView(segBtn(2, "Classic"))
+            check(prefs.getInt("display_style", 0).coerceIn(0, 1) + 1)
+        }
+        root.addView(styleGroup)
+        root.addView(TextView(this).apply { text = "Fish markers" })
+        fishGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            addView(segBtn(1, "Off"))
+            addView(segBtn(2, "Fish"))
+            addView(segBtn(3, "Fish + depth"))
+            check(prefs.getInt("fish_markers", 0).coerceIn(0, 2) + 1)
+        }
+        root.addView(fishGroup)
+        root.addView(
+            note(
+                "Classic style emulates the original SonarPhone look (navy " +
+                    "background, rainbow returns). Fish markers flag strong " +
+                    "isolated mid-water echoes."
+            )
+        )
+
         root.addView(TextView(this).apply { text = "Surface clarity" })
         clarityGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
@@ -557,6 +584,8 @@ class MainActivity : AppCompatActivity() {
             .putInt("gain_pct", gainSlider.value.toInt())
             .putInt("surface_clarity", (clarityGroup.checkedButtonId - 1).coerceIn(0, 3))
             .putInt("noise_filter", (noiseGroup.checkedButtonId - 1).coerceIn(0, 3))
+            .putInt("display_style", (styleGroup.checkedButtonId - 1).coerceIn(0, 1))
+            .putInt("fish_markers", (fishGroup.checkedButtonId - 1).coerceIn(0, 2))
             .putFloat("keel_offset_m", run {
                 val v = keelEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
                 (if (Units.feet) v * 0.3048 else v).toFloat()
