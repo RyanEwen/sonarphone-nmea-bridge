@@ -126,14 +126,36 @@ class SonarView(context: Context) : android.view.View(context) {
         super.onDetachedFromWindow()
     }
 
+    /** Crisp interface line at the water/bottom boundary. */
+    private val bottomLineColor = Color.rgb(255, 232, 176)
+
+    /** Sediment fill below the detected bottom, textured by echo intensity. */
+    private fun earth(v: Int, depthBelow: Int): Int {
+        val t = 0.70f + 0.30f * (v / 255f)
+        val fade = (1f - depthBelow / 2200f).coerceAtLeast(0.78f)
+        val s = t * fade
+        return Color.rgb((150 * s).toInt(), (100 * s).toInt(), (56 * s).toInt())
+    }
+
     private fun step() {
         var changed = false
         val fresh = EchoHistory.since(lastSeq)
         for (c in fresh) {
             lastSeq = c.seq
             latestDepth = c.depthM
+            // water column above the detected bottom, solid earth below it
+            val bottomIdx = if (c.depthM > 0.3) {
+                (c.depthM * EchoHistory.SAMPLES_PER_M).toInt()
+            } else {
+                Int.MAX_VALUE // no bottom lock: all water
+            }
             for (i in 0 until SAMPLES) {
-                colBuf[i] = lut[if (i < c.samples.size) c.samples[i].toInt() and 0xFF else 0]
+                val v = if (i < c.samples.size) c.samples[i].toInt() and 0xFF else 0
+                colBuf[i] = when {
+                    i < bottomIdx -> lut[v]
+                    i < bottomIdx + 3 -> bottomLineColor
+                    else -> earth(v, i - bottomIdx)
+                }
             }
             bitmap.setPixels(colBuf, 0, 1, writeCol, 0, 1, SAMPLES)
             ascopeBmp.setPixels(colBuf, 0, 1, 0, 0, 1, SAMPLES)
