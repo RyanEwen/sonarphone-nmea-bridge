@@ -255,6 +255,10 @@ class MainActivity : Activity() {
                     "without the T-Box powered on."
             )
         )
+        root.addView(
+            note("Settings apply the next time the bridge starts — if it's " +
+                "already running, stop and start it again.")
+        )
 
         val mode = prefs.getInt("mode", 0)
         modeGroup.check(mode + 1)

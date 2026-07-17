@@ -44,6 +44,12 @@ class SonarView(context: Context) : android.view.View(context) {
         typeface = Typeface.MONOSPACE
         setShadowLayer(3f, 0f, 0f, Color.BLACK)
     }
+    private val demoPaint = Paint().apply {
+        color = Color.rgb(255, 170, 0)
+        textSize = 34f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        setShadowLayer(3f, 0f, 0f, Color.BLACK)
+    }
 
     // intensity -> color: deep blue -> cyan -> yellow -> red
     private val lut = IntArray(256) { v ->
@@ -118,5 +124,8 @@ class SonarView(context: Context) : android.view.View(context) {
         canvas.drawText(String.format(Locale.US, "%.0f", windowM / 2), w - 70f, h / 2, scalePaint)
         canvas.drawText(String.format(Locale.US, "%.0f m", windowM), w - 90f, h - 12f, scalePaint)
         canvas.drawText(String.format(Locale.US, "%.2f m", latestDepth), 16f, 52f, textPaint)
+        if (BridgeState.flow.value.phase == "DEMO") {
+            canvas.drawText("DEMO", w - 190f, 52f, demoPaint)
+        }
     }
 }
