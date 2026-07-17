@@ -10,7 +10,7 @@ the phone UI:
 adb shell am start-foreground-service \
   -n com.rewen.sonarbridge/.BridgeService -a com.rewen.sonarbridge.START
 # extras: -e ssid X (exact) OR -e pattern "SonarPhone_" (prefix picker; default)
-#         -e pass Y  -e lograw true  -e udp 2000
+#         -e pass Y  -e lograw true  -e udp 2000  -e demo true (fake data, no T-Box)
 
 # stop
 adb shell am start-foreground-service \

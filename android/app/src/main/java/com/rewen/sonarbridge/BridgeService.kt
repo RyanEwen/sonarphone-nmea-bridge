@@ -35,6 +35,9 @@ import java.net.SocketTimeoutException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.sin
+import kotlin.random.Random
 
 class BridgeService : Service() {
 
@@ -52,6 +55,7 @@ class BridgeService : Service() {
     private var netCallback: ConnectivityManager.NetworkCallback? = null
     private var nmea: NmeaServer? = null
     private var sonarJob: Job? = null
+    private var demoJob: Job? = null
     private var emitJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var rawLog: FileOutputStream? = null
@@ -87,9 +91,11 @@ class BridgeService : Service() {
             else intent?.getStringExtra("pattern") ?: prefs.getString("pattern", "SonarPhone_")!!
         val pass = intent?.getStringExtra("pass") ?: prefs.getString("pass", "12345678")!!
         val logRaw = intent?.getStringExtra("lograw") == "true"
+        val demo = (intent?.getStringExtra("demo")
+            ?: prefs.getBoolean("demo", false).toString()) == "true"
         udpFallbackPort = intent?.getStringExtra("udp")?.toIntOrNull() ?: 0
 
-        log("START ssid=$ssid pattern=$pattern lograw=$logRaw udpFallback=$udpFallbackPort")
+        log("START ssid=$ssid pattern=$pattern demo=$demo lograw=$logRaw udpFallback=$udpFallbackPort")
         startForeground(
             NOTIF_ID,
             buildNotification("starting…"),
@@ -97,15 +103,21 @@ class BridgeService : Service() {
         )
 
         stopBridge() // restart cleanly if already running
-        startBridge(ssid, pattern, pass, logRaw)
+        startBridge(ssid, pattern, pass, logRaw, demo)
         return START_STICKY
     }
 
     // ---------------------------------------------------------------- bridge
 
-    private fun startBridge(ssid: String?, pattern: String?, pass: String, logRaw: Boolean) {
-        val label = ssid ?: "$pattern*"
-        BridgeState.update { BridgeState.Snapshot(running = true, phase = "WIFI_WAIT", ssid = label) }
+    private fun startBridge(ssid: String?, pattern: String?, pass: String, logRaw: Boolean, demo: Boolean) {
+        val label = if (demo) "demo data" else ssid ?: "$pattern*"
+        BridgeState.update {
+            BridgeState.Snapshot(
+                running = true,
+                phase = if (demo) "DEMO" else "WIFI_WAIT",
+                ssid = label,
+            )
+        }
 
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$TAG:bridge")
@@ -128,11 +140,16 @@ class BridgeService : Service() {
         }
 
         emitJob = scope.launch { nmeaEmitLoop() }
-        requestWifi(ssid, pattern, pass)
+        if (demo) {
+            demoJob = scope.launch { demoLoop() }
+        } else {
+            requestWifi(ssid, pattern, pass)
+        }
     }
 
     private fun stopBridge() {
         sonarJob?.cancel(); sonarJob = null
+        demoJob?.cancel(); demoJob = null
         emitJob?.cancel(); emitJob = null
         netCallback?.let { runCatching { cm.unregisterNetworkCallback(it) } }
         netCallback = null
@@ -288,6 +305,7 @@ class BridgeService : Service() {
                                     lastFrameWallMs = System.currentTimeMillis(),
                                 )
                             }
+                            EchoHistory.push(reply.echo, depthM)
                             rawLog?.let { out ->
                                 val hdr = ByteBuffer.allocate(10).order(ByteOrder.LITTLE_ENDIAN)
                                     .putLong(System.currentTimeMillis())
@@ -319,6 +337,66 @@ class BridgeService : Service() {
             if (sonarJob?.isActive == true) log("sonar loop error: $e")
         } finally {
             sock.close()
+        }
+    }
+
+    // ---------------------------------------------------------------- demo
+
+    /**
+     * Synthesizes a plausible sonar feed (wandering bottom, surface clutter,
+     * the occasional fish) so the NMEA path and the chart view can be
+     * exercised — including Navionics pairing — without the T-Box.
+     */
+    private suspend fun demoLoop() {
+        log("demo data generator running (no sonar hardware)")
+        BridgeState.update { it.copy(serial = "DEMO", masterMac = "de:mo:de:mo:de:mo") }
+        val rnd = Random(System.currentTimeMillis())
+        class Fish(var depth: Double, var life: Int, val strength: Int)
+        val fish = mutableListOf<Fish>()
+        var t = 0.0
+        var frames = 0L
+        while (scope.isActive && demoJob?.isActive == true) {
+            delay(200)
+            t += 0.2
+            val depth = 8.0 + 4.0 * sin(t / 15) + rnd.nextDouble(-0.05, 0.05)
+            if (rnd.nextInt(40) == 0 && depth > 3.0) {
+                fish += Fish(rnd.nextDouble(1.5, depth - 1.0), rnd.nextInt(15, 60), rnd.nextInt(150, 240))
+            }
+            fish.forEach { it.depth += rnd.nextDouble(-0.08, 0.08); it.life-- }
+            fish.removeAll { it.life <= 0 || it.depth >= depth || it.depth < 0.5 }
+
+            val col = ByteArray(EchoHistory.SAMPLES)
+            for (i in col.indices) col[i] = rnd.nextInt(0, 26).toByte()
+            for (i in 0 until 6) col[i] = (110 + rnd.nextInt(70)).toByte() // surface clutter
+            val bottom = (depth * EchoHistory.SAMPLES_PER_M).toInt()
+            for (i in bottom until minOf(bottom + 45, col.size)) {
+                col[i] = (245 - (i - bottom) * 5 + rnd.nextInt(12)).coerceIn(28, 255).toByte()
+            }
+            for (f in fish) {
+                val fi = (f.depth * EchoHistory.SAMPLES_PER_M).toInt()
+                for (j in -3..3) {
+                    val k = fi + j
+                    if (k in col.indices) {
+                        val v = f.strength - abs(j) * 35
+                        if (v > (col[k].toInt() and 0xFF)) col[k] = v.toByte()
+                    }
+                }
+            }
+
+            lastDataAt = SystemClock.elapsedRealtime()
+            frames++
+            BridgeState.update {
+                it.copy(
+                    depthM = depth,
+                    tempC = 18.0 + sin(t / 90),
+                    vBatt = 12.4 + rnd.nextDouble(-0.03, 0.03),
+                    frameCount = frames,
+                    frameSize = 796,
+                    unitsFeet = false,
+                    lastFrameWallMs = System.currentTimeMillis(),
+                )
+            }
+            EchoHistory.push(col, depth)
         }
     }
 
