@@ -158,22 +158,18 @@ class SonarView(context: Context) : android.view.View(context) {
     }
 
     /**
-     * Below the detected bottom the echo renders in Deeper's orange
-     * monochrome: intensity = brightness, weak returns fall to black — so
-     * hard bottom reads as a thick dense blazing mass, soft as sparse dim
-     * grain, and a hard second return appears as a parallel dim band.
+     * Below the detected bottom the echo renders in orange monochrome:
+     * intensity = brightness, so hard bottom reads as a thick blazing mass
+     * and soft as dim grain. Weak/no return falls to dark earth brown, not
+     * black — the ground isn't hollow.
      */
     private val bottomLut = IntArray(256) { v ->
-        if (v < 26) {
-            bgColor
-        } else {
-            val t = (v - 26) / 229f
-            Color.rgb(
-                (95 + 160 * t).toInt(),
-                (32 + 112 * t).toInt(),
-                (4 + 26 * t).toInt(),
-            )
-        }
+        val t = if (v < 26) 0f else (v - 26) / 229f
+        Color.rgb(
+            (78 + 177 * t).toInt(),
+            (52 + 92 * t).toInt(),
+            (28 + 2 * t).toInt(),
+        )
     }
 
     private val tick = object : Runnable {
