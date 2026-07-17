@@ -118,12 +118,14 @@ class SonarView(context: Context) : android.view.View(context) {
                 RectF(oldW, 0f, w, h), bmpPaint,
             )
         }
-        // depth scale (0, 1/2, full window)
+        // depth scale (0, 1/2, full window) in display units
         val windowM = windowSamples / EchoHistory.SAMPLES_PER_M
+        val windowDisp = if (Units.feet) windowM * 3.28084 else windowM
+        val unit = if (Units.feet) "ft" else "m"
         canvas.drawText("0", w - 70f, 30f, scalePaint)
-        canvas.drawText(String.format(Locale.US, "%.0f", windowM / 2), w - 70f, h / 2, scalePaint)
-        canvas.drawText(String.format(Locale.US, "%.0f m", windowM), w - 90f, h - 12f, scalePaint)
-        canvas.drawText(String.format(Locale.US, "%.2f m", latestDepth), 16f, 52f, textPaint)
+        canvas.drawText(String.format(Locale.US, "%.0f", windowDisp / 2), w - 70f, h / 2, scalePaint)
+        canvas.drawText(String.format(Locale.US, "%.0f %s", windowDisp, unit), w - 110f, h - 12f, scalePaint)
+        canvas.drawText(Units.depth(latestDepth), 16f, 52f, textPaint)
         if (BridgeState.flow.value.phase == "DEMO") {
             canvas.drawText("DEMO", w - 190f, 52f, demoPaint)
         }

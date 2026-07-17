@@ -471,8 +471,8 @@ class BridgeService : Service() {
     private fun updateNotification(s: BridgeState.Snapshot) {
         val text = if (s.depthM != null) {
             String.format(
-                Locale.US, "%s · %.2f m · %.0f °C · %.1f V",
-                s.phase, s.depthM, s.tempC ?: 0.0, s.vBatt ?: 0.0,
+                Locale.US, "%s · %s · %s · %.1f V",
+                s.phase, Units.depth(s.depthM), Units.temp(s.tempC ?: 0.0), s.vBatt ?: 0.0,
             )
         } else {
             s.phase

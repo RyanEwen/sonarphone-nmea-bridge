@@ -21,6 +21,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
@@ -70,6 +71,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ssidEdit: TextInputEditText
     private lateinit var passEdit: TextInputEditText
     private lateinit var demoSwitch: MaterialSwitch
+    private lateinit var distGroup: MaterialButtonToggleGroup
+    private lateinit var tempGroup: MaterialButtonToggleGroup
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -209,12 +212,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderStatus(s: BridgeState.Snapshot) {
         toggle.text = if (s.running) "Stop bridge" else "Start bridge"
-        depthBig.text = s.depthM?.let { String.format(Locale.US, "%.2f m", it) } ?: "—"
+        depthBig.text = s.depthM?.let { Units.depth(it) } ?: "—"
         subLine.text = if (s.depthM != null) {
-            String.format(
-                Locale.US, "%.0f °C  ·  %.1f V  ·  %s",
-                s.tempC ?: 0.0, s.vBatt ?: 0.0, s.phase,
-            )
+            "${Units.temp(s.tempC ?: 0.0)}  ·  ${
+                String.format(Locale.US, "%.1f V", s.vBatt ?: 0.0)
+            }  ·  ${s.phase}"
         } else {
             s.phase
         }
@@ -224,7 +226,7 @@ class MainActivity : AppCompatActivity() {
             appendLine("serial:   ${s.serial ?: "-"}")
             appendLine("master:   ${s.masterMac ?: "-"}")
             appendLine("frames:   ${s.frameCount} (${s.frameSize} B)")
-            appendLine("units:    ${if (s.unitsFeet) "feet (converted)" else "meters"}")
+            appendLine("rx units: ${if (s.unitsFeet) "feet (converted)" else "meters"}")
             appendLine("last rx:  ${if (s.lastFrameWallMs > 0) ts.format(Date(s.lastFrameWallMs)) else "-"}")
             appendLine("NMEA:     ${s.nmeaClients} client(s) on 127.0.0.1:10110")
             appendLine()
@@ -294,6 +296,31 @@ class MainActivity : AppCompatActivity() {
         )
         root.addView(note("Factory default is 12345678."))
 
+        root.addView(header("Units"))
+        fun segBtn(id: Int, label: String) =
+            MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
+                this.id = id
+                text = label
+            }
+        distGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            addView(segBtn(1, "Feet"))
+            addView(segBtn(2, "Meters"))
+            check(if (prefs.getString("unit_dist", "ft") == "ft") 1 else 2)
+        }
+        root.addView(distGroup)
+        tempGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) }
+            addView(segBtn(1, "Celsius"))
+            addView(segBtn(2, "Fahrenheit"))
+            check(if (prefs.getString("unit_temp", "C") == "C") 1 else 2)
+        }
+        root.addView(tempGroup)
+        root.addView(note("Display only — the NMEA feed to Navionics always uses standard units."))
+
         root.addView(header("Demo mode"))
         demoSwitch = MaterialSwitch(this).apply {
             text = "Generate fake sonar data (no hardware needed)"
@@ -329,7 +356,10 @@ class MainActivity : AppCompatActivity() {
             .putString("ssid", ssidEdit.text?.toString() ?: "")
             .putString("pass", passEdit.text?.toString() ?: "")
             .putBoolean("demo", demoSwitch.isChecked)
+            .putString("unit_dist", if (distGroup.checkedButtonId == 2) "m" else "ft")
+            .putString("unit_temp", if (tempGroup.checkedButtonId == 2) "F" else "C")
             .apply()
+        Units.load(prefs)
     }
 
     // ---------------------------------------------------------------- misc
