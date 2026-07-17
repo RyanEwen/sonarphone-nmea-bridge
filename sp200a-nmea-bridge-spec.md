@@ -133,6 +133,47 @@ units reported 360-byte pings to SonarPhony vs 340 on T-POD, so parse by
 29-byte request `FV` (checksum 0xB1), 16-byte `REDYFV` reply. Confirmed
 unnecessary for master operation; ignore.
 
+## 3.7 Official app (denesoft.fishfinder) settings — decompiled reference
+
+From the official SonarPhone app v4.0.9 (`denesoft.fishfinder`), pulled from
+Rewen's phone and decompiled. The protocol + rendering are in a native `.so`
+(JNI: `NDKMenuOption(2,id,0)` reads option `id`; `NDKSetSonarGain`,
+`NDKSetTemperatureCompensation`, `NDKSetViewMode`, etc.). The Java only shows
+the menu, so byte encodings aren't visible — but the full settings surface is:
+
+| id | Setting | Values |
+|---|---|---|
+| 0 | Gain | 1–100 % (1–120 % on T-POD) |
+| 1 | Depth Range | discrete steps |
+| 2/3 | Upper / Lower depth limit | — |
+| 20 | Auto Depth Range | off/on |
+| 21 | Bottom Lock | off/on |
+| 5 | Depth Cursor | off/on |
+| 7 | Units | m/°C, m/°F, ft/°C, ft/°F |
+| 9 | Chart Speed | 10–100 % |
+| 4 | Fish Symbols / Depth | off, symbols, symbols+depth |
+| 10 | Fish Alarm | off, large, large/med, large/med/small |
+| 11 | Depth Alarm | — |
+| 12 | Battery Alarm | off/on |
+| 13 | Transparency | 0–100 % |
+| 14 | Keel Offset | — |
+| 15 | Display Color | white / blue bkg / grayscale |
+| 16 | Surface Clarity | off/low/med/high |
+| 17 | Noise Filter | off/low/med/high |
+| 101 | TEMP Offset | signed (`NDKSetTemperatureCompensation`) |
+| 100 | Share Tracks | off/on |
+| 18/22 | Language / Serial | — |
+
+**Key inference:** the FC packet has only 4 mutable fields (range, units,
+frequency/beam — confirmed by McKeown + SonarPhony). Everything else here —
+gain, surface clarity, noise filter, display colour, fish symbols, bottom
+lock, transparency, keel/temp offset — is therefore **client-side processing
+the native renderer applies to the raw 758-sample echo**, NOT device commands.
+So our software gain/clarity/noise/offset approach matches the official app;
+these can all be replicated on-device without new protocol knowledge. (TEMP
+Offset is a user setting, which is why McKeown's plain °C and SonarPhony's
+−2 °C can both be "right" — different offsets.)
+
 ## 4. NMEA 0183 output
 
 Sentences (talker `SD` for sounder, `YX` for transducer temp):

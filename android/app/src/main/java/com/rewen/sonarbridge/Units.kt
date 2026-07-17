@@ -18,8 +18,17 @@ object Units {
     /** Software gain applied to echo intensity before display (0.5–2.0). */
     @Volatile var gain = 1.0f
 
-    /** Surface clarity: suppress the top clutter band. 0 off, 1 low, 2 high. */
+    /** Surface clarity: fade the top clutter band. 0 off, 1 low, 2 med, 3 high. */
     @Volatile var surfaceClarity = 0
+
+    /** Noise filter: raise the echo noise floor. 0 off, 1 low, 2 med, 3 high. */
+    @Volatile var noiseFilter = 0
+
+    /** Keel offset (m): added to raw depth so readings are below the keel. */
+    @Volatile var keelOffsetM = 0f
+
+    /** Temperature offset (°C): added to raw temperature. */
+    @Volatile var tempOffsetC = 0f
 
     fun load(prefs: SharedPreferences) {
         feet = prefs.getString("unit_dist", "ft") == "ft"
@@ -30,7 +39,10 @@ object Units {
             else -> 1.0f
         }
         gain = prefs.getInt("gain_pct", 100).coerceIn(50, 200) / 100f
-        surfaceClarity = prefs.getInt("surface_clarity", 0).coerceIn(0, 2)
+        surfaceClarity = prefs.getInt("surface_clarity", 0).coerceIn(0, 3)
+        noiseFilter = prefs.getInt("noise_filter", 0).coerceIn(0, 3)
+        keelOffsetM = prefs.getFloat("keel_offset_m", 0f)
+        tempOffsetC = prefs.getFloat("temp_offset_c", 0f)
     }
 
     fun depth(m: Double): String =

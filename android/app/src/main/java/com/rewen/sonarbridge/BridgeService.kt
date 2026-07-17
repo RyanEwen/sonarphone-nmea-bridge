@@ -323,7 +323,8 @@ class BridgeService : Service() {
                             lastFrame = t
                             lastDataAt = t
                             // trust the units the frame REPORTS, not what we requested
-                            val depthM = if (reply.unitsFeet) reply.depth * 0.3048 else reply.depth
+                            val rawM = if (reply.unitsFeet) reply.depth * 0.3048 else reply.depth
+                            val depthM = rawM + Units.keelOffsetM // keel offset at source
                             if (reply.unitsFeet && !unitsWarned) {
                                 log("WARNING: T-Box reports FEET despite meters request — converting per-frame")
                                 unitsWarned = true
@@ -331,7 +332,7 @@ class BridgeService : Service() {
                             BridgeState.update {
                                 it.copy(
                                     depthM = depthM,
-                                    tempC = reply.tempC.toDouble(),
+                                    tempC = reply.tempC.toDouble() + Units.tempOffsetC,
                                     vBatt = reply.vBatt,
                                     frameCount = it.frameCount + 1,
                                     frameSize = reply.size,
@@ -393,7 +394,7 @@ class BridgeService : Service() {
         while (scope.isActive && demoJob?.isActive == true) {
             delay(200)
             t += 0.2
-            val depth = 8.0 + 4.0 * sin(t / 15) + rnd.nextDouble(-0.05, 0.05)
+            val depth = 8.0 + 4.0 * sin(t / 15) + rnd.nextDouble(-0.05, 0.05) + Units.keelOffsetM
             if (rnd.nextInt(40) == 0 && depth > 3.0) {
                 fish += Fish(rnd.nextDouble(1.5, depth - 1.0), rnd.nextInt(15, 60), rnd.nextInt(150, 240))
             }
@@ -448,7 +449,7 @@ class BridgeService : Service() {
             BridgeState.update {
                 it.copy(
                     depthM = depth,
-                    tempC = 18.0 + sin(t / 90),
+                    tempC = 18.0 + sin(t / 90) + Units.tempOffsetC,
                     vBatt = 12.4 + rnd.nextDouble(-0.03, 0.03),
                     frameCount = frames,
                     frameSize = 796,

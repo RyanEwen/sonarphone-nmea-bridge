@@ -81,6 +81,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rangeEdit: TextInputEditText
     private lateinit var gainSlider: Slider
     private lateinit var clarityGroup: MaterialButtonToggleGroup
+    private lateinit var noiseGroup: MaterialButtonToggleGroup
+    private lateinit var keelEdit: TextInputEditText
+    private lateinit var tempOffEdit: TextInputEditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -356,20 +359,33 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(TextView(this).apply { text = "Gain (sensitivity)" })
         root.addView(gainSlider)
+        root.addView(TextView(this).apply { text = "Surface clarity" })
         clarityGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "Clarity off"))
+            addView(segBtn(1, "Off"))
             addView(segBtn(2, "Low"))
-            addView(segBtn(3, "High"))
-            check(prefs.getInt("surface_clarity", 0).coerceIn(0, 2) + 1)
+            addView(segBtn(3, "Med"))
+            addView(segBtn(4, "High"))
+            check(prefs.getInt("surface_clarity", 0).coerceIn(0, 3) + 1)
         }
         root.addView(clarityGroup)
+        root.addView(TextView(this).apply { text = "Noise filter" })
+        noiseGroup = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            addView(segBtn(1, "Off"))
+            addView(segBtn(2, "Low"))
+            addView(segBtn(3, "Med"))
+            addView(segBtn(4, "High"))
+            check(prefs.getInt("noise_filter", 0).coerceIn(0, 3) + 1)
+        }
+        root.addView(noiseGroup)
         root.addView(
             note(
-                "Gain brightens or quiets all echoes (display only — the sonar " +
-                    "itself has no gain control). Surface clarity fades the " +
-                    "clutter band at the top of the water column. Both apply " +
-                    "to new data immediately."
+                "Gain brightens or quiets all echoes; noise filter hides weak " +
+                    "speckle; surface clarity fades the clutter band at the top. " +
+                    "These are the SonarPhone app's own display controls, applied " +
+                    "here to the raw echo — they change the picture, not the sonar. " +
+                    "All apply immediately."
             )
         )
 
@@ -416,6 +432,48 @@ class MainActivity : AppCompatActivity() {
                 "Locks the sonar's own range instead of auto (max 240 ft / 73 m). " +
                     "May sharpen shallow-water detail if the unit re-spans its " +
                     "samples — experimental. Applies on next connect."
+            )
+        )
+
+        val du = if (Units.feet) "ft" else "m"
+        keelEdit = TextInputEditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or
+                InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
+            val m = prefs.getFloat("keel_offset_m", 0f)
+            if (m != 0f) {
+                setText(String.format(Locale.US, "%.1f", if (Units.feet) m * 3.28084 else m))
+            }
+        }
+        root.addView(
+            TextInputLayout(this).apply {
+                hint = "Keel offset ($du, +/-)"
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(8) }
+                addView(keelEdit)
+            }
+        )
+        tempOffEdit = TextInputEditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or
+                InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
+            val c = prefs.getFloat("temp_offset_c", 0f)
+            if (c != 0f) {
+                val v = if (Units.fahrenheit) c * 9 / 5 else c
+                setText(String.format(Locale.US, "%.1f", v))
+            }
+        }
+        root.addView(
+            TextInputLayout(this).apply {
+                hint = "Temperature offset (°${if (Units.fahrenheit) "F" else "C"}, +/-)"
+                addView(tempOffEdit)
+            }
+        )
+        root.addView(
+            note(
+                "Keel offset shifts all depth readings (positive = deeper), so " +
+                    "they reflect depth below your keel. Temperature offset " +
+                    "calibrates the reading against a known thermometer. Both " +
+                    "apply to displayed values and the Navionics feed."
             )
         )
 
@@ -497,7 +555,16 @@ class MainActivity : AppCompatActivity() {
             .putFloat("dev_range_m", rangeM.toFloat())
             .putFloat("alarm_m", alarmM.toFloat())
             .putInt("gain_pct", gainSlider.value.toInt())
-            .putInt("surface_clarity", (clarityGroup.checkedButtonId - 1).coerceIn(0, 2))
+            .putInt("surface_clarity", (clarityGroup.checkedButtonId - 1).coerceIn(0, 3))
+            .putInt("noise_filter", (noiseGroup.checkedButtonId - 1).coerceIn(0, 3))
+            .putFloat("keel_offset_m", run {
+                val v = keelEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
+                (if (Units.feet) v * 0.3048 else v).toFloat()
+            })
+            .putFloat("temp_offset_c", run {
+                val v = tempOffEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
+                (if (Units.fahrenheit) v * 5 / 9 else v).toFloat()
+            })
             .apply()
         Units.load(prefs)
     }
