@@ -1,0 +1,401 @@
+package com.rewen.sonarbridge
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.wifi.WifiNetworkSpecifier
+import android.os.PowerManager
+import android.os.SystemClock
+import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.SocketTimeoutException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.Locale
+
+class BridgeService : Service() {
+
+    companion object {
+        const val TAG = "SonarBridge"
+        const val ACTION_START = "com.rewen.sonarbridge.START"
+        const val ACTION_STOP = "com.rewen.sonarbridge.STOP"
+        const val NMEA_PORT = 10110
+        private const val CHANNEL = "bridge"
+        private const val NOTIF_ID = 1
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private lateinit var cm: ConnectivityManager
+    private var netCallback: ConnectivityManager.NetworkCallback? = null
+    private var nmea: NmeaServer? = null
+    private var sonarJob: Job? = null
+    private var emitJob: Job? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var rawLog: FileOutputStream? = null
+    private var udpFallback: DatagramSocket? = null
+    private var udpFallbackPort = 0
+
+    /** elapsedRealtime of the last parsed REDYFC; drives NMEA freshness/staleness. */
+    @Volatile private var lastDataAt = 0L
+
+    override fun onBind(intent: Intent?) = null
+
+    override fun onCreate() {
+        super.onCreate()
+        cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL, "Bridge", NotificationManager.IMPORTANCE_LOW)
+        )
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            log("STOP requested")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
+        val ssid = intent?.getStringExtra("ssid") ?: prefs.getString("ssid", "SonarPhone_65C0")!!
+        val pass = intent?.getStringExtra("pass") ?: prefs.getString("pass", "12345678")!!
+        val logRaw = intent?.getStringExtra("lograw") == "true"
+        udpFallbackPort = intent?.getStringExtra("udp")?.toIntOrNull() ?: 0
+
+        log("START ssid=$ssid lograw=$logRaw udpFallback=$udpFallbackPort")
+        startForeground(
+            NOTIF_ID,
+            buildNotification("starting…"),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+        )
+
+        stopBridge() // restart cleanly if already running
+        startBridge(ssid, pass, logRaw)
+        return START_STICKY
+    }
+
+    // ---------------------------------------------------------------- bridge
+
+    private fun startBridge(ssid: String, pass: String, logRaw: Boolean) {
+        BridgeState.update { BridgeState.Snapshot(running = true, phase = "WIFI_WAIT", ssid = ssid) }
+
+        wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$TAG:bridge")
+            .apply { acquire() }
+
+        nmea = NmeaServer(NMEA_PORT, ::log) { n ->
+            BridgeState.update { it.copy(nmeaClients = n) }
+        }.also { it.start() }
+
+        if (udpFallbackPort > 0) {
+            udpFallback = DatagramSocket()
+            log("UDP fallback enabled -> 127.0.0.1:$udpFallbackPort")
+        }
+
+        if (logRaw) {
+            val dir = getExternalFilesDir(null) ?: filesDir
+            val f = File(dir, "frames-${System.currentTimeMillis()}.bin")
+            rawLog = FileOutputStream(f)
+            log("raw frame log: ${f.absolutePath}")
+        }
+
+        emitJob = scope.launch { nmeaEmitLoop() }
+        requestWifi(ssid, pass)
+    }
+
+    private fun stopBridge() {
+        sonarJob?.cancel(); sonarJob = null
+        emitJob?.cancel(); emitJob = null
+        netCallback?.let { runCatching { cm.unregisterNetworkCallback(it) } }
+        netCallback = null
+        nmea?.stop(); nmea = null
+        udpFallback?.close(); udpFallback = null
+        rawLog?.let { runCatching { it.close() } }; rawLog = null
+        wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
+    }
+
+    // ---------------------------------------------------------------- wifi
+
+    private fun requestWifi(ssid: String, pass: String) {
+        val specBuilder = WifiNetworkSpecifier.Builder().setSsid(ssid)
+        if (pass.isNotBlank()) specBuilder.setWpa2Passphrase(pass)
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .setNetworkSpecifier(specBuilder.build())
+            .build()
+
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                log("WIFI onAvailable: $network (local-only; default route untouched)")
+                sonarJob?.cancel()
+                sonarJob = scope.launch { sonarLoop(network) }
+            }
+
+            override fun onLost(network: Network) {
+                log("WIFI onLost — waiting for AP to return")
+                sonarJob?.cancel(); sonarJob = null
+                setPhase("WIFI_WAIT")
+            }
+
+            override fun onUnavailable() {
+                // user declined the connect dialog, or connect failed — retry
+                log("WIFI onUnavailable — retrying request in 5 s")
+                setPhase("WIFI_WAIT")
+                scope.launch {
+                    delay(5_000)
+                    if (isActive && netCallback != null) {
+                        netCallback?.let { runCatching { cm.unregisterNetworkCallback(it) } }
+                        requestWifi(ssid, pass)
+                    }
+                }
+            }
+        }
+        netCallback = cb
+        log("requesting WiFi network \"$ssid\" via WifiNetworkSpecifier (approval dialog may appear)")
+        cm.requestNetwork(request, cb)
+    }
+
+    // ---------------------------------------------------------------- sonar
+
+    private suspend fun sonarLoop(network: Network) {
+        val sock = DatagramSocket()
+        try {
+            network.bindSocket(sock) // critical: pin UDP to the T-Box network, not default route
+            sock.soTimeout = 2_000
+            val dest = InetSocketAddress(InetAddress.getByName(Sp200a.HOST), Sp200a.PORT)
+            val buf = ByteArray(4096)
+            var needMasterLogged = false
+
+            while (scope.isActive && sonarJob?.isActive == true) {
+                // ---- DISCOVER: FX @1 Hz until REDYFX with a real master MAC
+                setPhase("DISCOVER")
+                var mac: ByteArray? = null
+                while (mac == null && sonarJob?.isActive == true) {
+                    sock.send(DatagramPacket(Sp200a.FX, Sp200a.FX.size, dest))
+                    val pkt = DatagramPacket(buf, buf.size)
+                    val reply = try {
+                        sock.receive(pkt)
+                        Sp200a.parse(buf, pkt.length)
+                    } catch (_: SocketTimeoutException) {
+                        null
+                    }
+                    when (reply) {
+                        is Sp200a.Reply.RedyFx -> {
+                            val macS = Sp200a.macString(reply.mac)
+                            log("REDYFX serial=${reply.serial} masterMac=$macS")
+                            if (reply.mac.contentEquals(Sp200a.SENTINEL_MAC)) {
+                                setPhase("NEED_MASTER")
+                                if (!needMasterLogged) {
+                                    log("master MAC is 11:11… sentinel — factory-reset unit; run the official SonarPhone app once to establish a master, leaving bridge polling")
+                                    needMasterLogged = true
+                                }
+                            } else {
+                                mac = reply.mac
+                                BridgeState.update {
+                                    it.copy(serial = reply.serial.trim(), masterMac = macS)
+                                }
+                            }
+                        }
+                        is Sp200a.Reply.Busy -> log("BUSY during discover")
+                        else -> {}
+                    }
+                    delay(1_000)
+                }
+                mac ?: return
+
+                // ---- RUN: FC every 10 s, parse stream, watchdog on 15 s silence
+                setPhase("RUN")
+                val fc = Sp200a.buildFc(mac) // meters, auto-range, 20°
+                var lastFc = 0L
+                var lastFrame = SystemClock.elapsedRealtime()
+                var lastFrameLog = 0L
+                var unitsWarned = false
+
+                while (sonarJob?.isActive == true) {
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastFc >= 10_000) {
+                        sock.send(DatagramPacket(fc, fc.size, dest))
+                        lastFc = now
+                        log("FC sent (meters, auto-range, 20deg)")
+                    }
+                    if (now - lastFrame > 15_000) {
+                        log("REDYFC silent >15 s — back to DISCOVER")
+                        break
+                    }
+                    val pkt = DatagramPacket(buf, buf.size)
+                    val reply = try {
+                        sock.receive(pkt)
+                        Sp200a.parse(buf, pkt.length)
+                    } catch (_: SocketTimeoutException) {
+                        continue // FC cadence + watchdog re-checked at loop top
+                    }
+                    when (reply) {
+                        is Sp200a.Reply.RedyFc -> {
+                            val t = SystemClock.elapsedRealtime()
+                            lastFrame = t
+                            lastDataAt = t
+                            // trust the units the frame REPORTS, not what we requested
+                            val depthM = if (reply.unitsFeet) reply.depth * 0.3048 else reply.depth
+                            if (reply.unitsFeet && !unitsWarned) {
+                                log("WARNING: T-Box reports FEET despite meters request — converting per-frame")
+                                unitsWarned = true
+                            }
+                            BridgeState.update {
+                                it.copy(
+                                    depthM = depthM,
+                                    tempC = reply.tempC.toDouble(),
+                                    vBatt = reply.vBatt,
+                                    frameCount = it.frameCount + 1,
+                                    frameSize = reply.size,
+                                    unitsFeet = reply.unitsFeet,
+                                    lastFrameWallMs = System.currentTimeMillis(),
+                                )
+                            }
+                            rawLog?.let { out ->
+                                val hdr = ByteBuffer.allocate(10).order(ByteOrder.LITTLE_ENDIAN)
+                                    .putLong(System.currentTimeMillis())
+                                    .putShort(pkt.length.toShort())
+                                out.write(hdr.array())
+                                out.write(buf, 0, pkt.length)
+                            }
+                            if (t - lastFrameLog >= 1_000) {
+                                lastFrameLog = t
+                                val s = BridgeState.flow.value
+                                log(
+                                    String.format(
+                                        Locale.US,
+                                        "FRAME #%d size=%dB depth=%.2fm temp=%.0fC vbatt=%.2fV range=%d-%d beam=0x%02x echo=%dpts",
+                                        s.frameCount, reply.size, depthM, reply.tempC.toDouble(),
+                                        reply.vBatt, reply.rangeMin, reply.rangeMax, reply.beam,
+                                        reply.echo.size,
+                                    )
+                                )
+                            }
+                        }
+                        is Sp200a.Reply.Busy -> log("BUSY during run")
+                        is Sp200a.Reply.RedyFx -> {} // stray discover reply, ignore
+                        null -> log("unknown packet ${pkt.length}B")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            if (sonarJob?.isActive == true) log("sonar loop error: $e")
+        } finally {
+            sock.close()
+        }
+    }
+
+    // ---------------------------------------------------------------- nmea
+
+    /**
+     * Decoupled from the recv loop so keepalive survives stream gaps:
+     * fresh data -> emit at most ~1 Hz; no fresh data -> re-emit last value
+     * every 4 s (Navionics clears depth on a >5 s quiet feed); data older
+     * than 30 s -> stop emitting (truly stale).
+     */
+    private suspend fun nmeaEmitLoop() {
+        var lastEmit = 0L
+        var emits = 0L
+        while (scope.isActive && emitJob?.isActive == true) {
+            delay(250)
+            val s = BridgeState.flow.value
+            val depth = s.depthM ?: continue
+            val now = SystemClock.elapsedRealtime()
+            val dataAt = lastDataAt
+            if (now - dataAt > 30_000) continue
+            val fresh = dataAt > lastEmit
+            if ((fresh && now - lastEmit >= 1_000) || now - lastEmit >= 4_000) {
+                val payload = Nmea.forDepthTemp(depth, s.tempC ?: 0.0)
+                    .toByteArray(Charsets.US_ASCII)
+                nmea?.broadcast(payload)
+                udpFallback?.let {
+                    runCatching {
+                        it.send(
+                            DatagramPacket(
+                                payload, payload.size,
+                                InetAddress.getLoopbackAddress(), udpFallbackPort,
+                            )
+                        )
+                    }
+                }
+                lastEmit = now
+                emits++
+                if (emits % 30 == 1L) {
+                    log("NMEA emit #$emits: " +
+                        Nmea.forDepthTemp(depth, s.tempC ?: 0.0).replace("\r\n", " "))
+                }
+                updateNotification(s)
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- misc
+
+    private fun setPhase(phase: String) {
+        if (BridgeState.flow.value.phase != phase) {
+            log("STATE $phase")
+            BridgeState.update { it.copy(phase = phase) }
+            updateNotification(BridgeState.flow.value)
+        }
+    }
+
+    private fun buildNotification(text: String): Notification {
+        val pi = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        return Notification.Builder(this, CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat)
+            .setContentTitle("SP200A Bridge")
+            .setContentText(text)
+            .setContentIntent(pi)
+            .setOngoing(true)
+            .build()
+    }
+
+    private fun updateNotification(s: BridgeState.Snapshot) {
+        val text = if (s.depthM != null) {
+            String.format(
+                Locale.US, "%s · %.2f m · %.0f °C · %.1f V",
+                s.phase, s.depthM, s.tempC ?: 0.0, s.vBatt ?: 0.0,
+            )
+        } else {
+            s.phase
+        }
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(NOTIF_ID, buildNotification(text))
+    }
+
+    private fun log(msg: String) = Log.i(TAG, msg)
+
+    override fun onDestroy() {
+        log("service destroyed")
+        stopBridge()
+        BridgeState.update { BridgeState.Snapshot() }
+        scope.cancel()
+        super.onDestroy()
+    }
+}
