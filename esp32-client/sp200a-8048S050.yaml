@@ -118,6 +118,12 @@ wifi:
   ssid: "The Three R's IoT"
   password: !secret wifi_iot_password
   reboot_timeout: 0s
+  # AP declared here so ESPHome creates the netif + DHCP glue; the sp200a
+  # component keeps it enabled ALONGSIDE the STA link (ESPHome alone would
+  # only use it as a fallback)
+  ap:
+    ssid: "SonarDisplay"
+    password: "12345678"
 
 api:
   reboot_timeout: 0s

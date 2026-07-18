@@ -41,6 +41,35 @@ The hardware config is pulled live from
 `github://RyanEwen/esphome-lvgl/devices/ESP32-8048S050.yaml`. Nothing in the
 sonar code touches the display/touch/psram setup you already proved out.
 
+## Phone AP + NMEA bridge (Navionics support)
+
+The device doubles as the WiFi bridge the Android app provides: it runs an
+always-on softAP **`SonarDisplay`** (password `12345678`) alongside its
+connection to the T-Box, and serves NMEA 0183 on **TCP port 10110** on all
+interfaces. A phone joins `SonarDisplay`, and Navionics pairs to
+**`192.168.4.1:10110` (TCP)** — the phone keeps internet over cellular since
+the OS routes only local traffic through the AP. Verified against Navionics
+on Android (2026-07-18).
+
+Live capture from the device (demo feed, over LAN):
+
+```
+$SDDPT,10.93,0.0*5C
+$SDDBT,35.9,f,10.93,M,6.0,F*34
+$YXMTW,18.1,C*1A
+```
+
+Same sentence set, checksums, and cadence as the Android bridge (fresh data
+at ≥1 s spacing, 4 s keepalive so Navionics never clears depth, silent after
+30 s of sonar staleness). Up to 4 concurrent clients; a stalled client is
+dropped, never blocking the sonar loop. Configure via `sp200a:` options
+`phone_ap`, `phone_ap_ssid`, `phone_ap_password` — plus a matching
+`wifi: ap:` block (required: it makes ESPHome build the AP netif/DHCP glue;
+the component then keeps the AP alive alongside the STA link, which ESPHome
+alone treats as fallback-only).
+
+<!-- TODO: photo of Navionics displaying depth via the ESP32 AP -->
+
 ## How it works
 
 - **Discover:** send the constant 29-byte `FX` once/second until the T-Box

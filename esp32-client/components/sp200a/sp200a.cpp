@@ -15,6 +15,7 @@
 #include "esphome/components/wifi/wifi_component.h"
 #include <esp_wifi.h>
 #include <esp_event.h>
+#include <esp_netif.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <algorithm>
@@ -84,6 +85,8 @@ void SP200AClient::loop() {
   }
 
   this->diag_responder_();
+  this->ensure_softap_();
+  this->nmea_server_();
 
   if (this->scan_done_flag_) {
     this->scan_done_flag_ = false;
@@ -924,6 +927,133 @@ void SP200AClient::render_pending_() {
   const uint32_t dt = millis() - t0;
   if (dt > this->diag_render_ms_)
     this->diag_render_ms_ = dt;
+}
+
+// ============================================================ Phone AP + NMEA
+
+/** Keep an always-on softAP alongside the STA link (Navionics phone connects
+ *  here). ESPHome's own `ap:` is fallback-only — it tears the AP down once
+ *  the STA connects — so we assert WIFI_MODE_APSTA ourselves and re-assert
+ *  it whenever ESPHome's wifi manager flips the mode back. */
+void SP200AClient::ensure_softap_() {
+  if (!this->ap_enabled_)
+    return;
+  const uint32_t now = millis();
+  if (now - this->ap_last_check_ < 5000)
+    return;
+  this->ap_last_check_ = now;
+
+  wifi_mode_t mode;
+  if (esp_wifi_get_mode(&mode) != ESP_OK)
+    return;  // wifi not up yet
+  if (mode == WIFI_MODE_APSTA)
+    return;  // already as desired
+
+  // NOTE: requires `wifi: ap:` in YAML — that makes ESPHome create the AP
+  // netif + DHCP glue at init (USE_WIFI_AP); we only keep the mode asserted.
+  if (esp_wifi_set_mode(WIFI_MODE_APSTA) != ESP_OK)
+    return;
+  wifi_config_t ap{};
+  strncpy((char *) ap.ap.ssid, this->ap_ssid_.c_str(), sizeof(ap.ap.ssid) - 1);
+  ap.ap.ssid_len = this->ap_ssid_.length();
+  strncpy((char *) ap.ap.password, this->ap_pass_.c_str(), sizeof(ap.ap.password) - 1);
+  ap.ap.authmode = this->ap_pass_.length() >= 8 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+  ap.ap.max_connection = 4;
+  ap.ap.channel = 0;  // follows the STA channel (single radio)
+  const esp_err_t err = esp_wifi_set_config(WIFI_IF_AP, &ap);
+  ESP_LOGI(TAG, "softAP \"%s\" %s (NMEA at 192.168.4.1:10110)", this->ap_ssid_.c_str(),
+           err == ESP_OK ? "up" : esp_err_to_name(err));
+}
+
+/** NMEA 0183 sentences for depth+temp (port of Nmea.forDepthTemp). */
+static std::string nmea_sentence(const char *body) {
+  uint8_t cs = 0;
+  for (const char *p = body; *p; p++)
+    cs ^= (uint8_t) *p;
+  char out[96];
+  snprintf(out, sizeof(out), "$%s*%02X\r\n", body, cs);
+  return out;
+}
+
+static std::string nmea_for_depth_temp(float depth_m, float temp_c) {
+  char b[64];
+  std::string s;
+  snprintf(b, sizeof(b), "SDDPT,%.2f,0.0", depth_m);
+  s += nmea_sentence(b);
+  snprintf(b, sizeof(b), "SDDBT,%.1f,f,%.2f,M,%.1f,F", depth_m * 3.28084, depth_m,
+           depth_m * 0.546807);
+  s += nmea_sentence(b);
+  snprintf(b, sizeof(b), "YXMTW,%.1f,C", temp_c);
+  s += nmea_sentence(b);
+  return s;
+}
+
+/** TCP :10110 on all interfaces (phone AP net + LAN). Non-blocking accept +
+ *  send each loop; emit policy from the Android bridge: fresh data at >=1 s
+ *  spacing, 4 s keepalive re-emit, silent after 30 s staleness (Navionics
+ *  clears depth on a quiet feed, so the keepalive matters). */
+void SP200AClient::nmea_server_() {
+  if (this->nmea_listen_ < 0) {
+    int s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s < 0)
+      return;
+    int one = 1;
+    ::setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+    struct sockaddr_in a{};
+    a.sin_family = AF_INET;
+    a.sin_port = htons(10110);
+    a.sin_addr.s_addr = INADDR_ANY;
+    if (::bind(s, (struct sockaddr *) &a, sizeof(a)) < 0 || ::listen(s, 2) < 0) {
+      ::close(s);
+      return;
+    }
+    int flags = ::fcntl(s, F_GETFL, 0);
+    ::fcntl(s, F_SETFL, flags | O_NONBLOCK);
+    this->nmea_listen_ = s;
+    ESP_LOGI(TAG, "NMEA TCP listening on :10110");
+  }
+
+  // accept (non-blocking)
+  struct sockaddr_in from{};
+  socklen_t fl = sizeof(from);
+  int c = ::accept(this->nmea_listen_, (struct sockaddr *) &from, &fl);
+  if (c >= 0) {
+    int slot = -1;
+    for (int i = 0; i < NMEA_MAX_CLIENTS; i++)
+      if (this->nmea_clients_[i] < 0) {
+        slot = i;
+        break;
+      }
+    if (slot < 0) {
+      ::close(c);
+    } else {
+      int flags = ::fcntl(c, F_GETFL, 0);
+      ::fcntl(c, F_SETFL, flags | O_NONBLOCK);
+      this->nmea_clients_[slot] = c;
+      ESP_LOGI(TAG, "NMEA client connected (slot %d)", slot);
+    }
+  }
+
+  // emit
+  const uint32_t now = millis();
+  if (this->depth_m_ <= 0.0f || this->last_data_ == 0 || now - this->last_data_ > 30000)
+    return;
+  const bool fresh = this->last_data_ > this->nmea_last_emit_;
+  if (!((fresh && now - this->nmea_last_emit_ >= 1000) || now - this->nmea_last_emit_ >= 4000))
+    return;
+  this->nmea_last_emit_ = now;
+  const std::string payload =
+      nmea_for_depth_temp(this->depth_m_, std::isnan(this->temp_c_) ? 0.0f : this->temp_c_);
+  for (int i = 0; i < NMEA_MAX_CLIENTS; i++) {
+    if (this->nmea_clients_[i] < 0)
+      continue;
+    const int r = ::send(this->nmea_clients_[i], payload.data(), payload.size(), 0);
+    if (r < 0 && errno != EWOULDBLOCK && errno != EAGAIN) {
+      ::close(this->nmea_clients_[i]);
+      this->nmea_clients_[i] = -1;
+      ESP_LOGI(TAG, "NMEA client dropped (slot %d)", i);
+    }
+  }
 }
 
 // ============================================================ Sonar-AP scan

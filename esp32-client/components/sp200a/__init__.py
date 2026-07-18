@@ -49,6 +49,10 @@ CONFIG_SCHEMA = cv.Schema(
         # rendering into the panel's two framebuffers (tear-free vsync swap,
         # no intermediate copy)
         cv.Optional("direct_display"): cv.use_id(MipiRgbClass),
+        # always-on softAP + NMEA TCP :10110 (Navionics pairs to 192.168.4.1)
+        cv.Optional("phone_ap", default=True): cv.boolean,
+        cv.Optional("phone_ap_ssid", default="SonarDisplay"): cv.string,
+        cv.Optional("phone_ap_password", default="12345678"): cv.string,
         cv.Optional(CONF_DEPTH): sensor.sensor_schema(
             unit_of_measurement=UNIT_METER,
             accuracy_decimals=2,
@@ -82,6 +86,9 @@ async def to_code(config):
     if "direct_display" in config:
         disp = await cg.get_variable(config["direct_display"])
         cg.add(var.set_direct_display(disp))
+    cg.add(var.set_ap_enabled(config["phone_ap"]))
+    cg.add(var.set_ap_ssid(config["phone_ap_ssid"]))
+    cg.add(var.set_ap_password(config["phone_ap_password"]))
 
     if CONF_DEPTH in config:
         cg.add(var.set_depth_sensor(await sensor.new_sensor(config[CONF_DEPTH])))

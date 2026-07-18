@@ -55,6 +55,11 @@ class SP200AClient : public Component {
   void range_down();
   void range_auto();
 
+  // --- phone AP + NMEA bridge (Navionics pairs to 192.168.4.1:10110 TCP) ---
+  void set_ap_enabled(bool e) { this->ap_enabled_ = e; }
+  void set_ap_ssid(const std::string &s) { this->ap_ssid_ = s; }
+  void set_ap_password(const std::string &s) { this->ap_pass_ = s; }
+
   // --- sonar-AP discovery (settings page: scan, list, adopt) ---
   void wifi_scan_start();           // kick an async scan (safe while connected)
   bool wifi_scan_fresh();           // true once when new results are ready
@@ -250,6 +255,20 @@ class SP200AClient : public Component {
   // datagram to :19998 gets a one-line status reply
   int diag_sock_{-1};
   void diag_responder_();
+
+  // phone AP (always-on softAP alongside the STA link) + NMEA TCP server
+  bool ap_enabled_{true};
+  std::string ap_ssid_{"SonarDisplay"};
+  std::string ap_pass_{"12345678"};
+  bool ap_netif_created_{false};
+  uint32_t ap_last_check_{0};
+  void ensure_softap_();
+
+  int nmea_listen_{-1};
+  static constexpr int NMEA_MAX_CLIENTS = 4;
+  int nmea_clients_[NMEA_MAX_CLIENTS]{-1, -1, -1, -1};
+  uint32_t nmea_last_emit_{0};
+  void nmea_server_();
 
   // sonar-AP scan state (flag set from the WiFi event task, drained in loop)
   volatile bool scan_done_flag_{false};
