@@ -39,6 +39,7 @@ class SonarView(context: Context) : android.view.View(context) {
         val RANGE_STEPS_M = listOf(2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 60.0, 80.0)
         const val FIT = 1.25
         const val STEP_DOWN_MS = 6000L
+        const val ZOOM_COLLAPSE_MS = 8000L
     }
 
     private val dens = resources.displayMetrics.density
@@ -63,9 +64,15 @@ class SonarView(context: Context) : android.view.View(context) {
     private var fitsSmallerSince = 0L
 
     // chip hit areas (filled during onDraw)
+    private val zoomRect = RectF()
     private val minusRect = RectF()
     private val autoRect = RectF()
     private val plusRect = RectF()
+
+    // collapsed by default: a single ± chip expands the -/AUTO/+ row to the
+    // right; the row folds back after a few seconds untouched
+    private var zoomOpen = false
+    private var zoomLastAt = 0L
 
     private val bmpPaint = Paint().apply { isFilterBitmap = true }
     // subtle hairline keeping the interface crisp; Deeper relies on contrast
@@ -116,6 +123,13 @@ class SonarView(context: Context) : android.view.View(context) {
     }
     private val chipTextActive = Paint(chipTextPaint).apply {
         color = Color.rgb(255, 179, 64)
+    }
+    private val magnifierPaint = Paint().apply {
+        color = Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = dp(2.5f)
+        strokeCap = Paint.Cap.ROUND
+        isAntiAlias = true
     }
     private val depthPaint = Paint().apply {
         color = Color.WHITE
@@ -354,6 +368,12 @@ class SonarView(context: Context) : android.view.View(context) {
             changed = true
         }
 
+        // fold the zoom controls back after a few seconds untouched
+        if (zoomOpen && SystemClock.elapsedRealtime() - zoomLastAt > ZOOM_COLLAPSE_MS) {
+            zoomOpen = false
+            changed = true
+        }
+
         if (changed) invalidate()
     }
 
@@ -366,11 +386,22 @@ class SonarView(context: Context) : android.view.View(context) {
                 val x = event.x
                 val y = event.y
                 when {
-                    minusRect.contains(x, y) -> setManualRange(rangeIdx - 1)
-                    plusRect.contains(x, y) -> setManualRange(rangeIdx + 1)
-                    autoRect.contains(x, y) -> {
+                    zoomRect.contains(x, y) -> {
+                        zoomOpen = !zoomOpen
+                        zoomLastAt = SystemClock.elapsedRealtime()
+                    }
+                    zoomOpen && minusRect.contains(x, y) -> {
+                        setManualRange(rangeIdx - 1)
+                        zoomLastAt = SystemClock.elapsedRealtime()
+                    }
+                    zoomOpen && plusRect.contains(x, y) -> {
+                        setManualRange(rangeIdx + 1)
+                        zoomLastAt = SystemClock.elapsedRealtime()
+                    }
+                    zoomOpen && autoRect.contains(x, y) -> {
                         autoRange = true
                         fitsSmallerSince = 0L
+                        zoomLastAt = SystemClock.elapsedRealtime()
                     }
                     else -> return performClick().let { true }
                 }
@@ -549,27 +580,49 @@ class SonarView(context: Context) : android.view.View(context) {
             canvas.drawText(txt, pill.left + dp(10f) * sc, pill.bottom - dp(9f) * sc, demoPaint)
         }
 
-        // ---- range chips: [ − ] [ AUTO | range ] [ + ]  (bottom-left)
+        // ---- zoom controls (bottom-left): a single ± chip; when open it
+        // expands [ − ] [ AUTO | range ] [ + ] to the right (auto-collapses)
         val chipH2 = dp(46f) * sc
         val chipY = h - chipH2 - dp(14f)
         val bw = dp(56f) * sc
-        minusRect.set(inset, chipY, inset + bw, chipY + chipH2)
-        val midLabel = if (autoRange) {
-            "AUTO"
-        } else {
-            val r = rangeM * if (Units.feet) 3.28084 else 1.0
-            String.format(Locale.US, "%.0f %s", r, unit)
-        }
-        val midW = maxOf(chipTextPaint.measureText(midLabel) + dp(28f) * sc, dp(76f) * sc)
-        autoRect.set(minusRect.right + dp(8f), chipY, minusRect.right + dp(8f) + midW, chipY + chipH2)
-        plusRect.set(autoRect.right + dp(8f), chipY, autoRect.right + dp(8f) + bw, chipY + chipH2)
-
         val chipR = chipH2 / 2f
-        for ((rect, label) in listOf(minusRect to "−", autoRect to midLabel, plusRect to "+")) {
-            canvas.drawRoundRect(rect, chipR, chipR, chipBgPaint)
-            canvas.drawRoundRect(rect, chipR, chipR, chipStrokePaint)
-            val p = if (rect === autoRect && autoRange) chipTextActive else chipTextPaint
-            canvas.drawText(label, rect.centerX(), rect.centerY() + dp(6f) * sc, p)
+        zoomRect.set(inset, chipY, inset + bw, chipY + chipH2)
+        canvas.drawRoundRect(zoomRect, chipR, chipR, chipBgPaint)
+        canvas.drawRoundRect(zoomRect, chipR, chipR, chipStrokePaint)
+        // magnifier glyph: ring + handle, amber while the row is open
+        magnifierPaint.color = if (zoomOpen) Color.rgb(255, 179, 64) else Color.WHITE
+        val mgr = dp(6.5f) * sc
+        val mgx = zoomRect.centerX() - mgr * 0.35f
+        val mgy = zoomRect.centerY() - mgr * 0.35f
+        canvas.drawCircle(mgx, mgy, mgr, magnifierPaint)
+        canvas.drawLine(
+            mgx + mgr * 0.75f, mgy + mgr * 0.75f,
+            mgx + mgr * 1.8f, mgy + mgr * 1.8f, magnifierPaint,
+        )
+
+        if (zoomOpen) {
+            minusRect.set(zoomRect.right + dp(8f), chipY, zoomRect.right + dp(8f) + bw, chipY + chipH2)
+            val midLabel = if (autoRange) {
+                "AUTO"
+            } else {
+                val r = rangeM * if (Units.feet) 3.28084 else 1.0
+                String.format(Locale.US, "%.0f %s", r, unit)
+            }
+            val midW = maxOf(chipTextPaint.measureText(midLabel) + dp(28f) * sc, dp(76f) * sc)
+            autoRect.set(minusRect.right + dp(8f), chipY, minusRect.right + dp(8f) + midW, chipY + chipH2)
+            plusRect.set(autoRect.right + dp(8f), chipY, autoRect.right + dp(8f) + bw, chipY + chipH2)
+
+            for ((rect, label) in listOf(minusRect to "−", autoRect to midLabel, plusRect to "+")) {
+                canvas.drawRoundRect(rect, chipR, chipR, chipBgPaint)
+                canvas.drawRoundRect(rect, chipR, chipR, chipStrokePaint)
+                val p = if (rect === autoRect && autoRange) chipTextActive else chipTextPaint
+                canvas.drawText(label, rect.centerX(), rect.centerY() + dp(6f) * sc, p)
+            }
+        } else {
+            // stale rects must not keep catching taps while hidden
+            minusRect.setEmpty()
+            autoRect.setEmpty()
+            plusRect.setEmpty()
         }
     }
 
