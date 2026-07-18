@@ -104,6 +104,7 @@ class MipiRgb : public display::Display {
 
   esp_lcd_panel_handle_t handle_{};
   void *frame_buffers_[2]{nullptr, nullptr};  // FORK: see get_frame_buffers()
+  uint8_t back_fb_{1};  // FORK: next framebuffer to copy+swap into (0 displays first)
 };
 
 #ifdef USE_SPI

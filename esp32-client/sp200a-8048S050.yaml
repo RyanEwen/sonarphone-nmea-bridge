@@ -89,6 +89,11 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'true'
+  # last touch on the zoom controls (millis); drives auto-collapse
+  - id: g_zoom_last
+    type: int
+    restore_value: false
+    initial_value: '0'
 
 # --- Networking -------------------------------------------------------------
 # CRITICAL: the sonar AP has no internet and no ESPHome API. Without
@@ -113,7 +118,6 @@ web_server:
 sp200a:
   id: sonar
   demo: true
-  direct_display: main_display
   feet: false
   depth:
     id: sonar_depth
@@ -134,7 +138,49 @@ sp200a:
             }
             return s;
       - lvgl.label.update:
-          id: lbl_depth_sh
+          id: lbl_depth_sh1
+          text: !lambda |-
+            char s[16];
+            if (id(sonar).feet()) {
+              double tf = x * 3.28084;
+              int ft = (int) tf;
+              int in = (int) ((tf - ft) * 12.0 + 0.5);
+              if (in == 12) { ft++; in = 0; }
+              snprintf(s, sizeof(s), "%d' %d\"", ft, in);
+            } else {
+              snprintf(s, sizeof(s), "%.2f m", x);
+            }
+            return s;
+      - lvgl.label.update:
+          id: lbl_depth_sh2
+          text: !lambda |-
+            char s[16];
+            if (id(sonar).feet()) {
+              double tf = x * 3.28084;
+              int ft = (int) tf;
+              int in = (int) ((tf - ft) * 12.0 + 0.5);
+              if (in == 12) { ft++; in = 0; }
+              snprintf(s, sizeof(s), "%d' %d\"", ft, in);
+            } else {
+              snprintf(s, sizeof(s), "%.2f m", x);
+            }
+            return s;
+      - lvgl.label.update:
+          id: lbl_depth_sh3
+          text: !lambda |-
+            char s[16];
+            if (id(sonar).feet()) {
+              double tf = x * 3.28084;
+              int ft = (int) tf;
+              int in = (int) ((tf - ft) * 12.0 + 0.5);
+              if (in == 12) { ft++; in = 0; }
+              snprintf(s, sizeof(s), "%d' %d\"", ft, in);
+            } else {
+              snprintf(s, sizeof(s), "%.2f m", x);
+            }
+            return s;
+      - lvgl.label.update:
+          id: lbl_depth_sh4
           text: !lambda |-
             char s[16];
             if (id(sonar).feet()) {
@@ -161,7 +207,34 @@ sp200a:
               snprintf(s, sizeof(s), "%.0f\xC2\xB0""C", x);
             return s;
       - lvgl.label.update:
-          id: lbl_temp_sh
+          id: lbl_temp_sh1
+          text: !lambda |-
+            char s[16];
+            if (id(g_temp_f))
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""F", x * 9.0 / 5.0 + 32.0);
+            else
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""C", x);
+            return s;
+      - lvgl.label.update:
+          id: lbl_temp_sh2
+          text: !lambda |-
+            char s[16];
+            if (id(g_temp_f))
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""F", x * 9.0 / 5.0 + 32.0);
+            else
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""C", x);
+            return s;
+      - lvgl.label.update:
+          id: lbl_temp_sh3
+          text: !lambda |-
+            char s[16];
+            if (id(g_temp_f))
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""F", x * 9.0 / 5.0 + 32.0);
+            else
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""C", x);
+            return s;
+      - lvgl.label.update:
+          id: lbl_temp_sh4
           text: !lambda |-
             char s[16];
             if (id(g_temp_f))
@@ -180,7 +253,25 @@ sp200a:
             snprintf(s, sizeof(s), "%.1f V", x);
             return s;
       - lvgl.label.update:
-          id: lbl_batt_sh
+          id: lbl_batt_sh1
+          text: !lambda |-
+            char s[16];
+            snprintf(s, sizeof(s), "%.1f V", x);
+            return s;
+      - lvgl.label.update:
+          id: lbl_batt_sh2
+          text: !lambda |-
+            char s[16];
+            snprintf(s, sizeof(s), "%.1f V", x);
+            return s;
+      - lvgl.label.update:
+          id: lbl_batt_sh3
+          text: !lambda |-
+            char s[16];
+            snprintf(s, sizeof(s), "%.1f V", x);
+            return s;
+      - lvgl.label.update:
+          id: lbl_batt_sh4
           text: !lambda |-
             char s[16];
             snprintf(s, sizeof(s), "%.1f V", x);
@@ -198,6 +289,15 @@ interval:
       - lvgl.label.update:
           id: lbl_auto
           text: !lambda return id(sonar).range_label();
+      # collapse the zoom controls after ~8 s untouched
+      - lambda: |-
+          auto *m = (lv_obj_t *) id(btn_minus);
+          if (!lv_obj_has_flag(m, LV_OBJ_FLAG_HIDDEN) &&
+              (int) millis() - id(g_zoom_last) > 8000) {
+            lv_obj_add_flag(m, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag((lv_obj_t *) id(btn_auto), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag((lv_obj_t *) id(btn_plus), LV_OBJ_FLAG_HIDDEN);
+          }
 
 # --- UI ---------------------------------------------------------------------
 lvgl:
@@ -205,10 +305,11 @@ lvgl:
     - main_display
   touchscreens:
     - main_touchscreen
-  # buffer only used until sp200a switches LVGL to DIRECT mode (rendering
-  # straight into the RGB panel's two framebuffers — tear-free vsync swap)
+  # Full-frame compose in PSRAM; the forked mipi_rgb copies each frame into
+  # the non-displayed framebuffer and swaps at the frame boundary (tear-free
+  # without LVGL DIRECT mode's cross-buffer sync artifacts).
   buffer_size: 100%
-  full_refresh: false
+  full_refresh: true
   bg_opa: TRANSP
   pages:
     # ======================================================= sonar page
@@ -223,7 +324,7 @@ lvgl:
             width: 800
             height: 480
         # depth/temp/battery readout (top-left): no box — white text with a
-        # black shadow-outline (shadow labels drawn first, offset +3,+3)
+        # 4-way black outline (shadow copies at +/-3px in each direction)
         - obj:
             x: 10
             y: 10
@@ -236,12 +337,36 @@ lvgl:
             scrollable: false
             widgets:
               - label:
-                  id: lbl_depth_sh
+                  id: lbl_depth_sh1
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_48
+                  align: TOP_LEFT
+                  x: -3
+                  y: 0
+              - label:
+                  id: lbl_depth_sh2
                   text: "--"
                   text_color: 0x000000
                   text_font: montserrat_48
                   align: TOP_LEFT
                   x: 3
+                  y: 0
+              - label:
+                  id: lbl_depth_sh3
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_48
+                  align: TOP_LEFT
+                  x: 0
+                  y: -3
+              - label:
+                  id: lbl_depth_sh4
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_48
+                  align: TOP_LEFT
+                  x: 0
                   y: 3
               - label:
                   id: lbl_depth
@@ -249,13 +374,39 @@ lvgl:
                   text_color: 0xFFFFFF
                   text_font: montserrat_48
                   align: TOP_LEFT
+                  x: 0
+                  y: 0
               - label:
-                  id: lbl_temp_sh
+                  id: lbl_temp_sh1
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_28
+                  align: BOTTOM_LEFT
+                  x: -3
+                  y: -38
+              - label:
+                  id: lbl_temp_sh2
                   text: "--"
                   text_color: 0x000000
                   text_font: montserrat_28
                   align: BOTTOM_LEFT
                   x: 3
+                  y: -38
+              - label:
+                  id: lbl_temp_sh3
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_28
+                  align: BOTTOM_LEFT
+                  x: 0
+                  y: -41
+              - label:
+                  id: lbl_temp_sh4
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_28
+                  align: BOTTOM_LEFT
+                  x: 0
                   y: -35
               - label:
                   id: lbl_temp
@@ -263,14 +414,39 @@ lvgl:
                   text_color: 0xE8F2FF
                   text_font: montserrat_28
                   align: BOTTOM_LEFT
+                  x: 0
                   y: -38
               - label:
-                  id: lbl_batt_sh
+                  id: lbl_batt_sh1
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_24
+                  align: BOTTOM_LEFT
+                  x: -3
+                  y: 0
+              - label:
+                  id: lbl_batt_sh2
                   text: "--"
                   text_color: 0x000000
                   text_font: montserrat_24
                   align: BOTTOM_LEFT
                   x: 3
+                  y: 0
+              - label:
+                  id: lbl_batt_sh3
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_24
+                  align: BOTTOM_LEFT
+                  x: 0
+                  y: -3
+              - label:
+                  id: lbl_batt_sh4
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_24
+                  align: BOTTOM_LEFT
+                  x: 0
                   y: 3
               - label:
                   id: lbl_batt
@@ -278,6 +454,8 @@ lvgl:
                   text_color: 0xE8F2FF
                   text_font: montserrat_24
                   align: BOTTOM_LEFT
+                  x: 0
+                  y: 0
         # status (top, left of the settings button)
         - label:
             id: lbl_range
@@ -287,11 +465,12 @@ lvgl:
             align: TOP_RIGHT
             x: -40
             y: 16
-        # settings button: gear icon, bottom row next to the range chips
+        # bottom-left controls: [gear] [zoom] \u2192 zoom expands - / AUTO / +
+        # to the right; they auto-collapse after ~8 s untouched
         - button:
             id: btn_settings
             align: BOTTOM_LEFT
-            x: 306
+            x: 14
             y: -14
             width: 64
             height: 52
@@ -302,11 +481,38 @@ lvgl:
                   text_font: montserrat_28
             on_click:
               - lvgl.page.show: settings_page
-        # range chips (bottom-centre): [ - ] [ AUTO/range ] [ + ]
+        - button:
+            id: btn_zoom
+            align: BOTTOM_LEFT
+            x: 86
+            y: -14
+            width: 64
+            height: 52
+            widgets:
+              - label:
+                  text: "\uF067\uF068"
+                  align: CENTER
+                  text_font: montserrat_20
+            on_click:
+              - lambda: |-
+                  auto *m = (lv_obj_t *) id(btn_minus);
+                  auto *a = (lv_obj_t *) id(btn_auto);
+                  auto *p = (lv_obj_t *) id(btn_plus);
+                  if (lv_obj_has_flag(m, LV_OBJ_FLAG_HIDDEN)) {
+                    lv_obj_clear_flag(m, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_clear_flag(a, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_clear_flag(p, LV_OBJ_FLAG_HIDDEN);
+                    id(g_zoom_last) = (int) millis();
+                  } else {
+                    lv_obj_add_flag(m, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_add_flag(a, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_add_flag(p, LV_OBJ_FLAG_HIDDEN);
+                  }
         - button:
             id: btn_minus
+            hidden: true
             align: BOTTOM_LEFT
-            x: 14
+            x: 158
             y: -14
             width: 64
             height: 52
@@ -316,11 +522,14 @@ lvgl:
                   align: CENTER
                   text_font: montserrat_28
             on_click:
-              - lambda: id(sonar).range_down();
+              - lambda: |-
+                  id(sonar).range_down();
+                  id(g_zoom_last) = (int) millis();
         - button:
             id: btn_auto
+            hidden: true
             align: BOTTOM_LEFT
-            x: 86
+            x: 230
             y: -14
             width: 130
             height: 52
@@ -331,11 +540,14 @@ lvgl:
                   align: CENTER
                   text_font: montserrat_20
             on_click:
-              - lambda: id(sonar).range_auto();
+              - lambda: |-
+                  id(sonar).range_auto();
+                  id(g_zoom_last) = (int) millis();
         - button:
             id: btn_plus
+            hidden: true
             align: BOTTOM_LEFT
-            x: 224
+            x: 368
             y: -14
             width: 64
             height: 52
@@ -345,7 +557,9 @@ lvgl:
                   align: CENTER
                   text_font: montserrat_28
             on_click:
-              - lambda: id(sonar).range_up();
+              - lambda: |-
+                  id(sonar).range_up();
+                  id(g_zoom_last) = (int) millis();
 
     # ======================================================= settings page
     - id: settings_page

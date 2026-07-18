@@ -6,6 +6,7 @@
 #include "esphome/core/log.h"
 #include <driver/gpio.h>
 #include <esp_lcd_panel_rgb.h>
+#include <cstring>
 #include <span>
 
 namespace esphome::mipi_rgb {
@@ -244,7 +245,17 @@ void MipiRgb::write_to_display_(int x_start, int y_start, int w, int h, const ui
   auto stride = (x_offset + w + x_pad) * 2;
   ptr += y_offset * stride + x_offset * 2;  // skip to the first pixel
   // x_ and y_offset are offsets into the source buffer, unrelated to our own offsets into the display.
-  if (x_offset == 0 && x_pad == 0) {
+  // FORK: tear-free swap. A full-frame flush from an external buffer (LVGL
+  // full_refresh mode) is copied into the NON-displayed framebuffer, then
+  // draw_bitmap with that fb pointer makes the esp_lcd driver switch scanout
+  // at the frame boundary instead of copying into the live buffer.
+  if (x_offset == 0 && x_pad == 0 && this->frame_buffers_[0] != nullptr && x_start == 0 && y_start == 0 &&
+      w == this->width_ && h == this->height_ && ptr != this->frame_buffers_[0] && ptr != this->frame_buffers_[1]) {
+    auto *back = static_cast<uint8_t *>(this->frame_buffers_[this->back_fb_]);
+    memcpy(back, ptr, (size_t) w * h * 2);
+    err = esp_lcd_panel_draw_bitmap(this->handle_, 0, 0, w, h, back);
+    this->back_fb_ ^= 1;
+  } else if (x_offset == 0 && x_pad == 0) {
     err = esp_lcd_panel_draw_bitmap(this->handle_, x_start, y_start, x_start + w, y_start + h, ptr);
   } else {
     // draw line by line
