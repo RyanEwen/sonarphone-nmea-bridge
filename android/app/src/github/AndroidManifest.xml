@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- github (sideload) flavor only: the in-app self-updater downloads and
+         installs release APKs, and the direct battery-optimisation prompt.
+         Both are Play-policy-restricted, so they are excluded from the play
+         flavor. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <application>
+        <!-- allow `adb shell am start-foreground-service` to drive it in dev -->
+        <service
+            android:name=".BridgeService"
+            android:exported="true"
+            tools:replace="android:exported" />
+    </application>
+</manifest>

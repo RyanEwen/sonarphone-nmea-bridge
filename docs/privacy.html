@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SonarBridge — Privacy Policy</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6;
+         color: #1a1a1a; background: #fff; }
+  h1 { font-size: 1.8rem; }
+  h2 { font-size: 1.2rem; margin-top: 1.8em; }
+  code { background: #f2f2f2; padding: 1px 5px; border-radius: 4px; }
+  .muted { color: #666; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<h1>SonarBridge — Privacy Policy</h1>
+<p class="muted">Last updated: 18 July 2026</p>
+
+<p>SonarBridge is an Android app that connects to a Vexilar SonarPhone
+SP200A fish finder over its own Wi-Fi, displays the sonar data, and relays
+depth and water temperature to marine chart apps as standard NMEA 0183
+sentences on your device.</p>
+
+<h2>Data we collect</h2>
+<p><strong>None.</strong> SonarBridge does not collect, store, transmit, or
+share any personal or usage data. There are no user accounts, no analytics,
+no advertising, and no tracking.</p>
+
+<h2>How your data is used</h2>
+<ul>
+  <li><strong>Sonar data</strong> (depth, water temperature, battery voltage,
+      echo returns) is received from your SonarPhone device and shown on
+      screen. It is processed entirely on your device.</li>
+  <li><strong>NMEA output</strong> is served only to the loopback address
+      (<code>127.0.0.1</code>) on your own device, for a marine chart app you
+      choose to pair with it. It never leaves your phone.</li>
+  <li><strong>Optional raw logging</strong>, if you enable it, writes sonar
+      frames to your app-private storage. These files stay on your device
+      unless you share them yourself.</li>
+</ul>
+
+<h2>Permissions</h2>
+<ul>
+  <li><strong>Wi-Fi / network</strong> — to connect to the SonarPhone's local
+      Wi-Fi network and stream its data. The connection is local-only and does
+      not route your other internet traffic.</li>
+  <li><strong>Foreground service &amp; notifications</strong> — to keep the
+      sonar connection alive while you're on the water and show its status.</li>
+</ul>
+
+<h2>Third parties</h2>
+<p>SonarBridge contains no third-party analytics, advertising, or tracking
+SDKs. It does not send your data to us or anyone else.</p>
+
+<h2>Children</h2>
+<p>SonarBridge is a general-audience utility and is not directed at children.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy: <a href="mailto:ryan.ewen@gmail.com">ryan.ewen@gmail.com</a>.
+Source code: <a href="https://github.com/RyanEwen/sonarphone-nmea-bridge">github.com/RyanEwen/sonarphone-nmea-bridge</a>.</p>
+</body>
+</html>

@@ -208,10 +208,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
         battery.setOnClickListener {
-            startActivity(
+            // github build has REQUEST_IGNORE_BATTERY_OPTIMIZATIONS and can ask
+            // directly; the Play build lacks it (policy) so it opens the list.
+            val intent = if (BuildConfig.IS_PLAY) {
+                Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            } else {
                 Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                     .setData(Uri.parse("package:$packageName"))
-            )
+            }
+            startActivity(intent)
         }
         return ScrollView(this).apply { addView(root) }
     }
@@ -552,13 +557,17 @@ class MainActivity : AppCompatActivity() {
         )
 
         root.addView(header("Updates"))
-        root.addView(
-            MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
-                text = "Check for updates"
-                setOnClickListener { UpdateCheck.manualCheck(this@MainActivity, scope) }
-            }
-        )
-        root.addView(note("Installed version: v${BuildConfig.VERSION_NAME}. Updates are also offered automatically when the app opens."))
+        if (BuildConfig.IS_PLAY) {
+            root.addView(note("Version ${BuildConfig.VERSION_NAME}. Updates are delivered through Google Play."))
+        } else {
+            root.addView(
+                MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
+                    text = "Check for updates"
+                    setOnClickListener { UpdateCheck.manualCheck(this@MainActivity, scope) }
+                }
+            )
+            root.addView(note("Version ${BuildConfig.VERSION_NAME}. Updates are also offered automatically when the app opens."))
+        }
 
         val mode = prefs.getInt("mode", 0)
         modeGroup.check(mode + 1)

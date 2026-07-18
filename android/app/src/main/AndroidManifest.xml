@@ -8,13 +8,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Play-sensitive permissions (self-update, direct battery-opt request)
+         live in the `github` flavor manifest only. -->
 
     <application
         android:name=".App"
-        android:label="SP200A Bridge"
+        android:label="SonarBridge"
         android:icon="@drawable/ic_stat"
         android:theme="@style/Theme.SonarBridge">
 
@@ -27,10 +27,11 @@
             </intent-filter>
         </activity>
 
-        <!-- exported=true so `adb shell am start-foreground-service` can drive it; dev build only -->
+        <!-- exported=false by default (Play-safe); the github flavor overrides
+             it to true so the dev build can be driven from adb. -->
         <service
             android:name=".BridgeService"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="connectedDevice" />
     </application>
 </manifest>

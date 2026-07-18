@@ -19,7 +19,7 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools \
 # android.jar etc.; native build-tools binaries are unused (aapt2 overridden,
 # d8/r8 are Java inside AGP) but AGP checks the directory exists
 RUN yes | sdkmanager --licenses >/dev/null \
-    && sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null
+    && sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
 
 # arm64-native aapt2 (pinned release, wired in via android.aapt2FromMavenOverride)
 RUN mkdir -p /opt/android-tools \

@@ -75,11 +75,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_VERSION_NAME: ${{ steps.ver.outputs.name }}
           ANDROID_VERSION_CODE: ${{ github.run_number }}
-        run: ./gradlew --no-daemon assembleRelease
+        # github flavor = sideload APK (self-updater). The Play AAB is built
+        # and uploaded separately (Play needs its own versionCode scheme).
+        run: ./gradlew --no-daemon assembleGithubRelease
 
       - name: Stage APK
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk \
+          cp android/app/build/outputs/apk/githubRelease/app-github-release.apk \
              "sonarbridge-${{ steps.ver.outputs.name }}.apk"
 
       - name: Publish release

@@ -5,15 +5,31 @@ plugins {
 
 android {
     namespace = "com.rewen.sonarbridge"
-    compileSdk = 34
+    compileSdk = 35
+    buildToolsVersion = "35.0.0" // only 35 is in the builder image
 
     defaultConfig {
         applicationId = "com.rewen.sonarbridge"
         minSdk = 29
-        targetSdk = 34
+        targetSdk = 35
         // CI (release.yml) injects the tag version; local builds stay 0.1-dev
         versionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.1-dev"
+    }
+
+    // Two distribution channels from one codebase:
+    //  - github: sideload APK, keeps the in-app self-updater
+    //  - play:   Play Store, no self-update (Play policy), softer battery-opt
+    flavorDimensions += "dist"
+    productFlavors {
+        create("github") {
+            dimension = "dist"
+            buildConfigField("boolean", "IS_PLAY", "false")
+        }
+        create("play") {
+            dimension = "dist"
+            buildConfigField("boolean", "IS_PLAY", "true")
+        }
     }
 
     buildFeatures {
