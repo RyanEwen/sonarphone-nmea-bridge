@@ -59,9 +59,19 @@ unit has a master device; SonarBridge rides along as a second master.
 
 ## Status
 
-The display, networking, demo mode, and Navionics pairing are all working.
-Final verification against real SP200A hardware on the water is in progress —
-if something looks off with your unit, open an issue with a log.
+**Verified working on the water with a real SP200A T-Box** (July 2026):
+live depth and temperature into both the app's sonar view and Navionics,
+with automatic reconnects, through a full on-water session. If something
+looks off with your unit, open an issue with a log.
+
+## Bonus: a standalone head unit
+
+The [`esp32-client/`](esp32-client/) folder turns a cheap ESP32-S3 touchscreen
+(Guition/Sunton 8048S050, 5" 800×480) into a dedicated fish-finder display for
+the same T-Box — waterfall, fish markers, auto-range, settings, and its own
+`SonarDisplay` WiFi AP that serves NMEA to a phone running Navionics. No phone
+required on the boat at all. Built on ESPHome; see its
+[README](esp32-client/README.md).
 
 ## Developers
 

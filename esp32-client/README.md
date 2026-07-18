@@ -130,8 +130,12 @@ These cost hours of remote debugging — do not re-learn them:
 
 ## Known caveats / where the risk is
 
-These are the things to expect during bring-up — none are blockers, but the
-code is **untested on hardware** (written from the spec + the Android port):
+Status: the display stack, settings, demo mode, AP picker, and the NMEA
+bridge (verified against Navionics on a phone) all run on real 8048S050
+hardware. The SP200A protocol code is a line-for-line port of the Android
+client that has been **verified on the water against a real T-Box** — the
+one thing not yet exercised end-to-end is this device's own live connection
+to a T-Box. Original bring-up caveats kept for reference:
 
 1. **RGB panel + WiFi tearing.** The RGB peripheral streams the framebuffer out
    of PSRAM continuously; with WiFi active you may see tearing/flicker. This is
