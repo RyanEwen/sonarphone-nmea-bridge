@@ -1,6 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
+from esphome.components.mipi_rgb.display import mipi_rgb as MipiRgbClass
 from esphome.const import CONF_ID
 
 # LVGL provides the display buffer we draw the waterfall into; network gives us
@@ -44,6 +45,10 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_BEAM, default=0x08): cv.int_range(min=0, max=255),
         # demo: synthesize a waterfall with no T-Box present (bench testing)
         cv.Optional(CONF_DEMO, default=False): cv.boolean,
+        # our forked mipi_rgb display: when set, LVGL is switched to DIRECT
+        # rendering into the panel's two framebuffers (tear-free vsync swap,
+        # no intermediate copy)
+        cv.Optional("direct_display"): cv.use_id(MipiRgbClass),
         cv.Optional(CONF_DEPTH): sensor.sensor_schema(
             unit_of_measurement=UNIT_METER,
             accuracy_decimals=2,
@@ -74,6 +79,9 @@ async def to_code(config):
     cg.add(var.set_feet(config[CONF_FEET]))
     cg.add(var.set_beam(config[CONF_BEAM]))
     cg.add(var.set_demo(config[CONF_DEMO]))
+    if "direct_display" in config:
+        disp = await cg.get_variable(config["direct_display"])
+        cg.add(var.set_direct_display(disp))
 
     if CONF_DEPTH in config:
         cg.add(var.set_depth_sensor(await sensor.new_sensor(config[CONF_DEPTH])))

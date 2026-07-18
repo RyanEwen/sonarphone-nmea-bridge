@@ -470,12 +470,7 @@ class SonarView(context: Context) : android.view.View(context) {
                     val x = x0 + k * colW + colW / 2f
                     drawFish(canvas, x, y, fw)
                     if (Units.fishMarkers == 2) {
-                        val txt = if (Units.feet) {
-                            String.format(Locale.US, "%.0f", fd * 3.28084)
-                        } else {
-                            String.format(Locale.US, "%.1f", fd)
-                        }
-                        canvas.drawText(txt, x, y - fw, fishLabelPaint)
+                        canvas.drawText(Units.depth(fd.toDouble()), x, y - fw, fishLabelPaint)
                     }
                 }
             }
@@ -522,23 +517,20 @@ class SonarView(context: Context) : android.view.View(context) {
             }
         }
 
-        // ---- readout chip (top-left)
+        // ---- readout chip (top-left): big value + small unit (feet mode's
+        // ' and " are the unit, so its suffix is empty)
         val inset = dp(12f)
-        val depthTxt = if (Units.feet) {
-            String.format(Locale.US, "%.1f", latestDepth * 3.28084)
-        } else {
-            String.format(Locale.US, "%.2f", latestDepth)
-        }
+        val (depthTxt, depthUnit) = Units.depthParts(latestDepth)
         val tempC = BridgeState.flow.value.tempC
         val tempTxt = tempC?.let { Units.temp(it) }
         val numW = depthPaint.measureText(depthTxt)
-        val unitW = depthUnitPaint.measureText(" $unit")
+        val unitW = depthUnitPaint.measureText(depthUnit)
         val chipW = numW + unitW + dp(28f) * sc
         val chipH = (if (tempTxt != null) dp(84f) else dp(62f)) * sc
         val chip = RectF(inset, inset, inset + chipW, inset + chipH)
         canvas.drawRoundRect(chip, dp(14f), dp(14f), chipBgPaint)
         canvas.drawText(depthTxt, chip.left + dp(14f) * sc, chip.top + dp(44f) * sc, depthPaint)
-        canvas.drawText(" $unit", chip.left + dp(14f) * sc + numW, chip.top + dp(44f) * sc, depthUnitPaint)
+        canvas.drawText(depthUnit, chip.left + dp(14f) * sc + numW, chip.top + dp(44f) * sc, depthUnitPaint)
         if (tempTxt != null) {
             canvas.drawText(tempTxt, chip.left + dp(14f) * sc, chip.top + dp(70f) * sc, tempPaint)
         }

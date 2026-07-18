@@ -318,13 +318,24 @@ class MainActivity : AppCompatActivity() {
                 this.id = id
                 text = label
             }
+        // add a toggle group full-width, its buttons sharing the width equally
+        fun addGroup(g: MaterialButtonToggleGroup, topPad: Int = 8) {
+            g.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(topPad) }
+            for (i in 0 until g.childCount) {
+                g.getChildAt(i).layoutParams =
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            root.addView(g)
+        }
         distGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
             addView(segBtn(1, "Feet"))
             addView(segBtn(2, "Meters"))
             check(if (prefs.getString("unit_dist", "ft") == "ft") 1 else 2)
         }
-        root.addView(distGroup)
+        addGroup(distGroup)
         tempGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
             layoutParams = LinearLayout.LayoutParams(
@@ -334,7 +345,7 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(2, "Fahrenheit"))
             check(if (prefs.getString("unit_temp", "C") == "C") 1 else 2)
         }
-        root.addView(tempGroup)
+        addGroup(tempGroup)
         root.addView(note("Display only — the NMEA feed to Navionics always uses standard units."))
 
         root.addView(header("Text size (sonar view)"))
@@ -349,7 +360,7 @@ class MainActivity : AppCompatActivity() {
                 }
             )
         }
-        root.addView(textGroup)
+        addGroup(textGroup)
 
         root.addView(header("Sonar display"))
         gainSlider = Slider(this).apply {
@@ -368,7 +379,7 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(2, "Classic"))
             check(prefs.getInt("display_style", 0).coerceIn(0, 1) + 1)
         }
-        root.addView(styleGroup)
+        addGroup(styleGroup)
         root.addView(TextView(this).apply { text = "Fish markers" })
         fishGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
@@ -377,7 +388,7 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(3, "Fish + depth"))
             check(prefs.getInt("fish_markers", 0).coerceIn(0, 2) + 1)
         }
-        root.addView(fishGroup)
+        addGroup(fishGroup)
         root.addView(
             note(
                 "Classic style emulates the original SonarPhone look (navy " +
@@ -395,7 +406,7 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(4, "High"))
             check(prefs.getInt("surface_clarity", 0).coerceIn(0, 3) + 1)
         }
-        root.addView(clarityGroup)
+        addGroup(clarityGroup)
         root.addView(TextView(this).apply { text = "Noise filter" })
         noiseGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
@@ -405,7 +416,7 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(4, "High"))
             check(prefs.getInt("noise_filter", 0).coerceIn(0, 3) + 1)
         }
-        root.addView(noiseGroup)
+        addGroup(noiseGroup)
         root.addView(
             note(
                 "Gain brightens or quiets all echoes; noise filter hides weak " +
@@ -428,7 +439,7 @@ class MainActivity : AppCompatActivity() {
                 }
             )
         }
-        root.addView(beamGroup)
+        addGroup(beamGroup)
         root.addView(
             note(
                 "Transducer beam: narrow (200 kHz) focuses deeper with more " +

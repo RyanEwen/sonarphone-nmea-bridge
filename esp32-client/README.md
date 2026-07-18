@@ -18,9 +18,11 @@ component.
 
 | Path | What |
 |---|---|
-| `components/sp200a/__init__.py` | ESPHome config schema + codegen (host/port/feet/beam + optional depth/temp/battery sensors) |
-| `components/sp200a/sp200a.h/.cpp` | UDP client, FX/FC/REDYFC protocol, discover→run state machine, LVGL waterfall renderer |
-| `sp200a-8048S050.yaml` | Example device config: packages the proven hardware bring-up, adds WiFi + the `sp200a:` block + the LVGL overlay UI |
+| `components/sp200a/__init__.py` | ESPHome config schema + codegen (host/port/feet/beam/demo/direct_display + optional depth/temp/battery sensors) |
+| `components/sp200a/sp200a.h/.cpp` | UDP client, FX/FC/REDYFC protocol, discover→run state machine, LVGL waterfall renderer, demo synth, UDP diag responder |
+| `components/mipi_rgb/` | **Local fork** of ESPHome's `mipi_rgb` (from 2026.7.0): `num_fbs=2` + `get_frame_buffers()`. Enables tear-free LVGL DIRECT rendering — `sp200a`'s `direct_display:` option re-points LVGL at the panel's two framebuffers and the esp_lcd driver swaps scanout on the frame boundary instead of copying. Re-sync this fork when updating ESPHome if upstream `mipi_rgb` changes. |
+| `sp200a-8048S050.yaml` | Example device config: packages the proven hardware bring-up, adds WiFi + the `sp200a:` block + the LVGL overlay UI + settings page |
+| `udp-status.py` | Poll the on-device UDP status responder (`:19998`) — works even when TCP services are starved |
 
 ## Install
 

@@ -47,10 +47,6 @@ touchscreen:
       swap_xy: false
       mirror_x: false
       mirror_y: false
-    # temporary calibration aid: one log line per touch
-    on_touch:
-      - lambda: |-
-          ESP_LOGI("touch", "x=%d y=%d (raw %d,%d)", touch.x, touch.y, touch.x_raw, touch.y_raw);
 
 logger:
   level: INFO
@@ -58,6 +54,10 @@ logger:
 # --- Persisted settings (survive reboot; applied in on_boot) ----------------
 globals:
   - id: g_feet
+    type: bool
+    restore_value: true
+    initial_value: 'true'
+  - id: g_temp_f
     type: bool
     restore_value: true
     initial_value: 'false'
@@ -113,6 +113,7 @@ web_server:
 sp200a:
   id: sonar
   demo: true
+  direct_display: main_display
   feet: false
   depth:
     id: sonar_depth
@@ -122,10 +123,29 @@ sp200a:
           id: lbl_depth
           text: !lambda |-
             char s[16];
-            if (id(sonar).feet())
-              snprintf(s, sizeof(s), "%.1f ft", x * 3.28084);
-            else
+            if (id(sonar).feet()) {
+              double tf = x * 3.28084;
+              int ft = (int) tf;
+              int in = (int) ((tf - ft) * 12.0 + 0.5);
+              if (in == 12) { ft++; in = 0; }
+              snprintf(s, sizeof(s), "%d' %d\"", ft, in);
+            } else {
               snprintf(s, sizeof(s), "%.2f m", x);
+            }
+            return s;
+      - lvgl.label.update:
+          id: lbl_depth_sh
+          text: !lambda |-
+            char s[16];
+            if (id(sonar).feet()) {
+              double tf = x * 3.28084;
+              int ft = (int) tf;
+              int in = (int) ((tf - ft) * 12.0 + 0.5);
+              if (in == 12) { ft++; in = 0; }
+              snprintf(s, sizeof(s), "%d' %d\"", ft, in);
+            } else {
+              snprintf(s, sizeof(s), "%.2f m", x);
+            }
             return s;
   temperature:
     id: sonar_temp
@@ -135,7 +155,16 @@ sp200a:
           id: lbl_temp
           text: !lambda |-
             char s[16];
-            if (id(sonar).feet())
+            if (id(g_temp_f))
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""F", x * 9.0 / 5.0 + 32.0);
+            else
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""C", x);
+            return s;
+      - lvgl.label.update:
+          id: lbl_temp_sh
+          text: !lambda |-
+            char s[16];
+            if (id(g_temp_f))
               snprintf(s, sizeof(s), "%.0f\xC2\xB0""F", x * 9.0 / 5.0 + 32.0);
             else
               snprintf(s, sizeof(s), "%.0f\xC2\xB0""C", x);
@@ -150,23 +179,22 @@ sp200a:
             char s[16];
             snprintf(s, sizeof(s), "%.1f V", x);
             return s;
+      - lvgl.label.update:
+          id: lbl_batt_sh
+          text: !lambda |-
+            char s[16];
+            snprintf(s, sizeof(s), "%.1f V", x);
+            return s;
 
 # Refresh status + the range chip label independently of sonar frames.
 interval:
-  - interval: 500ms
+  - interval: 1s
     then:
       - lvgl.label.update:
           id: lbl_range
           text: !lambda |-
-            // temporary diagnostics readout: worst loop gap / column render
-            // time / free internal heap
-            char s[64];
-            snprintf(s, sizeof(s), "%s gap %ums rend %ums heap %uk",
-                     id(sonar).demo() ? "DEMO" : (id(sonar).is_connected() ? "RUN" : "no signal"),
-                     (unsigned) id(sonar).diag_worst_gap_ms(),
-                     (unsigned) id(sonar).diag_render_ms(),
-                     (unsigned) (esp_get_free_heap_size() / 1024));
-            return std::string(s);
+            if (id(sonar).demo()) return std::string("DEMO");
+            return std::string(id(sonar).is_connected() ? "" : "no signal");
       - lvgl.label.update:
           id: lbl_auto
           text: !lambda return id(sonar).range_label();
@@ -177,7 +205,10 @@ lvgl:
     - main_display
   touchscreens:
     - main_touchscreen
-  buffer_size: 12%
+  # buffer only used until sp200a switches LVGL to DIRECT mode (rendering
+  # straight into the RGB panel's two framebuffers — tear-free vsync swap)
+  buffer_size: 100%
+  full_refresh: false
   bg_opa: TRANSP
   pages:
     # ======================================================= sonar page
@@ -191,66 +222,91 @@ lvgl:
             y: 0
             width: 800
             height: 480
-        # depth readout chip (top-left)
+        # depth/temp/battery readout (top-left): no box — white text with a
+        # black shadow-outline (shadow labels drawn first, offset +3,+3)
         - obj:
             x: 10
             y: 10
-            width: 170
-            height: 96
-            radius: 14
-            bg_color: 0x000000
-            bg_opa: 55%
+            width: 260
+            height: 150
+            bg_opa: TRANSP
             border_width: 0
-            pad_all: 8
+            pad_all: 4
+            scrollbar_mode: "OFF"
+            scrollable: false
             widgets:
+              - label:
+                  id: lbl_depth_sh
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_48
+                  align: TOP_LEFT
+                  x: 3
+                  y: 3
               - label:
                   id: lbl_depth
                   text: "--"
                   text_color: 0xFFFFFF
-                  text_font: montserrat_36
+                  text_font: montserrat_48
                   align: TOP_LEFT
+              - label:
+                  id: lbl_temp_sh
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_28
+                  align: BOTTOM_LEFT
+                  x: 3
+                  y: -35
               - label:
                   id: lbl_temp
                   text: "--"
-                  text_color: 0xC8DCFF
-                  text_font: montserrat_18
+                  text_color: 0xE8F2FF
+                  text_font: montserrat_28
                   align: BOTTOM_LEFT
-                  y: -22
+                  y: -38
+              - label:
+                  id: lbl_batt_sh
+                  text: "--"
+                  text_color: 0x000000
+                  text_font: montserrat_24
+                  align: BOTTOM_LEFT
+                  x: 3
+                  y: 3
               - label:
                   id: lbl_batt
                   text: "--"
-                  text_color: 0xC8DCFF
-                  text_font: montserrat_16
+                  text_color: 0xE8F2FF
+                  text_font: montserrat_24
                   align: BOTTOM_LEFT
         # status (top, left of the settings button)
         - label:
             id: lbl_range
             text: "no signal"
             text_color: 0xFFB340
-            text_font: montserrat_16
+            text_font: montserrat_20
             align: TOP_RIGHT
-            x: -120
-            y: 24
-        # settings button (top-right, clear of the A-scope strip)
+            x: -40
+            y: 16
+        # settings button: gear icon, bottom row next to the range chips
         - button:
             id: btn_settings
-            align: TOP_RIGHT
-            x: -28
-            y: 10
-            width: 84
-            height: 44
+            align: BOTTOM_LEFT
+            x: 306
+            y: -14
+            width: 64
+            height: 52
             widgets:
               - label:
-                  text: "MENU"
+                  text: "\uF013"
                   align: CENTER
-                  text_font: montserrat_16
+                  text_font: montserrat_28
             on_click:
               - lvgl.page.show: settings_page
         # range chips (bottom-centre): [ - ] [ AUTO/range ] [ + ]
         - button:
             id: btn_minus
-            align: BOTTOM_MID
-            x: -110
+            align: BOTTOM_LEFT
+            x: 14
             y: -14
             width: 64
             height: 52
@@ -263,7 +319,8 @@ lvgl:
               - lambda: id(sonar).range_down();
         - button:
             id: btn_auto
-            align: BOTTOM_MID
+            align: BOTTOM_LEFT
+            x: 86
             y: -14
             width: 130
             height: 52
@@ -277,8 +334,8 @@ lvgl:
               - lambda: id(sonar).range_auto();
         - button:
             id: btn_plus
-            align: BOTTOM_MID
-            x: 110
+            align: BOTTOM_LEFT
+            x: 224
             y: -14
             width: 64
             height: 52
@@ -300,6 +357,9 @@ lvgl:
         - lvgl.dropdown.update:
             id: dd_units
             selected_index: !lambda 'return id(g_feet) ? 1 : 0;'
+        - lvgl.dropdown.update:
+            id: dd_tempu
+            selected_index: !lambda 'return id(g_temp_f) ? 1 : 0;'
         - lvgl.dropdown.update:
             id: dd_style
             selected_index: !lambda return id(g_style);
@@ -345,7 +405,7 @@ lvgl:
               - label:
                   text: "CLOSE"
                   align: CENTER
-                  text_font: montserrat_16
+                  text_font: montserrat_20
             on_click:
               - lvgl.page.show: main_page
 
@@ -353,7 +413,7 @@ lvgl:
         - label:
             text: "Units"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 20
             y: 92
         - dropdown:
@@ -367,9 +427,24 @@ lvgl:
                   id(g_feet) = (x == 1);
                   id(sonar).set_feet_runtime(x == 1);
         - label:
+            text: "Temp units"
+            text_color: 0xC8DCFF
+            text_font: montserrat_20
+            x: 20
+            y: 372
+        - dropdown:
+            id: dd_tempu
+            x: 190
+            y: 360
+            width: 200
+            options: ["Celsius", "Fahrenheit"]
+            on_value:
+              - lambda: |-
+                  id(g_temp_f) = (x == 1);
+        - label:
             text: "Display style"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 20
             y: 162
         - dropdown:
@@ -385,7 +460,7 @@ lvgl:
         - label:
             text: "Noise filter"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 20
             y: 232
         - dropdown:
@@ -401,7 +476,7 @@ lvgl:
         - label:
             text: "Surface clarity"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 20
             y: 302
         - dropdown:
@@ -419,7 +494,7 @@ lvgl:
         - label:
             text: "Fish markers"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 420
             y: 92
         - dropdown:
@@ -435,7 +510,7 @@ lvgl:
         - label:
             text: "Beam"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 420
             y: 162
         - dropdown:
@@ -451,14 +526,14 @@ lvgl:
         - label:
             text: "Gain"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 420
             y: 232
         - label:
             id: lbl_gain_val
             text: "100%"
             text_color: 0xFFFFFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 740
             y: 232
         - slider:
@@ -481,7 +556,7 @@ lvgl:
         - label:
             text: "Demo mode"
             text_color: 0xC8DCFF
-            text_font: montserrat_16
+            text_font: montserrat_20
             x: 420
             y: 302
         - switch:

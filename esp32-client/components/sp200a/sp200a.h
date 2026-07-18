@@ -35,6 +35,9 @@ class SP200AClient : public Component {
   void set_feet(bool f) { this->feet_ = f; }
   void set_beam(uint8_t b) { this->beam_ = b; }
   void set_demo(bool d) { this->demo_ = d; }
+  // forked mipi_rgb display (stored untyped to keep this header
+  // include-light); enables LVGL DIRECT rendering into the panel framebuffers
+  void set_direct_display(void *d) { this->direct_display_ = d; }
 #ifdef USE_SENSOR
   void set_depth_sensor(sensor::Sensor *s) { this->depth_sensor_ = s; }
   void set_temp_sensor(sensor::Sensor *s) { this->temp_sensor_ = s; }
@@ -135,12 +138,14 @@ class SP200AClient : public Component {
   int clarity_{0};
   int fish_mode_{1};
 
-  // demo synth state
+  // demo synth state (ported from BridgeService.demoLoop)
   uint32_t last_demo_{0};
-  double demo_phase_{0.0};
+  double demo_t_{0.0};
   uint32_t demo_rng_{0x1234567};
-  int demo_fish_cnt_{0};
-  double demo_fish_depth_{0.0};
+  static constexpr int MAX_DEMO_FISH = 8;
+  float demo_fish_depth_[MAX_DEMO_FISH]{};
+  int demo_fish_life_[MAX_DEMO_FISH]{};
+  int demo_fish_strength_[MAX_DEMO_FISH]{};
 
 #ifdef USE_SENSOR
   sensor::Sensor *depth_sensor_{nullptr};
@@ -164,6 +169,9 @@ class SP200AClient : public Component {
   float battery_v_{NAN};
 
   void bind_canvas_();  // deferred canvas bind, first loop() only
+  void enable_direct_render_();  // switch LVGL to panel-framebuffer DIRECT mode
+
+  void *direct_display_{nullptr};
 
   // ---- LVGL canvas / waterfall (LVGL 9: RGB565 draw buf, stride-aware) ----
   lv_obj_t *pending_canvas_{nullptr};
@@ -200,9 +208,12 @@ class SP200AClient : public Component {
   int pending_cols_{0};
   uint32_t last_render_{0};
 
-  // per-row precomputed maps (max panel height 480)
+  // per-row precomputed maps (max panel height 480): base sample index +
+  // Catmull-Rom tap weights (SonarView's 4x intensity-space upsample,
+  // generalised to arbitrary row/sample ratios) + surface-clarity factor
   static constexpr int MAX_H = 480;
   uint16_t row_sample_[MAX_H]{};
+  float row_w_[MAX_H][4]{};
   float row_clar_[MAX_H]{};
 
   // depth-scale overlay (LVGL objects; they must not scroll with the canvas)

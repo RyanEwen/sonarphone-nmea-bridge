@@ -53,9 +53,25 @@ object Units {
         fishMarkers = prefs.getInt("fish_markers", 0).coerceIn(0, 2)
     }
 
-    fun depth(m: Double): String =
-        if (feet) String.format(Locale.US, "%.1f ft", m * 3.28084)
-        else String.format(Locale.US, "%.2f m", m)
+    /** Full depth readout: feet-and-inches (12' 4") or metres (12.34 m). */
+    fun depth(m: Double): String {
+        val (main, suffix) = depthParts(m)
+        return main + suffix
+    }
+
+    /**
+     * Split for readouts that draw the value big and the unit small: feet mode
+     * returns ("12' 4\"", "") — the ' and " ARE the unit; metres returns
+     * ("12.34", " m").
+     */
+    fun depthParts(m: Double): Pair<String, String> {
+        if (!feet) return String.format(Locale.US, "%.2f", m) to " m"
+        val totalFeet = m * 3.28084
+        var ft = totalFeet.toInt()
+        var inches = Math.round((totalFeet - ft) * 12).toInt()
+        if (inches == 12) { ft++; inches = 0 }
+        return "$ft' $inches\"" to ""
+    }
 
     fun temp(c: Double): String =
         if (fahrenheit) String.format(Locale.US, "%.0f °F", c * 9 / 5 + 32)

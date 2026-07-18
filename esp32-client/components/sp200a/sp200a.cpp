@@ -6,6 +6,11 @@
 #include <lwip/sockets.h>
 #include <lwip/inet.h>
 #include "esp_heap_caps.h"
+
+#if __has_include("esphome/components/mipi_rgb/mipi_rgb.h")
+#include "esphome/components/mipi_rgb/mipi_rgb.h"
+#define SP200A_HAS_MIPI_RGB 1
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <algorithm>
@@ -14,12 +19,12 @@
 #include <cstdlib>
 #include <cstring>
 
+LV_FONT_DECLARE(lv_font_montserrat_20);  // compiled in via YAML font usage
+
 namespace esphome {
 namespace sp200a {
 
 static const char *const TAG = "sp200a";
-
-LV_FONT_DECLARE(lv_font_montserrat_20);  // compiled in via YAML font usage
 
 // ---- protocol constants (see sp200a-nmea-bridge-spec.md) ----
 static constexpr int SAMPLES = SP200AClient::SAMPLES_N;
@@ -32,6 +37,9 @@ static constexpr double FIT = 1.25;
 static constexpr uint32_t STEP_DOWN_MS = 6000;
 static constexpr int ASCOPE_W = 16;  // live strip on the right edge
 static constexpr int ASCOPE_GAP = 4;
+// Each data column is drawn this many pixels wide (Android draws ~3dp columns;
+// 2 px here matches its scroll pace and horizontal texture on 800 px).
+static constexpr int COL_PX = 2;
 
 static inline int clamp255(int x) { return x < 0 ? 0 : (x > 255 ? 255 : x); }
 
@@ -76,10 +84,12 @@ void SP200AClient::loop() {
   if (this->pending_canvas_ != nullptr && this->buf16_ == nullptr)
     this->bind_canvas_();
 
-  // batched screen update: columns accumulate at stream rate, paint at 4 Hz
+  // batched screen update: columns accumulate at stream rate, paint at ~7 Hz
+  // (DIRECT rendering saved the per-frame framebuffer copy, so we can afford
+  // a smoother scroll cadence)
   {
     const uint32_t now = millis();
-    if (now - this->last_render_ >= 250) {
+    if (now - this->last_render_ >= 150) {
       this->last_render_ = now;
       this->render_pending_();
     }
@@ -350,8 +360,8 @@ void SP200AClient::bind_canvas_() {
   this->stride_px_ = (int) (db->header.stride / sizeof(uint16_t));
   this->buf16_ = (uint16_t *) db->data;
 
-  // history ring: one echo column per plot pixel column (~580 KB → PSRAM)
-  this->ring_cap_ = this->plot_w_();
+  // history ring: one echo column per COL_PX-wide plot column (~290 KB → PSRAM)
+  this->ring_cap_ = this->plot_w_() / COL_PX;
   this->echo_ring_ =
       (uint8_t *) heap_caps_malloc((size_t) this->ring_cap_ * SAMPLES, MALLOC_CAP_SPIRAM);
   this->depth_ring_ =
@@ -366,8 +376,32 @@ void SP200AClient::bind_canvas_() {
   this->update_row_map_();
   this->clear_canvas_();
   this->rebuild_scale_();
+  this->enable_direct_render_();
   ESP_LOGI(TAG, "canvas bound %dx%d stride=%dpx buf=%p ring=%d cols", this->w_, this->h_,
            this->stride_px_, (void *) this->buf16_, this->ring_cap_);
+}
+
+/** Re-point LVGL at the RGB panel's two framebuffers (DIRECT render mode).
+ *  Flushing then swaps scanout on the frame boundary instead of copying —
+ *  tear-free and one full-frame memcpy cheaper per update. Requires the
+ *  forked mipi_rgb (num_fbs=2 + get_frame_buffers). */
+void SP200AClient::enable_direct_render_() {
+#ifdef SP200A_HAS_MIPI_RGB
+  if (this->direct_display_ == nullptr)
+    return;
+  auto *disp = static_cast<mipi_rgb::MipiRgb *>(this->direct_display_);
+  void *fb0 = nullptr, *fb1 = nullptr;
+  disp->get_frame_buffers(&fb0, &fb1);
+  if (fb0 == nullptr || fb1 == nullptr) {
+    ESP_LOGW(TAG, "direct render unavailable (single framebuffer?)");
+    return;
+  }
+  lv_display_t *ld = lv_display_get_default();
+  const uint32_t fb_bytes = (uint32_t) disp->get_width() * disp->get_height() * 2;
+  lv_display_set_buffers(ld, fb0, fb1, fb_bytes, LV_DISPLAY_RENDER_MODE_DIRECT);
+  ESP_LOGI(TAG, "LVGL DIRECT mode: fb0=%p fb1=%p (%u KB each)", fb0, fb1,
+           (unsigned) (fb_bytes / 1024));
+#endif
 }
 
 void SP200AClient::clear_canvas_() {
@@ -439,7 +473,10 @@ bool SP200AClient::recent_fish_near_(float depth_m) {
 float SP200AClient::detect_fish_(const uint8_t *echo, int echo_len, double depth_m) {
   const double spm = SAMPLES_PER_M;
   const int top = (int) (0.8 * spm);  // skip surface clutter
-  int bottom_idx = depth_m > 0.3 ? (int) (depth_m * spm) - 3 : echo_len;
+  // exclude a full metre above the bottom: the bottom return's upper skirt
+  // otherwise reads as a "fish" hugging the floor (Android used ~0.3 m and
+  // its demo predates fish markers, so it never showed)
+  int bottom_idx = depth_m > 0.3 ? (int) ((depth_m - 1.0) * spm) : echo_len;
   const int lo = top;
   const int hi = bottom_idx < echo_len ? bottom_idx : echo_len;
   if (hi - lo < 4)
@@ -485,14 +522,28 @@ void SP200AClient::update_row_map_() {
   for (int y = 0; y < H; y++) {
     const double sidx = (double) y / H * window_samples;
     int i = (int) sidx;
-    this->row_sample_[y] = (uint16_t) (i < 0 ? 0 : (i >= SAMPLES ? SAMPLES - 1 : i));
+    const float t = (float) (sidx - i);
+    if (i < 0)
+      i = 0;
+    if (i >= SAMPLES)
+      i = SAMPLES - 1;
+    this->row_sample_[y] = (uint16_t) i;
+    // Catmull-Rom tap weights for taps [i-1, i, i+1, i+2] (SonarView's
+    // intensity-space smoothing — this is what makes the marks creamy
+    // instead of banded when one sample spans several rows)
+    const float t2 = t * t, t3 = t2 * t;
+    this->row_w_[y][0] = 0.5f * (-t + 2.0f * t2 - t3);
+    this->row_w_[y][1] = 0.5f * (2.0f - 5.0f * t2 + 3.0f * t3);
+    this->row_w_[y][2] = 0.5f * (t + 4.0f * t2 - 3.0f * t3);
+    this->row_w_[y][3] = 0.5f * (-t2 + t3);
     this->row_clar_[y] = (clarity_samples > 0 && sidx < clarity_samples)
                              ? 0.15f + 0.85f * (float) (sidx / clarity_samples)
                              : 1.0f;
   }
 }
 
-/** Paint one plot column (echo LUT + bottom hairline) at pixel column x. */
+/** Paint one plot column (Catmull-Rom smoothed echo + bottom hairline) at
+ *  pixel column x. */
 void SP200AClient::draw_col_(int x, const uint8_t *samples, float depth_m) {
   const int H = std::min(this->h_, MAX_H), S = this->stride_px_;
   const double window_samples = std::min(this->range_m_ * SAMPLES_PER_M, (double) SAMPLES);
@@ -503,15 +554,26 @@ void SP200AClient::draw_col_(int x, const uint8_t *samples, float depth_m) {
 
   for (int y = 0; y < H; y++) {
     const int i = this->row_sample_[y];
-    float v = (samples[i] - floor) * gain * this->row_clar_[y];
+    const float *w = this->row_w_[y];
+    const float p0 = samples[i > 0 ? i - 1 : 0];
+    const float p1 = samples[i];
+    const float p2 = samples[i + 1 < SAMPLES ? i + 1 : SAMPLES - 1];
+    const float p3 = samples[i + 2 < SAMPLES ? i + 2 : SAMPLES - 1];
+    const float sv = w[0] * p0 + w[1] * p1 + w[2] * p2 + w[3] * p3;
+    float v = (sv - floor) * gain * this->row_clar_[y];
     int vi = clamp255((int) v);
     uint16_t c = (i < bottom_idx) ? this->lut_water_[vi] : this->lut_bottom_[vi];
     this->buf16_[(size_t) y * S + x] = c;
   }
   if (depth_m > 0.3f) {
-    int by = (int) (depth_m * SAMPLES_PER_M / window_samples * H);
-    if (by >= 0 && by < H)
-      this->buf16_[(size_t) by * S + x] = pack565(255, 214, 140);
+    // hairline ~3 px thick, matching the Android 1.5dp stroke
+    const int by = (int) (depth_m * SAMPLES_PER_M / window_samples * H);
+    const uint16_t cream = pack565(255, 214, 140);
+    for (int dy = -1; dy <= 1; dy++) {
+      const int yy = by + dy;
+      if (yy >= 0 && yy < H)
+        this->buf16_[(size_t) yy * S + x] = cream;
+    }
   }
 }
 
@@ -571,7 +633,14 @@ void SP200AClient::draw_fish_label_(int x, float fish_depth_m) {
 
   char txt[16];
   if (this->feet_) {
-    snprintf(txt, sizeof(txt), "%.0f", fish_depth_m * 3.28084);
+    const double tf = fish_depth_m * 3.28084;
+    int ft = (int) tf;
+    int in = (int) ((tf - ft) * 12.0 + 0.5);
+    if (in == 12) {
+      ft++;
+      in = 0;
+    }
+    snprintf(txt, sizeof(txt), "%d'%d\"", ft, in);
   } else {
     snprintf(txt, sizeof(txt), "%.1f", fish_depth_m);
   }
@@ -700,9 +769,15 @@ void SP200AClient::rebuild_scale_() {
     char txt[12];
     snprintf(txt, sizeof(txt), "%.0f", d);
     lv_label_set_text(this->tick_lbl_[n], txt);
-    // auto-width label, right edge pinned just left of the tick
-    lv_obj_align(this->tick_lbl_[n], LV_ALIGN_TOP_RIGHT, -(this->w_ - plot_w + 18), y + 4);
-    lv_obj_clear_flag(this->tick_lbl_[n], LV_OBJ_FLAG_HIDDEN);
+    // auto-width label, right edge just left of the tick, vertically centred
+    // on the tick line (label box ≈ 28 px tall with padding)
+    lv_obj_align(this->tick_lbl_[n], LV_ALIGN_TOP_RIGHT, -(this->w_ - plot_w + 20), y - 14);
+    // keep clear of the unit legend pinned at the bottom
+    if (y > this->h_ - 64) {
+      lv_obj_add_flag(this->tick_lbl_[n], LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_clear_flag(this->tick_lbl_[n], LV_OBJ_FLAG_HIDDEN);
+    }
   }
   // hide unused ticks
   for (int k = n; k < MAX_TICKS; k++) {
@@ -741,24 +816,25 @@ void SP200AClient::full_redraw_() {
     this->draw_ascope_();
     return;
   }
-  const int empty = W - this->ring_count_;
-  for (int x = 0; x < empty; x++) {
+  const int empty_px = W - this->ring_count_ * COL_PX;
+  for (int x = 0; x < empty_px; x++) {
     for (int y = 0; y < this->h_; y++)
       this->buf16_[(size_t) y * this->stride_px_ + x] = this->bg_color_;
   }
-  for (int x = empty; x < W; x++) {
-    const int k = x - empty;  // 0 .. ring_count_-1, oldest first
+  for (int k = 0; k < this->ring_count_; k++) {  // oldest first
     const int idx =
         (this->ring_head_ - (this->ring_count_ - 1) + k + 2 * this->ring_cap_) % this->ring_cap_;
-    this->draw_col_(x, this->echo_ring_ + (size_t) idx * SAMPLES, this->depth_ring_[idx]);
+    const int x = empty_px + k * COL_PX;
+    for (int px = 0; px < COL_PX; px++)
+      this->draw_col_(x + px, this->echo_ring_ + (size_t) idx * SAMPLES, this->depth_ring_[idx]);
   }
   // second pass so blobs (which span columns) aren't overdrawn
   if (this->fish_mode_ > 0) {
-    for (int x = empty; x < W; x++) {
-      const int k = x - empty;
+    for (int k = 0; k < this->ring_count_; k++) {
       const int idx =
           (this->ring_head_ - (this->ring_count_ - 1) + k + 2 * this->ring_cap_) % this->ring_cap_;
       if (this->fish_ring_[idx] > 0.0f) {
+        const int x = empty_px + k * COL_PX + COL_PX / 2;
         this->draw_fish_blob_(x, this->fish_ring_[idx]);
         if (this->fish_mode_ == 2)
           this->draw_fish_label_(x, this->fish_ring_[idx]);
@@ -805,24 +881,26 @@ void SP200AClient::render_pending_() {
     return;
   const uint32_t t0 = millis();
   const int W = this->plot_w_(), H = this->h_, S = this->stride_px_;
-  const int n = std::min(this->pending_cols_, W);
+  const int n = std::min(this->pending_cols_, this->ring_cap_);
   this->pending_cols_ = 0;
+  const int shift = n * COL_PX;
 
-  // scroll the plot area left by n pixels (row-contiguous, fast)
+  // scroll the plot area left by n data columns (row-contiguous, fast)
   for (int y = 0; y < H; y++) {
     uint16_t *row = this->buf16_ + (size_t) y * S;
-    std::memmove(row, row + n, (size_t) (W - n) * sizeof(uint16_t));
+    std::memmove(row, row + shift, (size_t) (W - shift) * sizeof(uint16_t));
   }
   // draw the n newest ring columns at the right edge, oldest first
   for (int k = n - 1; k >= 0; k--) {
     const int idx = (this->ring_head_ - k + 2 * this->ring_cap_) % this->ring_cap_;
-    const int x = W - 1 - k;
-    this->draw_col_(x, this->echo_ring_ + (size_t) idx * SAMPLES, this->depth_ring_[idx]);
+    const int x = W - (k + 1) * COL_PX;
+    for (int px = 0; px < COL_PX; px++)
+      this->draw_col_(x + px, this->echo_ring_ + (size_t) idx * SAMPLES, this->depth_ring_[idx]);
     const float marked = this->fish_ring_[idx];
     if (this->fish_mode_ > 0 && marked > 0.0f) {
-      this->draw_fish_blob_(x, marked);
+      this->draw_fish_blob_(x + COL_PX / 2, marked);
       if (this->fish_mode_ == 2)
-        this->draw_fish_label_(x, marked);
+        this->draw_fish_label_(x + COL_PX / 2, marked);
     }
   }
 
@@ -874,60 +952,107 @@ void SP200AClient::diag_responder_() {
 
 // ============================================================ Demo synth
 
+// Faithful port of the Android BridgeService.demoLoop() synth: slow 94 s
+// depth cycle, multiple wandering fish with lifespans, a bottom-hardness
+// cycle (bright + long sub-bottom glow when hard, thin shell when soft),
+// and a second echo at ~2x depth over hard bottom (the Deeper cues).
 void SP200AClient::demo_step_() {
   const uint32_t now = millis();
-  if (now - this->last_demo_ < 80)  // ~12 columns/s, like a real feed
+  if (now - this->last_demo_ < 200)  // 5 columns/s, like the app
     return;
   this->last_demo_ = now;
+  this->demo_t_ += 0.2;
+  const double t = this->demo_t_;
 
-  auto rnd = [this]() -> int {  // xorshift, 0..255
+  auto rndu = [this]() -> uint32_t {  // xorshift32
     uint32_t x = this->demo_rng_;
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
     this->demo_rng_ = x;
-    return (int) (x & 0xFF);
+    return x;
+  };
+  auto rndi = [&](int lo, int hi) -> int {  // [lo, hi)
+    return lo + (int) (rndu() % (uint32_t) (hi - lo));
+  };
+  auto rndd = [&](double lo, double hi) -> double {
+    return lo + (hi - lo) * (rndu() / 4294967296.0);
   };
 
-  // slowly wandering bottom, 3–11 m
-  this->demo_phase_ += 0.03;
-  const double depth =
-      7.0 + 4.0 * std::sin(this->demo_phase_) + 0.6 * std::sin(this->demo_phase_ * 4.3);
-  const int bottom_i = (int) (depth * SAMPLES_PER_M);
+  const double depth = 8.0 + 4.0 * std::sin(t / 15.0) + rndd(-0.05, 0.05);
 
-  // occasional fish: hold a target for a run of columns
-  if (this->demo_fish_cnt_ <= 0 && rnd() < 6) {
-    this->demo_fish_cnt_ = 6 + (rnd() % 12);
-    this->demo_fish_depth_ = 1.5 + (depth - 2.0) * (rnd() / 255.0);
+  // fish population: spawn ~1/40 frames, wander, age out
+  if (rndi(0, 40) == 0 && depth > 3.0) {
+    for (int f = 0; f < MAX_DEMO_FISH; f++) {
+      if (this->demo_fish_life_[f] <= 0) {
+        this->demo_fish_depth_[f] = (float) rndd(1.5, depth - 1.0);
+        this->demo_fish_life_[f] = rndi(15, 60);
+        this->demo_fish_strength_[f] = rndi(150, 240);
+        break;
+      }
+    }
+  }
+  for (int f = 0; f < MAX_DEMO_FISH; f++) {
+    if (this->demo_fish_life_[f] <= 0)
+      continue;
+    this->demo_fish_depth_[f] += (float) rndd(-0.08, 0.08);
+    this->demo_fish_life_[f]--;
+    if (this->demo_fish_depth_[f] >= depth || this->demo_fish_depth_[f] < 0.5f)
+      this->demo_fish_life_[f] = 0;
   }
 
   uint8_t echo[SAMPLES];
-  for (int i = 0; i < SAMPLES; i++) {
-    int v = 6 + (rnd() >> 4);  // background noise
-    if (i < 8)
-      v += 200 - i * 22;      // surface clutter
-    int db = std::abs(i - bottom_i);  // bottom return (gaussian-ish)
-    if (db < 18)
-      v += (int) (235 * std::exp(-db * db / 40.0));
-    if (i > bottom_i + 4)
-      v = 20 + (rnd() >> 5);  // sub-bottom: mostly dead
-    echo[i] = (uint8_t) clamp255(v);
+  for (int i = 0; i < SAMPLES; i++)
+    echo[i] = (uint8_t) rndi(0, 26);  // noise floor
+  for (int i = 0; i < 6; i++)
+    echo[i] = (uint8_t) (110 + rndi(0, 70));  // surface clutter
+
+  const int bottom = (int) (depth * SAMPLES_PER_M);
+  // hardness cycles so the white-line band visibly varies:
+  // hard = bright return with a long tail, soft = dim and fast-fading
+  const double hard = 0.5 + 0.5 * std::sin(t / 8.0);
+  const double peak = 195.0 + 60.0 * hard;
+  const double decay = 8.5 - 6.0 * hard;
+  const int band_end = std::min(bottom + 45, SAMPLES);
+  for (int i = bottom; i < band_end; i++) {
+    if (i < 0)
+      continue;
+    int v = (int) (peak - (i - bottom) * decay + rndi(0, 12));
+    echo[i] = (uint8_t) (v < 24 ? 24 : (v > 255 ? 255 : v));
   }
-  if (this->demo_fish_cnt_ > 0) {
-    this->demo_fish_cnt_--;
-    int fi = (int) (this->demo_fish_depth_ * SAMPLES_PER_M);
-    for (int d = -2; d <= 2; d++) {
-      int j = fi + d;
-      if (j >= 0 && j < SAMPLES) {
-        int add = 180 - std::abs(d) * 40;
-        echo[j] = (uint8_t) clamp255(echo[j] + add);
+  // sub-bottom tail: hard bottoms keep echoing far down (thick glow)
+  double tail = peak - 45.0 * decay;
+  for (int i = band_end; i < SAMPLES && tail > 18.0; i++, tail -= 0.35) {
+    const int v = (int) (tail + rndi(0, 14));
+    if (v > echo[i])
+      echo[i] = (uint8_t) clamp255(v);
+  }
+  // hard bottoms bounce a second return at ~2x depth
+  const int second = bottom * 2;
+  if (hard > 0.55 && second < SAMPLES) {
+    for (int i = second; i < std::min(second + 22, SAMPLES); i++) {
+      const int v = (int) (peak - 130.0 - (i - second) * 5.0 + rndi(0, 10));
+      if (v > echo[i])
+        echo[i] = (uint8_t) clamp255(v);
+    }
+  }
+  for (int f = 0; f < MAX_DEMO_FISH; f++) {
+    if (this->demo_fish_life_[f] <= 0)
+      continue;
+    const int fi = (int) (this->demo_fish_depth_[f] * SAMPLES_PER_M);
+    for (int j = -3; j <= 3; j++) {
+      const int k = fi + j;
+      if (k >= 0 && k < SAMPLES) {
+        const int v = this->demo_fish_strength_[f] - std::abs(j) * 35;
+        if (v > echo[k])
+          echo[k] = (uint8_t) v;
       }
     }
   }
 
   this->depth_m_ = (float) depth;
-  this->temp_c_ = 18.0f + 0.5f * std::sin(this->demo_phase_ * 0.2);
-  this->battery_v_ = 12.4f;
+  this->temp_c_ = (float) (18.0 + std::sin(t / 90.0));
+  this->battery_v_ = (float) (12.4 + rndd(-0.03, 0.03));
   this->connected_ = true;
   this->last_data_ = now;
 
