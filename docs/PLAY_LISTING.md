@@ -75,8 +75,10 @@ compatibility.
 
 **App icon:** `docs/store/icon-512.png` (512×512)
 **Feature graphic:** `docs/store/feature-1024x500.png` (1024×500)
-**Phone screenshots** (need 2–8; use these, all 960×2142):
-`docs/sonar-view.png`, `docs/status-view.png`, `docs/settings-view.png`
+**Phone screenshots** (Play wants 4+ at ≥1080 px per side; these are
+1440×3213): `docs/store/screenshot-1-sonar.png`,
+`docs/store/screenshot-2-status.png`, `docs/store/screenshot-3-settings.png`,
+`docs/store/screenshot-4-sonar.png`
 
 **Category:** Tools (or Sports). **Contact email:** ryan.ewen@gmail.com
 **Privacy policy URL:**
