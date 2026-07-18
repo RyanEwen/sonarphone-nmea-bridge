@@ -6,7 +6,7 @@ from esphome.const import CONF_ID
 
 # LVGL provides the display buffer we draw the waterfall into; network gives us
 # the socket stack. Depend on both so codegen orders them before us.
-DEPENDENCIES = ["network", "lvgl"]
+DEPENDENCIES = ["wifi", "lvgl"]
 AUTO_LOAD = ["sensor"]
 CODEOWNERS = ["@RyanEwen"]
 

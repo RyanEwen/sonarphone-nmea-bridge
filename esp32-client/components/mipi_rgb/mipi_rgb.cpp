@@ -245,16 +245,34 @@ void MipiRgb::write_to_display_(int x_start, int y_start, int w, int h, const ui
   auto stride = (x_offset + w + x_pad) * 2;
   ptr += y_offset * stride + x_offset * 2;  // skip to the first pixel
   // x_ and y_offset are offsets into the source buffer, unrelated to our own offsets into the display.
-  // FORK: tear-free swap. A full-frame flush from an external buffer (LVGL
-  // full_refresh mode) is copied into the NON-displayed framebuffer, then
-  // draw_bitmap with that fb pointer makes the esp_lcd driver switch scanout
-  // at the frame boundary instead of copying into the live buffer.
-  if (x_offset == 0 && x_pad == 0 && this->frame_buffers_[0] != nullptr && x_start == 0 && y_start == 0 &&
-      w == this->width_ && h == this->height_ && ptr != this->frame_buffers_[0] && ptr != this->frame_buffers_[1]) {
-    auto *back = static_cast<uint8_t *>(this->frame_buffers_[this->back_fb_]);
-    memcpy(back, ptr, (size_t) w * h * 2);
-    err = esp_lcd_panel_draw_bitmap(this->handle_, 0, 0, w, h, back);
-    this->back_fb_ ^= 1;
+  // FORK: tear-free double-buffer handling (requires LVGL PARTIAL mode).
+  // - Full-frame flush (waterfall batch): copy into the NON-displayed
+  //   framebuffer, then draw_bitmap with that fb pointer makes the esp_lcd
+  //   driver switch scanout at the frame boundary instead of copying into
+  //   the live buffer.
+  // - Small-region flush (labels/chips): write the region into BOTH
+  //   framebuffers directly — a fraction of a millisecond, and shear inside
+  //   a label-sized region is imperceptible. (Safe because bounce buffers
+  //   are enabled: scanout refill reads the fbs via CPU, staying coherent
+  //   with these cached writes.)
+  if (x_offset == 0 && x_pad == 0 && this->frame_buffers_[0] != nullptr && ptr != this->frame_buffers_[0] &&
+      ptr != this->frame_buffers_[1]) {
+    if (x_start == 0 && y_start == 0 && w == this->width_ && h == this->height_) {
+      auto *back = static_cast<uint8_t *>(this->frame_buffers_[this->back_fb_]);
+      memcpy(back, ptr, (size_t) w * h * 2);
+      err = esp_lcd_panel_draw_bitmap(this->handle_, 0, 0, w, h, back);
+      this->back_fb_ ^= 1;
+    } else {
+      const size_t row_bytes = (size_t) w * 2;
+      const size_t fb_stride = (size_t) this->width_ * 2;
+      for (int fb_i = 0; fb_i < 2; fb_i++) {
+        auto *fb = static_cast<uint8_t *>(this->frame_buffers_[fb_i]);
+        uint8_t *dst = fb + (size_t) y_start * fb_stride + (size_t) x_start * 2;
+        const uint8_t *src = ptr;
+        for (int y = 0; y != h; y++, dst += fb_stride, src += row_bytes)
+          memcpy(dst, src, row_bytes);
+      }
+    }
   } else if (x_offset == 0 && x_pad == 0) {
     err = esp_lcd_panel_draw_bitmap(this->handle_, x_start, y_start, x_start + w, y_start + h, ptr);
   } else {

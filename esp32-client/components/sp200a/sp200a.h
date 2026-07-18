@@ -55,6 +55,13 @@ class SP200AClient : public Component {
   void range_down();
   void range_auto();
 
+  // --- sonar-AP discovery (settings page: scan, list, adopt) ---
+  void wifi_scan_start();           // kick an async scan (safe while connected)
+  bool wifi_scan_fresh();           // true once when new results are ready
+  std::string wifi_scan_options();  // newline-joined SonarPhone_* SSIDs
+  void wifi_adopt(const std::string &ssid);  // persist + connect (pwd 12345678)
+  void notify_scan_done();                   // called from the WiFi event task
+
   // --- runtime display settings (ported from the Android Units object) ---
   void set_style(int s);            // 0 = modern, 1 = classic
   void set_gain(float g);           // user gain multiplier (0.5 .. 2.0)
@@ -243,6 +250,13 @@ class SP200AClient : public Component {
   // datagram to :19998 gets a one-line status reply
   int diag_sock_{-1};
   void diag_responder_();
+
+  // sonar-AP scan state (flag set from the WiFi event task, drained in loop)
+  volatile bool scan_done_flag_{false};
+  bool scan_fresh_{false};
+  bool scan_handler_registered_{false};
+  std::string scan_options_{"(open settings to scan)"};
+  void collect_scan_results_();
 };
 
 }  // namespace sp200a

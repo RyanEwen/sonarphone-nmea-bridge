@@ -11,6 +11,10 @@
 #include "esphome/components/mipi_rgb/mipi_rgb.h"
 #define SP200A_HAS_MIPI_RGB 1
 #endif
+
+#include "esphome/components/wifi/wifi_component.h"
+#include <esp_wifi.h>
+#include <esp_event.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <algorithm>
@@ -81,15 +85,27 @@ void SP200AClient::loop() {
 
   this->diag_responder_();
 
+  if (this->scan_done_flag_) {
+    this->scan_done_flag_ = false;
+    this->collect_scan_results_();
+  }
+
   if (this->pending_canvas_ != nullptr && this->buf16_ == nullptr)
     this->bind_canvas_();
 
-  // batched screen update: columns accumulate at stream rate, paint at ~7 Hz
-  // (DIRECT rendering saved the per-frame framebuffer copy, so we can afford
-  // a smoother scroll cadence)
+  // batched screen update: columns accumulate at stream rate. While the user
+  // is interacting (touched within the last 3 s), the waterfall yields to
+  // ~2.5 Hz so input and widget redraws stay snappy; idle viewing runs full
+  // cadence.
   {
     const uint32_t now = millis();
-    if (now - this->last_render_ >= 150) {
+    // ~4 Hz idle: the full pipeline (memmove + LVGL blit + fb copy) costs
+    // ~175 ms per tick regardless of column count, so fewer/bigger ticks
+    // buy CPU with near-identical scroll (Android steps 3 px per 200 ms)
+    const bool interacting =
+        this->canvas_ != nullptr && lv_display_get_inactive_time(nullptr) < 3000;
+    const uint32_t period = interacting ? 450 : 250;
+    if (now - this->last_render_ >= period) {
       this->last_render_ = now;
       this->render_pending_();
     }
@@ -663,37 +679,36 @@ void SP200AClient::draw_fish_label_(int x, float fish_depth_m) {
   lv_canvas_finish_layer(this->canvas_, &layer);
 }
 
-/** Live A-scope strip on the right edge (magnified newest column + marker). */
+/** Live A-scope strip on the right edge (magnified newest column + marker).
+ *  Uses the precomputed row map — per-row double math is software-emulated
+ *  on Xtensa and made this strip absurdly expensive (~50 ms). */
 void SP200AClient::draw_ascope_() {
   if (this->buf16_ == nullptr)
     return;
-  const int H = this->h_, S = this->stride_px_;
+  const int H = std::min(this->h_, MAX_H), S = this->stride_px_;
   const int x0 = this->plot_w_() + ASCOPE_GAP;
-  const double window_samples = std::min(this->range_m_ * SAMPLES_PER_M, (double) SAMPLES);
-  const double bottom_samples =
-      this->depth_m_ > 0.3f ? this->depth_m_ * SAMPLES_PER_M : 1e9;
+  const int bottom_idx =
+      this->depth_m_ > 0.3f ? (int) (this->depth_m_ * SAMPLES_PER_M) : INT32_MAX;
   const float gain = 1.18f * this->gain_user_;
   const float floor = 18.0f + this->noise_ * 14.0f;
+  const uint16_t black = pack565(0, 0, 0);
 
-  // gap column(s)
   for (int y = 0; y < H; y++) {
     uint16_t *row = this->buf16_ + (size_t) y * S;
+    const int i = this->row_sample_[y];
+    const int raw = this->have_echo_ ? this->last_echo_[i] : 0;
+    const int vi = clamp255((int) ((raw - floor) * gain));
+    const uint16_t c = (i < bottom_idx) ? this->lut_water_[vi] : this->lut_bottom_[vi];
     for (int x = this->plot_w_(); x < x0; x++)
-      row[x] = pack565(0, 0, 0);
-  }
-  for (int y = 0; y < H; y++) {
-    const double sidx = (double) y / H * window_samples;
-    const int i = (int) sidx;
-    int raw = (this->have_echo_ && i >= 0 && i < SAMPLES) ? this->last_echo_[i] : 0;
-    int vi = clamp255((int) ((raw - floor) * gain));
-    uint16_t c = (sidx < bottom_samples) ? this->lut_water_[vi] : this->lut_bottom_[vi];
-    uint16_t *row = this->buf16_ + (size_t) y * S;
+      row[x] = black;
     for (int x = x0; x < this->w_; x++)
       row[x] = c;
   }
   // depth marker dot on the strip's left edge
   if (this->depth_m_ > 0.3f) {
-    const int dy0 = (int) (bottom_samples / window_samples * H);
+    const float window_samples =
+        (float) std::min(this->range_m_ * SAMPLES_PER_M, (double) SAMPLES);
+    const int dy0 = (int) (bottom_idx / window_samples * H);
     const uint16_t dot = pack565(255, 179, 64);
     for (int dy = -3; dy <= 3; dy++) {
       for (int dx = 0; dx <= 3; dx++) {
@@ -909,6 +924,74 @@ void SP200AClient::render_pending_() {
   const uint32_t dt = millis() - t0;
   if (dt > this->diag_render_ms_)
     this->diag_render_ms_ = dt;
+}
+
+// ============================================================ Sonar-AP scan
+
+static void scan_done_handler(void *arg, esp_event_base_t base, int32_t id, void *data) {
+  static_cast<SP200AClient *>(arg)->notify_scan_done();
+}
+
+void SP200AClient::notify_scan_done() { this->scan_done_flag_ = true; }
+
+void SP200AClient::wifi_scan_start() {
+  if (!this->scan_handler_registered_) {
+    esp_event_handler_instance_t inst;
+    esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_SCAN_DONE, &scan_done_handler, this,
+                                        &inst);
+    this->scan_handler_registered_ = true;
+  }
+  wifi_scan_config_t cfg{};
+  const esp_err_t err = esp_wifi_scan_start(&cfg, false /* non-blocking */);
+  if (err != ESP_OK) {
+    ESP_LOGW(TAG, "wifi scan start failed: %s", esp_err_to_name(err));
+    this->scan_options_ = "(scan failed - retry)";
+    this->scan_fresh_ = true;
+  } else {
+    ESP_LOGI(TAG, "wifi scan started");
+    this->scan_options_ = "(scanning...)";
+    this->scan_fresh_ = true;
+  }
+}
+
+void SP200AClient::collect_scan_results_() {
+  uint16_t n = 20;
+  wifi_ap_record_t recs[20];
+  if (esp_wifi_scan_get_ap_records(&n, recs) != ESP_OK) {
+    this->scan_options_ = "(scan failed - retry)";
+    this->scan_fresh_ = true;
+    return;
+  }
+  std::string opts;
+  for (int i = 0; i < n; i++) {
+    const char *ssid = (const char *) recs[i].ssid;
+    if (strncmp(ssid, "SonarPhone_", 11) != 0)
+      continue;
+    if (opts.find(ssid) != std::string::npos)
+      continue;  // dedupe multi-BSSID
+    if (!opts.empty())
+      opts += "\n";
+    opts += ssid;
+  }
+  this->scan_options_ = opts.empty() ? "(no SonarPhone found)" : opts;
+  this->scan_fresh_ = true;
+  ESP_LOGI(TAG, "scan done: %u APs, sonar options: %s", (unsigned) n, this->scan_options_.c_str());
+}
+
+bool SP200AClient::wifi_scan_fresh() {
+  if (!this->scan_fresh_)
+    return false;
+  this->scan_fresh_ = false;
+  return true;
+}
+
+std::string SP200AClient::wifi_scan_options() { return this->scan_options_; }
+
+void SP200AClient::wifi_adopt(const std::string &ssid) {
+  if (ssid.rfind("SonarPhone_", 0) != 0)
+    return;  // placeholder rows ("(scanning...)" etc.) are not adoptable
+  ESP_LOGI(TAG, "adopting sonar AP \"%s\" (persisted)", ssid.c_str());
+  wifi::global_wifi_component->save_wifi_sta(ssid, "12345678");
 }
 
 // ============================================================ Diagnostics

@@ -23,6 +23,9 @@ esphome:
             id(sonar).set_beam_runtime(id(g_beam) == 1 ? 0x02 : 0x08);
             id(sonar).set_gain(id(g_gain) / 100.0f);
             id(sonar).set_demo_runtime(id(g_demo));
+        - light.turn_on:
+            id: backlight
+            brightness: !lambda return id(g_bright) / 100.0f;
 
 packages:
   device: github://RyanEwen/esphome-lvgl/devices/ESP32-8048S050.yaml@main
@@ -50,6 +53,15 @@ touchscreen:
 
 logger:
   level: INFO
+
+# Material Design Icons subset (LVGL's built-in FontAwesome set has no
+# magnifier); fetched at compile time
+font:
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_28
+    size: 28
+    bpp: 4
+    glyphs: ["\U000F0349"]  # magnify
 
 # --- Persisted settings (survive reboot; applied in on_boot) ----------------
 globals:
@@ -89,6 +101,10 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'true'
+  - id: g_bright
+    type: int
+    restore_value: true
+    initial_value: '100'
   # last touch on the zoom controls (millis); drives auto-collapse
   - id: g_zoom_last
     type: int
@@ -281,14 +297,42 @@ sp200a:
 interval:
   - interval: 1s
     then:
-      - lvgl.label.update:
-          id: lbl_range
-          text: !lambda |-
-            if (id(sonar).demo()) return std::string("DEMO");
-            return std::string(id(sonar).is_connected() ? "" : "no signal");
-      - lvgl.label.update:
-          id: lbl_auto
-          text: !lambda return id(sonar).range_label();
+      # only push label text that actually changed (each update invalidates
+      # and re-renders the label region)
+      - if:
+          condition:
+            lambda: |-
+              static std::string last;
+              std::string cur = id(sonar).demo() ? "DEMO"
+                  : (id(sonar).is_connected() ? "" : "no signal");
+              if (cur == last) return false;
+              last = cur;
+              return true;
+          then:
+            - lvgl.label.update:
+                id: lbl_range
+                text: !lambda |-
+                  if (id(sonar).demo()) return std::string("DEMO");
+                  return std::string(id(sonar).is_connected() ? "" : "no signal");
+      - if:
+          condition:
+            lambda: |-
+              static std::string last;
+              std::string cur = id(sonar).range_label();
+              if (cur == last) return false;
+              last = cur;
+              return true;
+          then:
+            - lvgl.label.update:
+                id: lbl_auto
+                text: !lambda return id(sonar).range_label();
+      - if:
+          condition:
+            lambda: return id(sonar).wifi_scan_fresh();
+          then:
+            - lambda: |-
+                lv_dropdown_set_options(id(dd_sonar_ap)->obj,
+                                        id(sonar).wifi_scan_options().c_str());
       # collapse the zoom controls after ~8 s untouched
       - lambda: |-
           auto *m = (lv_obj_t *) id(btn_minus);
@@ -305,11 +349,11 @@ lvgl:
     - main_display
   touchscreens:
     - main_touchscreen
-  # Full-frame compose in PSRAM; the forked mipi_rgb copies each frame into
-  # the non-displayed framebuffer and swaps at the frame boundary (tear-free
-  # without LVGL DIRECT mode's cross-buffer sync artifacts).
+  # PARTIAL mode + forked mipi_rgb: full-frame flushes (waterfall) swap
+  # framebuffers tear-free; small flushes (labels) write both fbs directly.
+  # Label updates cost ~2 ms instead of a full-frame render + copy.
   buffer_size: 100%
-  full_refresh: true
+  full_refresh: false
   bg_opa: TRANSP
   pages:
     # ======================================================= sonar page
@@ -490,9 +534,9 @@ lvgl:
             height: 52
             widgets:
               - label:
-                  text: "\uF067\uF068"
+                  text: "\U000F0349"
                   align: CENTER
-                  text_font: montserrat_20
+                  text_font: mdi_28
             on_click:
               - lambda: |-
                   auto *m = (lv_obj_t *) id(btn_minus);
@@ -568,6 +612,16 @@ lvgl:
       # sync widgets to persisted settings when the page opens (safe context
       # for lvgl actions, unlike on_boot)
       on_load:
+        - lambda: id(sonar).wifi_scan_start();
+        - lvgl.slider.update:
+            id: sl_bright
+            value: !lambda return id(g_bright);
+        - lvgl.label.update:
+            id: lbl_bright_val
+            text: !lambda |-
+              char s[8];
+              snprintf(s, sizeof(s), "%d%%", id(g_bright));
+              return std::string(s);
         - lvgl.dropdown.update:
             id: dd_units
             selected_index: !lambda 'return id(g_feet) ? 1 : 0;'
@@ -781,3 +835,63 @@ lvgl:
               - lambda: |-
                   id(g_demo) = x;
                   id(sonar).set_demo_runtime(x);
+        - label:
+            text: "Brightness"
+            text_color: 0xC8DCFF
+            text_font: montserrat_20
+            x: 420
+            y: 372
+        - label:
+            id: lbl_bright_val
+            text: "100%"
+            text_color: 0xFFFFFF
+            text_font: montserrat_20
+            x: 740
+            y: 372
+        - slider:
+            id: sl_bright
+            x: 590
+            y: 376
+            width: 140
+            min_value: 10
+            max_value: 100
+            on_value:
+              - lambda: id(g_bright) = (int) x;
+              - light.turn_on:
+                  id: backlight
+                  brightness: !lambda return x / 100.0f;
+              - lvgl.label.update:
+                  id: lbl_bright_val
+                  text: !lambda |-
+                    char s[8];
+                    snprintf(s, sizeof(s), "%d%%", (int) x);
+                    return std::string(s);
+        # sonar AP picker: scan on page open, pick to adopt (persists + joins)
+        - label:
+            text: "Sonar AP"
+            text_color: 0xC8DCFF
+            text_font: montserrat_20
+            x: 20
+            y: 437
+        - dropdown:
+            id: dd_sonar_ap
+            x: 190
+            y: 425
+            width: 400
+            dir: TOP
+            options: ["(open settings to scan)"]
+            on_value:
+              - lambda: |-
+                  id(sonar).wifi_adopt(text);
+        - button:
+            x: 610
+            y: 425
+            width: 170
+            height: 48
+            widgets:
+              - label:
+                  text: "RESCAN"
+                  align: CENTER
+                  text_font: montserrat_20
+            on_click:
+              - lambda: id(sonar).wifi_scan_start();
