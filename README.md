@@ -66,12 +66,31 @@ looks off with your unit, open an issue with a log.
 
 ## Bonus: a standalone head unit
 
-The [`esp32-client/`](esp32-client/) folder turns a cheap ESP32-S3 touchscreen
-(Guition/Sunton 8048S050, 5" 800×480) into a dedicated fish-finder display for
-the same T-Box — waterfall, fish markers, auto-range, settings, and its own
-`SonarDisplay` WiFi AP that serves NMEA to a phone running Navionics. No phone
-required on the boat at all. Built on ESPHome; see its
-[README](esp32-client/README.md).
+<p align="center">
+  <img src="esp32-client/docs/head-unit.jpg" alt="ESP32 head unit in a 3D-printed case showing the sonar waterfall in demo mode" width="560">
+</p>
+<p align="center"><em>The head unit in a 3D-printed case, running in demo mode</em></p>
+
+The [`esp32-client/`](esp32-client/) folder turns a ~$20 ESP32-S3 touchscreen
+(Guition/Sunton 8048S050, 5" 800×480 IPS) into a dedicated fish-finder display
+for the same T-Box — no phone required on the boat at all:
+
+- The same water-verified SP200A protocol client, ported to an ESPHome
+  component
+- The app's sonar rendering, ported faithfully: smoothed waterfall, fish
+  markers with depth tags, bottom hardness, auto-range with hysteresis, live
+  A-scope, feet-and-inches readouts
+- On-screen setup: scan-and-pick your T-Box's WiFi from the settings page,
+  brightness, units, palettes — all persisted on the device
+- **It's also the bridge**: the unit broadcasts its own `SonarDisplay` WiFi
+  network and serves NMEA on TCP `10110`, so a phone can join it and feed
+  Navionics (`192.168.4.1:10110`) while the panel shows the waterfall —
+  the phone keeps internet via cellular
+- Tear-free double-buffered rendering via a small local fork of ESPHome's
+  RGB display driver
+
+Build, flash, and design notes live in the
+[esp32-client README](esp32-client/README.md).
 
 ## Developers
 

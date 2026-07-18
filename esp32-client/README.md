@@ -1,5 +1,9 @@
 # SP200A standalone client — ESPHome (ESP32-8048S050)
 
+<p align="center">
+  <img src="docs/head-unit.jpg" alt="The head unit in a 3D-printed case, running the demo waterfall" width="640">
+</p>
+
 A phone-free fish finder. This turns a Guition **ESP32-8048S050** (5" 800×480
 RGB IPS, GT911 touch, ESP32-S3 + octal PSRAM) into a standalone SonarPhone
 display: it joins the SP200A T-Box AP directly, runs the discover/stream
