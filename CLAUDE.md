@@ -68,8 +68,9 @@ vary across models/modes). `FV` keep-alive is unnecessary — ignore it.
   needed, and note it had two known bugs fixed only in the Kotlin code
   (keepalive died on stream silence; trusted requested instead of reported
   units byte).
-- **Phase 1 (Android app):** Kotlin, foreground service
-  (dataSync/connectedDevice type). State machine:
+- **Phase 1 (Android app) — VERIFIED ON THE WATER 2026-07-18 against the real
+  T-Box:** end-to-end depth/temp into Navionics from the boat. Kotlin,
+  foreground service (dataSync/connectedDevice type). State machine:
   `DISCOVER (FX @1 Hz) → RUN (FC @10 s, parse stream) → DISCOVER on 15 s
   silence`. Hold the NetworkCallback for the WiFi connection's lifetime;
   auto-reconnect. Minimal UI: SSID/password entry, connection state, live
@@ -84,9 +85,9 @@ vary across models/modes). `FV` keep-alive is unnecessary — ignore it.
 | Risk | Mitigation |
 |---|---|
 | ~~Navionics-Android rejects 127.0.0.1 paired device~~ **RETIRED 2026-07-17: Navionics pairs to 127.0.0.1:10110 TCP and displays depth (verified against the bridge's demo feed).** Note: Navionics shows "connected" only once NMEA sentences actually flow — a silent socket reads as not-connected | n/a — verified working |
-| Doze/OEM kills service on the water | foreground service + battery exemption + reconnect loop |
-| requestNetwork drops on screen-off | hold callback in service, watchdog re-handshake |
-| Unit-specific REDYFC deviations | phase 0 validator gates all app work |
+| ~~Doze/OEM kills service on the water~~ **RETIRED 2026-07-18: survived a real on-water session** | foreground service + battery exemption + reconnect loop |
+| ~~requestNetwork drops on screen-off~~ **RETIRED 2026-07-18: held through the on-water session** | hold callback in service, watchdog re-handshake |
+| ~~Unit-specific REDYFC deviations~~ **RETIRED 2026-07-18: real T-Box REDYFC parsed correctly on the water (offsets confirmed on this unit)** | n/a — verified working |
 
 ## Conventions
 
