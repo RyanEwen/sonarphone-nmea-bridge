@@ -1,0 +1,494 @@
+# First flash: DEMO mode, stays on home WiFi (reachable / OTA-recoverable).
+# Proves the whole firmware + LVGL + waterfall stack on real hardware without
+# ever joining the sonar AP.
+
+substitutions:
+  name: sonarphone
+
+esphome:
+  name: ${name}
+  on_boot:
+    # Plain C++ only. NEVER put lvgl.*.update actions here — LVGL actions from
+    # boot context wedge the main loop before it starts (hard-learned).
+    # Widget sync happens in settings_page on_load instead.
+    - priority: -100
+      then:
+        - lambda: |-
+            id(sonar).set_canvas((lv_obj_t *) id(waterfall_cv));
+            id(sonar).set_feet_runtime(id(g_feet));
+            id(sonar).set_style(id(g_style));
+            id(sonar).set_noise_filter(id(g_noise));
+            id(sonar).set_surface_clarity(id(g_clarity));
+            id(sonar).set_fish_markers(id(g_fish));
+            id(sonar).set_beam_runtime(id(g_beam) == 1 ? 0x02 : 0x08);
+            id(sonar).set_gain(id(g_gain) / 100.0f);
+            id(sonar).set_demo_runtime(id(g_demo));
+
+packages:
+  device: github://RyanEwen/esphome-lvgl/devices/ESP32-8048S050.yaml@main
+
+external_components:
+  - source:
+      type: local
+      path: components
+
+# Override the device package's rotation:90 (LVGL requires rotation to be unset
+# on the display). Landscape 800x480 suits the horizontally-scrolling waterfall.
+display:
+  - id: !extend main_display
+    rotation: 0
+
+# The package's GT911 transform (swap_xy + mirror_y) was calibrated for the
+# portrait rotation above; in native landscape the controller already matches
+# the panel, so undo it.
+touchscreen:
+  - id: !extend main_touchscreen
+    transform:
+      swap_xy: false
+      mirror_x: false
+      mirror_y: false
+    # temporary calibration aid: one log line per touch
+    on_touch:
+      - lambda: |-
+          ESP_LOGI("touch", "x=%d y=%d (raw %d,%d)", touch.x, touch.y, touch.x_raw, touch.y_raw);
+
+logger:
+  level: INFO
+
+# --- Persisted settings (survive reboot; applied in on_boot) ----------------
+globals:
+  - id: g_feet
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: g_style
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: g_noise
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: g_clarity
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: g_fish
+    type: int
+    restore_value: true
+    initial_value: '1'
+  - id: g_beam
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: g_gain
+    type: int
+    restore_value: true
+    initial_value: '100'
+  - id: g_demo
+    type: bool
+    restore_value: true
+    initial_value: 'true'
+
+# --- Networking -------------------------------------------------------------
+# CRITICAL: the sonar AP has no internet and no ESPHome API. Without
+# reboot_timeout: 0s the node reboots after ~15 min on the water. Do not omit.
+wifi:
+  ssid: "The Three R's IoT"
+  password: !secret wifi_iot_password
+  reboot_timeout: 0s
+
+api:
+  reboot_timeout: 0s
+
+# No OTA password — matches the existing common.yaml convention (the running
+# firmware has none, and adding one now would break the next dashboard flash).
+ota:
+  - platform: esphome
+
+web_server:
+  port: 80
+
+# --- Sonar client + sensors -------------------------------------------------
+sp200a:
+  id: sonar
+  demo: true
+  feet: false
+  depth:
+    id: sonar_depth
+    name: "Depth"
+    on_value:
+      - lvgl.label.update:
+          id: lbl_depth
+          text: !lambda |-
+            char s[16];
+            if (id(sonar).feet())
+              snprintf(s, sizeof(s), "%.1f ft", x * 3.28084);
+            else
+              snprintf(s, sizeof(s), "%.2f m", x);
+            return s;
+  temperature:
+    id: sonar_temp
+    name: "Water temp"
+    on_value:
+      - lvgl.label.update:
+          id: lbl_temp
+          text: !lambda |-
+            char s[16];
+            if (id(sonar).feet())
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""F", x * 9.0 / 5.0 + 32.0);
+            else
+              snprintf(s, sizeof(s), "%.0f\xC2\xB0""C", x);
+            return s;
+  battery:
+    id: sonar_batt
+    name: "T-Box battery"
+    on_value:
+      - lvgl.label.update:
+          id: lbl_batt
+          text: !lambda |-
+            char s[16];
+            snprintf(s, sizeof(s), "%.1f V", x);
+            return s;
+
+# Refresh status + the range chip label independently of sonar frames.
+interval:
+  - interval: 500ms
+    then:
+      - lvgl.label.update:
+          id: lbl_range
+          text: !lambda |-
+            // temporary diagnostics readout: worst loop gap / column render
+            // time / free internal heap
+            char s[64];
+            snprintf(s, sizeof(s), "%s gap %ums rend %ums heap %uk",
+                     id(sonar).demo() ? "DEMO" : (id(sonar).is_connected() ? "RUN" : "no signal"),
+                     (unsigned) id(sonar).diag_worst_gap_ms(),
+                     (unsigned) id(sonar).diag_render_ms(),
+                     (unsigned) (esp_get_free_heap_size() / 1024));
+            return std::string(s);
+      - lvgl.label.update:
+          id: lbl_auto
+          text: !lambda return id(sonar).range_label();
+
+# --- UI ---------------------------------------------------------------------
+lvgl:
+  displays:
+    - main_display
+  touchscreens:
+    - main_touchscreen
+  buffer_size: 12%
+  bg_opa: TRANSP
+  pages:
+    # ======================================================= sonar page
+    - id: main_page
+      bg_opa: TRANSP
+      widgets:
+        # waterfall canvas: first widget = bottom layer; C++ writes its buffer
+        - canvas:
+            id: waterfall_cv
+            x: 0
+            y: 0
+            width: 800
+            height: 480
+        # depth readout chip (top-left)
+        - obj:
+            x: 10
+            y: 10
+            width: 170
+            height: 96
+            radius: 14
+            bg_color: 0x000000
+            bg_opa: 55%
+            border_width: 0
+            pad_all: 8
+            widgets:
+              - label:
+                  id: lbl_depth
+                  text: "--"
+                  text_color: 0xFFFFFF
+                  text_font: montserrat_36
+                  align: TOP_LEFT
+              - label:
+                  id: lbl_temp
+                  text: "--"
+                  text_color: 0xC8DCFF
+                  text_font: montserrat_18
+                  align: BOTTOM_LEFT
+                  y: -22
+              - label:
+                  id: lbl_batt
+                  text: "--"
+                  text_color: 0xC8DCFF
+                  text_font: montserrat_16
+                  align: BOTTOM_LEFT
+        # status (top, left of the settings button)
+        - label:
+            id: lbl_range
+            text: "no signal"
+            text_color: 0xFFB340
+            text_font: montserrat_16
+            align: TOP_RIGHT
+            x: -120
+            y: 24
+        # settings button (top-right, clear of the A-scope strip)
+        - button:
+            id: btn_settings
+            align: TOP_RIGHT
+            x: -28
+            y: 10
+            width: 84
+            height: 44
+            widgets:
+              - label:
+                  text: "MENU"
+                  align: CENTER
+                  text_font: montserrat_16
+            on_click:
+              - lvgl.page.show: settings_page
+        # range chips (bottom-centre): [ - ] [ AUTO/range ] [ + ]
+        - button:
+            id: btn_minus
+            align: BOTTOM_MID
+            x: -110
+            y: -14
+            width: 64
+            height: 52
+            widgets:
+              - label:
+                  text: "-"
+                  align: CENTER
+                  text_font: montserrat_28
+            on_click:
+              - lambda: id(sonar).range_down();
+        - button:
+            id: btn_auto
+            align: BOTTOM_MID
+            y: -14
+            width: 130
+            height: 52
+            widgets:
+              - label:
+                  id: lbl_auto
+                  text: "AUTO"
+                  align: CENTER
+                  text_font: montserrat_20
+            on_click:
+              - lambda: id(sonar).range_auto();
+        - button:
+            id: btn_plus
+            align: BOTTOM_MID
+            x: 110
+            y: -14
+            width: 64
+            height: 52
+            widgets:
+              - label:
+                  text: "+"
+                  align: CENTER
+                  text_font: montserrat_28
+            on_click:
+              - lambda: id(sonar).range_up();
+
+    # ======================================================= settings page
+    - id: settings_page
+      bg_color: 0x101418
+      bg_opa: COVER
+      # sync widgets to persisted settings when the page opens (safe context
+      # for lvgl actions, unlike on_boot)
+      on_load:
+        - lvgl.dropdown.update:
+            id: dd_units
+            selected_index: !lambda 'return id(g_feet) ? 1 : 0;'
+        - lvgl.dropdown.update:
+            id: dd_style
+            selected_index: !lambda return id(g_style);
+        - lvgl.dropdown.update:
+            id: dd_noise
+            selected_index: !lambda return id(g_noise);
+        - lvgl.dropdown.update:
+            id: dd_clarity
+            selected_index: !lambda return id(g_clarity);
+        - lvgl.dropdown.update:
+            id: dd_fish
+            selected_index: !lambda return id(g_fish);
+        - lvgl.dropdown.update:
+            id: dd_beam
+            selected_index: !lambda return id(g_beam);
+        - lvgl.slider.update:
+            id: sl_gain
+            value: !lambda return id(g_gain);
+        - lvgl.label.update:
+            id: lbl_gain_val
+            text: !lambda |-
+              char s[8];
+              snprintf(s, sizeof(s), "%d%%", id(g_gain));
+              return std::string(s);
+        - lvgl.widget.update:
+            id: sw_demo
+            state:
+              checked: !lambda return id(g_demo);
+      widgets:
+        - label:
+            text: "Settings"
+            text_color: 0xFFFFFF
+            text_font: montserrat_28
+            x: 20
+            y: 16
+        - button:
+            align: TOP_RIGHT
+            x: -20
+            y: 12
+            width: 100
+            height: 48
+            widgets:
+              - label:
+                  text: "CLOSE"
+                  align: CENTER
+                  text_font: montserrat_16
+            on_click:
+              - lvgl.page.show: main_page
+
+        # ---- column A ----
+        - label:
+            text: "Units"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 20
+            y: 92
+        - dropdown:
+            id: dd_units
+            x: 190
+            y: 80
+            width: 200
+            options: ["Meters", "Feet"]
+            on_value:
+              - lambda: |-
+                  id(g_feet) = (x == 1);
+                  id(sonar).set_feet_runtime(x == 1);
+        - label:
+            text: "Display style"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 20
+            y: 162
+        - dropdown:
+            id: dd_style
+            x: 190
+            y: 150
+            width: 200
+            options: ["Modern", "Classic"]
+            on_value:
+              - lambda: |-
+                  id(g_style) = x;
+                  id(sonar).set_style(x);
+        - label:
+            text: "Noise filter"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 20
+            y: 232
+        - dropdown:
+            id: dd_noise
+            x: 190
+            y: 220
+            width: 200
+            options: ["Off", "Low", "Medium", "High"]
+            on_value:
+              - lambda: |-
+                  id(g_noise) = x;
+                  id(sonar).set_noise_filter(x);
+        - label:
+            text: "Surface clarity"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 20
+            y: 302
+        - dropdown:
+            id: dd_clarity
+            x: 190
+            y: 290
+            width: 200
+            options: ["Off", "Low", "Medium", "High"]
+            on_value:
+              - lambda: |-
+                  id(g_clarity) = x;
+                  id(sonar).set_surface_clarity(x);
+
+        # ---- column B ----
+        - label:
+            text: "Fish markers"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 420
+            y: 92
+        - dropdown:
+            id: dd_fish
+            x: 590
+            y: 80
+            width: 190
+            options: ["Off", "Symbols", "Symbols + depth"]
+            on_value:
+              - lambda: |-
+                  id(g_fish) = x;
+                  id(sonar).set_fish_markers(x);
+        - label:
+            text: "Beam"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 420
+            y: 162
+        - dropdown:
+            id: dd_beam
+            x: 590
+            y: 150
+            width: 190
+            options: ["Narrow 200 kHz", "Wide 80 kHz"]
+            on_value:
+              - lambda: |-
+                  id(g_beam) = x;
+                  id(sonar).set_beam_runtime(x == 1 ? 0x02 : 0x08);
+        - label:
+            text: "Gain"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 420
+            y: 232
+        - label:
+            id: lbl_gain_val
+            text: "100%"
+            text_color: 0xFFFFFF
+            text_font: montserrat_16
+            x: 740
+            y: 232
+        - slider:
+            id: sl_gain
+            x: 590
+            y: 236
+            width: 140
+            min_value: 50
+            max_value: 200
+            on_value:
+              - lambda: |-
+                  id(g_gain) = (int) x;
+                  id(sonar).set_gain(x / 100.0f);
+              - lvgl.label.update:
+                  id: lbl_gain_val
+                  text: !lambda |-
+                    char s[8];
+                    snprintf(s, sizeof(s), "%d%%", (int) x);
+                    return std::string(s);
+        - label:
+            text: "Demo mode"
+            text_color: 0xC8DCFF
+            text_font: montserrat_16
+            x: 420
+            y: 302
+        - switch:
+            id: sw_demo
+            x: 590
+            y: 296
+            on_value:
+              - lambda: |-
+                  id(g_demo) = x;
+                  id(sonar).set_demo_runtime(x);

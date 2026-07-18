@@ -214,16 +214,12 @@ class BridgeService : Service() {
             }
 
             override fun onUnavailable() {
-                // user declined the connect dialog, or connect failed — retry
-                log("WIFI onUnavailable — retrying request in 5 s")
-                setPhase("WIFI_WAIT")
-                scope.launch {
-                    delay(5_000)
-                    if (isActive && netCallback != null) {
-                        netCallback?.let { runCatching { cm.unregisterNetworkCallback(it) } }
-                        requestWifi(ssid, pattern, pass)
-                    }
-                }
+                // terminal: the user cancelled the connect dialog, or the AP
+                // couldn't be joined. Don't silently retry (that re-pops the
+                // system dialog) or sit in a fake "connected" state — stop so
+                // the UI returns to Connect and the user decides to retry.
+                log("WIFI onUnavailable — connect cancelled or failed; stopping")
+                stopSelf()
             }
         }
         netCallback = cb
