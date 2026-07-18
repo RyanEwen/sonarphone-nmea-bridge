@@ -4,12 +4,12 @@ plugins {
 }
 
 android {
-    namespace = "com.rewen.sonarbridge"
+    namespace = "ca.dynamicsolutions.sonarbridge"
     compileSdk = 35
     buildToolsVersion = "35.0.0" // only 35 is in the builder image
 
     defaultConfig {
-        applicationId = "com.rewen.sonarbridge"
+        applicationId = "ca.dynamicsolutions.sonarbridge"
         minSdk = 29
         targetSdk = 35
         // CI (release.yml) injects the tag version; local builds stay 0.1-dev

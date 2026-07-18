@@ -1,4 +1,4 @@
-package com.rewen.sonarbridge
+package ca.dynamicsolutions.sonarbridge
 
 import android.content.Context
 import android.graphics.Bitmap

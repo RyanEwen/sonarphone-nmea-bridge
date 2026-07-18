@@ -1,4 +1,4 @@
-package com.rewen.sonarbridge
+package ca.dynamicsolutions.sonarbridge
 
 import java.util.Locale
 

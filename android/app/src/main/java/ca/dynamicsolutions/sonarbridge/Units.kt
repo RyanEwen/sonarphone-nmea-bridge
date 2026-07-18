@@ -1,4 +1,4 @@
-package com.rewen.sonarbridge
+package ca.dynamicsolutions.sonarbridge
 
 import android.content.SharedPreferences
 import java.util.Locale

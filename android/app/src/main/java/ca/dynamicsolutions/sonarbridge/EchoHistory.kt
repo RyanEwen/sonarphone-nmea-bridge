@@ -1,4 +1,4 @@
-package com.rewen.sonarbridge
+package ca.dynamicsolutions.sonarbridge
 
 /**
  * Ring buffer of sonar echo columns (758 intensity samples spanning 0–80 m,

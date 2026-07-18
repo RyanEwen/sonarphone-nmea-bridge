@@ -1,6 +1,6 @@
 # SP200A Bridge — dev APK runbook
 
-Debug build, drivable entirely over ADB. Package: `com.rewen.sonarbridge`.
+Debug build, drivable entirely over ADB. Package: `ca.dynamicsolutions.sonarbridge`.
 
 ## Build (Docker, no host installs)
 
@@ -35,8 +35,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 # start (defaults: pattern "SonarPhone_" prefix picker, pass 12345678)
 adb shell am start-foreground-service \
-  -n com.rewen.sonarbridge/.BridgeService \
-  -a com.rewen.sonarbridge.START \
+  -n ca.dynamicsolutions.sonarbridge/.BridgeService \
+  -a ca.dynamicsolutions.sonarbridge.START \
   -e pass "12345678"   # add -e ssid "X" for exact, -e pattern "T-BOX-" for prefix
 
 # optional extras:
@@ -45,7 +45,7 @@ adb shell am start-foreground-service \
 
 # stop
 adb shell am start-foreground-service \
-  -n com.rewen.sonarbridge/.BridgeService -a com.rewen.sonarbridge.STOP
+  -n ca.dynamicsolutions.sonarbridge/.BridgeService -a ca.dynamicsolutions.sonarbridge.STOP
 ```
 
 First start shows the system WiFi-connect approval dialog on the phone —
@@ -63,8 +63,8 @@ adb forward tcp:10110 tcp:10110
 nc 127.0.0.1 10110                 # expect $SDDPT/$SDDBT/$YXMTW every ~1 s
 
 # pull raw frame logs (when started with -e lograw true):
-adb shell ls /sdcard/Android/data/com.rewen.sonarbridge/files/
-adb pull /sdcard/Android/data/com.rewen.sonarbridge/files/ ./frames/
+adb shell ls /sdcard/Android/data/ca.dynamicsolutions.sonarbridge/files/
+adb pull /sdcard/Android/data/ca.dynamicsolutions.sonarbridge/files/ ./frames/
 ```
 
 Raw log record format: `u64le wall-clock ms, u16le frame length, frame bytes`.

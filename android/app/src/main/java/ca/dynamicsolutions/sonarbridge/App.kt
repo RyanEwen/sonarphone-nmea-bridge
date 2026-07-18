@@ -1,4 +1,4 @@
-package com.rewen.sonarbridge
+package ca.dynamicsolutions.sonarbridge
 
 import android.app.Application
 import com.google.android.material.color.DynamicColors

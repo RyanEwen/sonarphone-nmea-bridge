@@ -9,10 +9,10 @@ Deploy the current code to the Pixel:
 3. Install and re-grant:
    ```sh
    adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-   adb shell pm grant com.rewen.sonarbridge android.permission.POST_NOTIFICATIONS
+   adb shell pm grant ca.dynamicsolutions.sonarbridge android.permission.POST_NOTIFICATIONS
    ```
 4. Verify the install actually landed — `install -r` can fail quietly in
    pipelines; always check the timestamp changed:
    ```sh
-   adb shell dumpsys package com.rewen.sonarbridge | grep lastUpdateTime
+   adb shell dumpsys package ca.dynamicsolutions.sonarbridge | grep lastUpdateTime
    ```

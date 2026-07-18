@@ -1,4 +1,4 @@
-package com.rewen.sonarbridge
+package ca.dynamicsolutions.sonarbridge
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -45,8 +45,8 @@ class BridgeService : Service() {
 
     companion object {
         const val TAG = "SonarBridge"
-        const val ACTION_START = "com.rewen.sonarbridge.START"
-        const val ACTION_STOP = "com.rewen.sonarbridge.STOP"
+        const val ACTION_START = "ca.dynamicsolutions.sonarbridge.START"
+        const val ACTION_STOP = "ca.dynamicsolutions.sonarbridge.STOP"
         const val NMEA_PORT = 10110
         private const val CHANNEL = "bridge"
         private const val NOTIF_ID = 1
