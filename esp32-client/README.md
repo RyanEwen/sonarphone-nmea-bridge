@@ -68,8 +68,6 @@ dropped, never blocking the sonar loop. Configure via `sp200a:` options
 the component then keeps the AP alive alongside the STA link, which ESPHome
 alone treats as fallback-only).
 
-<!-- TODO: photo of Navionics displaying depth via the ESP32 AP -->
-
 ## How it works
 
 - **Discover:** send the constant 29-byte `FX` once/second until the T-Box
