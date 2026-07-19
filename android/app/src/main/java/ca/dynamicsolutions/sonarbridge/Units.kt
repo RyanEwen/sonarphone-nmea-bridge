@@ -50,7 +50,7 @@ object Units {
         keelOffsetM = prefs.getFloat("keel_offset_m", 0f)
         tempOffsetC = prefs.getFloat("temp_offset_c", 0f)
         displayStyle = prefs.getInt("display_style", 0).coerceIn(0, 1)
-        fishMarkers = prefs.getInt("fish_markers", 0).coerceIn(0, 2)
+        fishMarkers = prefs.getInt("fish_markers", 1).coerceIn(0, 2) // on (Fish) by default
     }
 
     /** Full depth readout: feet-and-inches (12' 4") or metres (12.34 m). */

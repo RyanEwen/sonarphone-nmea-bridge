@@ -440,7 +440,7 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(1, "Off"))
             addView(segBtn(2, "Fish"))
             addView(segBtn(3, "Fish + depth"))
-            check(prefs.getInt("fish_markers", 0).coerceIn(0, 2) + 1)
+            check(prefs.getInt("fish_markers", 1).coerceIn(0, 2) + 1)
         }
         addGroup(fishGroup)
         root.addView(
