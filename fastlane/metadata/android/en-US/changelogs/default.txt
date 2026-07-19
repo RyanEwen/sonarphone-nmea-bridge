@@ -1,0 +1,1 @@
+Improvements and fixes. See the GitHub releases for full details.

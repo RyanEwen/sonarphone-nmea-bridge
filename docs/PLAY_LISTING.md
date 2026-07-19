@@ -135,6 +135,43 @@ https://ryanewen.github.io/sonarphone-nmea-bridge/privacy.html
    goes live in minutes (little to no review).
 8. On your phone, open the join link, accept, and install from Play.
 
+## CI auto-publish (Fastlane supply)
+
+Once the app exists on Play (first release done manually), CI can upload the
+AAB and sync the whole listing from the repo. The store content lives in
+`fastlane/metadata/android/en-US/` (title, short/full description, changelog,
+`images/` icon + feature graphic + `phoneScreenshots/` + `tenInchScreenshots/`).
+Edit those files, push, and `.github/workflows/play-publish.yml` pushes them to
+Play — no more clicking through the Console.
+
+**Triggers:** a `v*` tag → full release (build AAB + upload to Internal +
+sync listing). Manual **Run workflow** → pick the track, or tick
+`listing_only` to sync just the text/graphics/screenshots with no new build.
+
+**One-time setup (only you can do this):**
+
+1. **Play Console → Setup → API access.** Create/link a Google Cloud project.
+2. In that project (Google Cloud Console → IAM → Service Accounts), create a
+   **service account**, then create a **JSON key** for it and download it.
+3. Back in **Play Console → Users and permissions → Invite new users**, invite
+   the service account's email and grant it access to this app with at least
+   *Release to testing tracks* and *Manage store presence* (or Admin for
+   simplicity).
+4. In the GitHub repo → **Settings → Secrets and variables → Actions**, add a
+   secret **`PLAY_SERVICE_ACCOUNT_JSON`** = the full contents of that JSON key.
+   (The `ANDROID_KEYSTORE_*` secrets are already set from the sideload release.)
+
+Until step 1's first *manual* release is live and the secret is set, the
+workflow will fail — that's expected. After that, tagging `vX.Y.Z` publishes.
+
+> versionCode is derived from the tag: `major*10000 + minor*100 + patch`
+> (so `v0.2.3` → 203, continuing past the manual 200–202). Keep minor/patch
+> under 100.
+
+> Aspect-ratio note: Play caps screenshot side ratio at 2:1. The full-height
+> phone shots are ~2.23:1; if the API rejects them, crop to ≤2:1 (e.g.
+> 1440×2880) and re-push with `listing_only`.
+
 ## Going to Production later
 
 New personal developer accounts must run a **closed test with 12+ testers for

@@ -1,0 +1,23 @@
+SonarBridge gives the Vexilar SonarPhone SP200A a modern fish-finder display on your Android phone — and relays live depth and water temperature to the marine chart app of your choice.
+
+Connect straight to the SonarPhone's own Wi-Fi. SonarBridge keeps your phone's mobile data working at the same time, so you can run charts and the sonar together on one device.
+
+FISH FINDER
+• Scrolling waterfall with a clear bottom line and bottom-hardness shading
+• Fish markers that flag strong mid-water targets
+• Auto range that doesn't jump around, plus manual range control
+• Live A-scope, adjustable gain, noise filter and surface clarity
+• Feet or metres, Celsius or Fahrenheit, adjustable on-screen text size
+• Optional "classic" colour scheme
+
+CHART-APP BRIDGE
+• Streams standard NMEA 0183 depth and temperature on your device
+• Pair a compatible marine navigation app to 127.0.0.1 port 10110 (TCP) to show live depth — and build personal depth-contour maps as you go
+
+MADE FOR THE WATER
+• Big, readable numbers; screen stays on while open
+• Shallow-water alarm
+• Reconnects by itself if the signal drops
+• Demo mode generates realistic sonar so you can try everything with no hardware
+
+SonarBridge is an independent app. It is not made by, affiliated with, or endorsed by Vexilar, Garmin, or Navionics. "Vexilar" and "SonarPhone" are trademarks of their respective owners and are used here only to describe compatibility.
