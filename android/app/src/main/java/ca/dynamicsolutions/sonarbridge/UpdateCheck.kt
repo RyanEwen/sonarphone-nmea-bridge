@@ -34,7 +34,8 @@ object UpdateCheck {
 
     /** Automatic check: throttled, and muted versions stay quiet. */
     fun maybeCheck(activity: Activity, scope: CoroutineScope) {
-        if (BuildConfig.IS_PLAY) return // Play delivers updates; no self-update
+        // Play delivers updates; dev/debug builds shouldn't nag about releases.
+        if (BuildConfig.IS_PLAY || BuildConfig.DEBUG) return
         val prefs = activity.getSharedPreferences("cfg", Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
         if (checkedThisProcess && now - prefs.getLong("upd_last_check", 0) < RESUME_THROTTLE_MS) {
