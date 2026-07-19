@@ -8,7 +8,7 @@ Deploy the current code to the Pixel:
 2. Connect the phone: follow `/find-phone` if `adb devices` shows nothing.
 3. Install and re-grant:
    ```sh
-   adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+   adb install -r android/app/build/outputs/apk/github/debug/app-github-debug.apk
    adb shell pm grant ca.dynamicsolutions.sonarbridge android.permission.POST_NOTIFICATIONS
    ```
 4. Verify the install actually landed — `install -r` can fail quietly in

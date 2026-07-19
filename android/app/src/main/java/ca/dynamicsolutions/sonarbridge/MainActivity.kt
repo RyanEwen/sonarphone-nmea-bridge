@@ -2,6 +2,7 @@ package ca.dynamicsolutions.sonarbridge
 
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -21,6 +22,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.navigation.NavigationBarView
+import com.google.android.material.navigationrail.NavigationRailView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
@@ -46,6 +49,8 @@ class MainActivity : AppCompatActivity() {
         const val TAB_STATUS = 1
         const val TAB_SONAR = 2
         const val TAB_SETTINGS = 3
+        // remembered across rotation (process survives config change)
+        private var lastTab = TAB_STATUS
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -100,26 +105,59 @@ class MainActivity : AppCompatActivity() {
         sonarView = SonarView(this)
         settingsView = buildSettingsView()
 
-        content = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f,
-            )
-        }
-        val nav = BottomNavigationView(this).apply {
-            menu.add(Menu.NONE, TAB_STATUS, 0, "Status").setIcon(R.drawable.ic_tab_status)
-            menu.add(Menu.NONE, TAB_SONAR, 1, "Sonar").setIcon(R.drawable.ic_tab_sonar)
-            menu.add(Menu.NONE, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_tab_settings)
-            setOnItemSelectedListener { item -> show(item.itemId); true }
+        content = FrameLayout(this)
+
+        // Portrait: tabs across the bottom. Landscape (phone or tablet): a
+        // vertical nav rail on the left, so the wide-but-short screen keeps its
+        // full height for the sonar view (the rail sits left of the zoom
+        // button). Rotation recreates the activity, so this re-picks the layout.
+        val landscape =
+            resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+        fun buildMenu(nav: NavigationBarView) {
+            nav.menu.add(Menu.NONE, TAB_STATUS, 0, "Status").setIcon(R.drawable.ic_tab_status)
+            nav.menu.add(Menu.NONE, TAB_SONAR, 1, "Sonar").setIcon(R.drawable.ic_tab_sonar)
+            nav.menu.add(Menu.NONE, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_tab_settings)
+            nav.setOnItemSelectedListener { item -> show(item.itemId); true }
         }
 
-        setContentView(
-            LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(content)
-                addView(nav)
-            }
-        )
-        nav.selectedItemId = TAB_STATUS
+        val navBar: NavigationBarView
+        if (landscape) {
+            val rail = NavigationRailView(this)
+            buildMenu(rail)
+            content.layoutParams = LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f,
+            )
+            setContentView(
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(
+                        rail,
+                        LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        ),
+                    )
+                    addView(content)
+                }
+            )
+            navBar = rail
+        } else {
+            val bottom = BottomNavigationView(this)
+            buildMenu(bottom)
+            content.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f,
+            )
+            setContentView(
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(content)
+                    addView(bottom)
+                }
+            )
+            navBar = bottom
+        }
+        navBar.selectedItemId = lastTab
 
         scope.launch {
             BridgeState.flow.collect { renderStatus(it) }
@@ -130,6 +168,7 @@ class MainActivity : AppCompatActivity() {
         if (tab == currentTab) return
         if (currentTab == TAB_SETTINGS) saveSettings()
         currentTab = tab
+        lastTab = tab
         content.removeAllViews()
         content.addView(
             when (tab) {
