@@ -6,8 +6,8 @@ the Console (web-only) side.
 
 ## The artifact to upload
 
-- **File:** `dist/sonarbridge-0.2.0.aab` (Play requires an AAB, not an APK)
-- **versionName** `0.2.0`, **versionCode** `200`
+- **File:** `dist/sonarbridge-0.2.2.aab` (Play requires an AAB, not an APK)
+- **versionName 0.2.2, versionCode 202`
 - It's the **play** flavor: no self-updater, no `REQUEST_INSTALL_PACKAGES`,
   no direct battery-optimization request, `targetSdk 35`.
 - Signed with the release/**upload** key. On first upload, accept **Play App
@@ -20,7 +20,7 @@ the Console (web-only) side.
 > docker exec -e ANDROID_KEYSTORE_FILE=/project/keystore/release.keystore \
 >   -e ANDROID_KEYSTORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD" \
 >   -e ANDROID_KEY_ALIAS="$ANDROID_KEY_ALIAS" -e ANDROID_KEY_PASSWORD="$ANDROID_KEY_PASSWORD" \
->   -e ANDROID_VERSION_NAME="0.2.1" -e ANDROID_VERSION_CODE="201" \
+>   -e ANDROID_VERSION_NAME="0.2.3" -e ANDROID_VERSION_CODE="203" \
 >   sonarbridge-builder ./gradlew --no-daemon bundlePlayRelease
 > # -> android/app/build/outputs/bundle/playRelease/app-play-release.aab
 > ```
@@ -123,7 +123,7 @@ https://ryanewen.github.io/sonarphone-nmea-bridge/privacy.html
 2. Left nav **Test and release → Testing → Internal testing → Create new
    release.**
 3. When prompted, **opt in to Play App Signing** (recommended default).
-4. **Upload** `dist/sonarbridge-0.2.0.aab`. Add release notes (e.g. "First
+4. **Upload** `dist/sonarbridge-0.2.2.aab`. Add release notes (e.g. "First
    internal test build."). Save.
 5. Fill the **App content** section (left nav → *Monetisation setup* is skippable;
    *App content* is required) using the answers above. Also complete the
