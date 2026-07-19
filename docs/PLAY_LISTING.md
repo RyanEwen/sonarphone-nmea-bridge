@@ -75,10 +75,18 @@ compatibility.
 
 **App icon:** `docs/store/icon-512.png` (512×512)
 **Feature graphic:** `docs/store/feature-1024x500.png` (1024×500)
-**Phone screenshots** (Play wants 4+ at ≥1080 px per side; these are
-1440×3213): `docs/store/screenshot-1-sonar.png`,
-`docs/store/screenshot-2-status.png`, `docs/store/screenshot-3-settings.png`,
-`docs/store/screenshot-4-sonar.png`
+**Phone screenshots** (Play's phone slot; 4+ at ≥1080 px/side, these are
+1440×3213 portrait / 3213×1440 landscape):
+`docs/store/phone-1-sonar.png`, `docs/store/phone-2-sonar-landscape.png`,
+`docs/store/phone-3-status.png`, `docs/store/phone-4-settings.png`
+
+**Tablet screenshots** (Play's tablet slot; 1200×2000 portrait /
+2000×1200 landscape): `docs/store/tablet-1-sonar.png`,
+`docs/store/tablet-2-sonar-landscape.png`, `docs/store/tablet-3-status.png`,
+`docs/store/tablet-4-settings.png`
+
+Both include a landscape shot showing the left nav rail. All captured in demo
+mode with a clean status bar.
 
 **Category:** Tools (or Sports). **Contact email:** ryan.ewen@gmail.com
 **Privacy policy URL:**
