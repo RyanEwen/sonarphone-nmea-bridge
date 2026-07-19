@@ -21,6 +21,8 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationBarView
 import com.google.android.material.navigationrail.NavigationRailView
@@ -121,6 +123,7 @@ class MainActivity : AppCompatActivity() {
             nav.setOnItemSelectedListener { item -> show(item.itemId); true }
         }
 
+        val root: LinearLayout
         val navBar: NavigationBarView
         if (landscape) {
             val rail = NavigationRailView(this)
@@ -128,19 +131,17 @@ class MainActivity : AppCompatActivity() {
             content.layoutParams = LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.MATCH_PARENT, 1f,
             )
-            setContentView(
-                LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    addView(
-                        rail,
-                        LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                        ),
-                    )
-                    addView(content)
-                }
-            )
+            root = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(
+                    rail,
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    ),
+                )
+                addView(content)
+            }
             navBar = rail
         } else {
             val bottom = BottomNavigationView(this)
@@ -148,15 +149,24 @@ class MainActivity : AppCompatActivity() {
             content.layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f,
             )
-            setContentView(
-                LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    addView(content)
-                    addView(bottom)
-                }
-            )
+            root = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(content)
+                addView(bottom)
+            }
             navBar = bottom
         }
+        // targetSdk 35 enforces edge-to-edge (no automatic fitting), so pad the
+        // whole UI in from the system bars + display cutout — otherwise the
+        // content draws under the clock/notifications and the gesture bar.
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
+        setContentView(root)
         navBar.selectedItemId = lastTab
 
         scope.launch {
