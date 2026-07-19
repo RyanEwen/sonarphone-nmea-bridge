@@ -7,7 +7,7 @@ the Console (web-only) side.
 ## The artifact to upload
 
 - **File:** `dist/sonarbridge-0.2.2.aab` (Play requires an AAB, not an APK)
-- **versionName 0.2.2, versionCode 202`
+- **versionName** 0.2.2, **versionCode** 202
 - It's the **play** flavor: no self-updater, no `REQUEST_INSTALL_PACKAGES`,
   no direct battery-optimization request, `targetSdk 35`.
 - Signed with the release/**upload** key. On first upload, accept **Play App
