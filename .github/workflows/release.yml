@@ -80,8 +80,9 @@ jobs:
         run: ./gradlew --no-daemon assembleGithubRelease
 
       - name: Stage APK
+        # flavored output dir is apk/<flavor>/<buildType>/, not apk/<flavorBuildType>/
         run: |
-          cp android/app/build/outputs/apk/githubRelease/app-github-release.apk \
+          cp android/app/build/outputs/apk/github/release/app-github-release.apk \
              "sonarbridge-${{ steps.ver.outputs.name }}.apk"
 
       - name: Publish release

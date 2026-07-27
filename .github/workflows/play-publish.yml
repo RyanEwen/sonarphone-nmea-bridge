@@ -17,8 +17,9 @@ name: play-publish
 #   - the existing ANDROID_KEYSTORE_* secrets (already set for release.yml)
 
 on:
-  push:
-    tags: ['v*']
+  # Manual only: Play publishing needs PLAY_SERVICE_ACCOUNT_JSON and an app
+  # that already exists on Play. Tagging v* publishes the GitHub APK
+  # (release.yml); run this when you also want that build on Play.
   workflow_dispatch:
     inputs:
       version:
