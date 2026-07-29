@@ -6,8 +6,8 @@ the Console (web-only) side.
 
 ## The artifact to upload
 
-- **File:** `dist/sonarbridge-0.2.2.aab` (Play requires an AAB, not an APK)
-- **versionName** 0.2.2, **versionCode** 202
+- **File:** `dist/sonarbridge-0.2.3.aab` (Play requires an AAB, not an APK)
+- **versionName** 0.2.3, **versionCode** 203
 - It's the **play** flavor: no self-updater, no `REQUEST_INSTALL_PACKAGES`,
   no direct battery-optimization request, `targetSdk 36` (Play's target-API
   floor from Aug 30, 2026; `minSdk` stays 29, so older phones/tablets are
