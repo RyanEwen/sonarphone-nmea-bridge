@@ -63,6 +63,10 @@ jobs:
 
       - uses: android-actions/setup-android@v4
 
+      # explicit so a runner image without android-36 can't fail the tag build
+      - name: Install SDK platform 36
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
       - name: Decode release keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
 

@@ -16,7 +16,8 @@ Output: `android/app/build/outputs/apk/debug/app-debug.apk`.
 Typical times: incremental ~6 s, clean build ~10 s, cold daemon ~1 min.
 
 The image is built from `android/docker/Dockerfile.arm64`: arm64 temurin JDK
-+ SDK platform 34 + a pinned arm64 `aapt2` static build
++ SDK platforms 36 (compileSdk) and 35 + build-tools 35.0.0 + a pinned arm64
+`aapt2` static build
 (lzhiyong/android-sdk-tools 35.0.2 — the one binary Google doesn't ship for
 linux-arm64), wired in via `android.aapt2FromMavenOverride` in the
 container-local `android/.gradle/gradle.properties` (gitignored — do not put

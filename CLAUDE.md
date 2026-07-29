@@ -93,5 +93,12 @@ vary across models/modes). `FV` keep-alive is unnecessary — ignore it.
 
 - App: Kotlin, minSdk 29 (WifiNetworkSpecifier requirement), coroutines for
   socket loops, no third-party networking deps for the core path.
+- targetSdk/compileSdk 36 (Play's target-API floor from Aug 30, 2026). minSdk
+  stays 29: raising the target does not change which devices can install.
+  **Do not jump to targetSdk 37 casually:** Android 17 makes the
+  `ACCESS_LOCAL_NETWORK` runtime permission mandatory for apps targeting 37,
+  and this bridge is entirely local-network traffic (UDP to 192.168.1.1). That
+  bump needs the permission declared plus a runtime request/denial path first.
+  Android 16 only lets you opt in to that enforcement, so 36 is safe as-is.
 - UI: Material 3 views + DynamicColors (Material You on API 31+), programmatic
   layouts (no XML layouts, no Compose), custom Canvas view for sonar rendering.

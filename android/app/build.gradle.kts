@@ -5,13 +5,16 @@ plugins {
 
 android {
     namespace = "ca.dynamicsolutions.sonarbridge"
-    compileSdk = 35
-    buildToolsVersion = "35.0.0" // only 35 is in the builder image
+    compileSdk = 36
+    // build-tools stays 35.0.0: the pinned arm64 aapt2 static build (see
+    // docker/Dockerfile.arm64) only goes up to 35.0.2, and the rest of
+    // build-tools is Java inside AGP.
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "ca.dynamicsolutions.sonarbridge"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         // CI (release.yml) injects the tag version; local builds stay 0.1-dev
         versionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.1-dev"

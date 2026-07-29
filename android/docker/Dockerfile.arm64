@@ -17,9 +17,11 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools \
     && rm /tmp/clt.zip
 
 # android.jar etc.; native build-tools binaries are unused (aapt2 overridden,
-# d8/r8 are Java inside AGP) but AGP checks the directory exists
+# d8/r8 are Java inside AGP) but AGP checks the directory exists.
+# android-36 = compileSdk (Play's target-API floor); build-tools stays 35.0.0
+# because the pinned arm64 aapt2 static build only goes up to 35.0.2.
 RUN yes | sdkmanager --licenses >/dev/null \
-    && sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
+    && sdkmanager "platforms;android-36" "platforms;android-35" "build-tools;35.0.0" >/dev/null
 
 # arm64-native aapt2 (pinned release, wired in via android.aapt2FromMavenOverride)
 RUN mkdir -p /opt/android-tools \

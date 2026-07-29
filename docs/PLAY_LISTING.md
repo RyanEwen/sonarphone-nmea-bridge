@@ -9,7 +9,9 @@ the Console (web-only) side.
 - **File:** `dist/sonarbridge-0.2.2.aab` (Play requires an AAB, not an APK)
 - **versionName** 0.2.2, **versionCode** 202
 - It's the **play** flavor: no self-updater, no `REQUEST_INSTALL_PACKAGES`,
-  no direct battery-optimization request, `targetSdk 35`.
+  no direct battery-optimization request, `targetSdk 36` (Play's target-API
+  floor from Aug 30, 2026; `minSdk` stays 29, so older phones/tablets are
+  unaffected).
 - Signed with the release/**upload** key. On first upload, accept **Play App
   Signing** (Google holds the real app-signing key; you keep uploading with
   this key). Rebuild any future AAB with a **higher versionCode**.
