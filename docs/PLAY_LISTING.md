@@ -4,7 +4,31 @@ Everything you need to publish SonarBridge to the **Internal testing** track,
 plus copy to paste into each Console field. The build side is done — this is
 the Console (web-only) side.
 
-## The artifact to upload
+## Current state on Play (2026-07-30)
+
+CI publishing works now: `PLAY_SERVICE_ACCOUNT_JSON` is set (service account
+`google-play-store-publisher@sonarbridge.iam.gserviceaccount.com`, no GCP IAM
+role, permissions granted per-app in the Console). **0.2.3 / versionCode 203
+(targetSdk 36) is the active release on both `internal` and `alpha`.**
+
+Track history worth knowing: only versionCode 200 (0.2.0) had ever reached
+Play before this. The 0.2.2 AAB referenced by older revisions of this file was
+built but never uploaded, so don't trust a version number here as proof it is
+live: check with `edits.insert` + `GET /edits/{id}/tracks`.
+
+**`production` is still empty and rejects uploads** with `Precondition check
+failed`: a personal developer account must complete the closed-testing period
+(12 testers, 14 days) before production is available. `alpha` is that closed
+test, which is why 0.2.3 went there too.
+
+Promoting an existing build to a second track is *not* another `supply` run:
+a versionCode can only be uploaded once, so re-running the workflow for
+another track fails on the duplicate. Instead update the track against the
+bundle already in the library: `edits.insert` → `PUT /edits/{id}/tracks/<track>`
+with `releases[0].versionCodes = ["203"]` → `:validate` → `:commit`. Replacing
+the releases array supersedes whatever that track was serving.
+
+## The artifact to upload (manual fallback)
 
 - **File:** `dist/sonarbridge-0.2.3.aab` (Play requires an AAB, not an APK)
 - **versionName** 0.2.3, **versionCode** 203
@@ -163,8 +187,14 @@ sync listing). Manual **Run workflow** → pick the track, or tick
    secret **`PLAY_SERVICE_ACCOUNT_JSON`** = the full contents of that JSON key.
    (The `ANDROID_KEYSTORE_*` secrets are already set from the sideload release.)
 
-Until step 1's first *manual* release is live and the secret is set, the
-workflow will fail — that's expected. After that, tagging `vX.Y.Z` publishes.
+**Done 2026-07-30.** Notes from doing it, in case the key ever needs replacing:
+grant the service account **no** GCP IAM role (roles there govern GCP
+resources, not Play); the app-level Console permissions are what matter (view
+app info, manage store presence, release to testing tracks, release to
+production). Grants take a few minutes to propagate, and a missing grant shows
+up as `403 PERMISSION_DENIED` on `edits.insert` while token minting still
+succeeds — a disabled Android Publisher API gives a different, explicit
+"has not been used in project" error, so the two are easy to tell apart.
 
 > versionCode is derived from the tag: `major*10000 + minor*100 + patch`
 > (so `v0.2.3` → 203, continuing past the manual 200–202). Keep minor/patch
