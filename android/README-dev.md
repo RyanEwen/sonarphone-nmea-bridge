@@ -165,7 +165,8 @@ Before rollout, set these GitHub repository variables:
 - `PLAY_SIGNING_CERTIFICATE_SHA256`: the **app-signing** SHA-256 fingerprint
   from Play Console, not the upload key. The `inspect-play-state` workflow can
   also read the authoritative signer from Google's existing bundle metadata
-  without downloading or publishing anything. Export fails closed if it is missing
+  without downloading or publishing anything. The existing `play-publish`
+  workflow also offers `inspect_only` for the same read-only check. Export fails closed if it is missing
   or differs from either Google's metadata or the actual APK signer.
 - `LEGACY_MIGRATION_TAG`: the exact tag chosen for the final old-key update.
   Set this **before pushing that tag**. That tag builds only the legacy APK;

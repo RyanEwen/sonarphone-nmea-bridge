@@ -13,6 +13,9 @@ on:
       track:
         default: internal
         type: string
+      inspect_only:
+        default: false
+        type: boolean
       listing_only:
         default: false
         type: boolean
@@ -37,6 +40,10 @@ on:
         default: 'internal'
         type: choice
         options: [internal, alpha, beta, production]
+      inspect_only:
+        description: 'Read current tracks, version codes and signing metadata without publishing'
+        default: false
+        type: boolean
       listing_only:
         description: 'Only sync listing text/graphics/screenshots (no AAB build/upload)'
         default: false
@@ -46,7 +53,21 @@ permissions:
   contents: read
 
 jobs:
+  inspect:
+    if: ${{ inputs.inspect_only }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Inspect releases and signing metadata
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: node scripts/play-status.mjs
+
   publish:
+    if: ${{ !inputs.inspect_only }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
