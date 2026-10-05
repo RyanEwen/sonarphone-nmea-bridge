@@ -21,8 +21,8 @@ android {
     }
 
     // Two distribution channels from one codebase:
-    //  - github: sideload APK, keeps the in-app self-updater
-    //  - play:   Play Store, no self-update (Play policy), softer battery-opt
+    //  - github: development and the final legacy migration APK
+    //  - play:   public APK on both channels, no self-update, softer battery-opt
     flavorDimensions += "dist"
     productFlavors {
         create("github") {

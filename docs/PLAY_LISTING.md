@@ -170,9 +170,14 @@ AAB and sync the whole listing from the repo. The store content lives in
 Edit those files, push, and `.github/workflows/play-publish.yml` pushes them to
 Play — no more clicking through the Console.
 
-**Triggers:** a `v*` tag → full release (build AAB + upload to Internal +
-sync listing). Manual **Run workflow** → pick the track, or tick
-`listing_only` to sync just the text/graphics/screenshots with no new build.
+**Triggers:** regular `v*` tags call this reusable Play upload lane from
+`release.yml`, then publish the verified Google-signed APK on GitHub. The final
+legacy migration tag is the exception and uploads no Play bundle. Manual
+**Run workflow** takes an existing `vX.Y.Z` tag and chosen track, or use
+`listing_only` to sync text/graphics/screenshots without a bundle.
+See [the release runbook](../android/README-dev.md#releases--updates) for rollout
+order and the required signing fingerprint variable. The default track remains
+internal testing; the historical state above is not a current readiness check.
 
 **One-time setup (only you can do this):**
 
@@ -216,7 +221,7 @@ Google generated and holds the app signing key (its certificate is
 | Key | Lives in | Signs |
 |---|---|---|
 | App signing (Google's) | Google, not exportable | what users install from Play |
-| Upload (yours) | `android/keystore/release.keystore` | AABs sent to Play, and the GitHub APK |
+| Upload (yours) | `android/keystore/release.keystore` | AABs sent to Play, and the final legacy migration APK |
 
 Upload key: alias `sonarbridge`, `CN=SonarBridge, O=Rewen`, RSA 2048, created
 2026-07-17, valid to 2056, SHA-256
@@ -228,49 +233,37 @@ Upload key: alias `sonarbridge`, `CN=SonarBridge, O=Rewen`, RSA 2048, created
 > with Play support. Copy `release.keystore` **and** `release.env` somewhere
 > durable.
 
-**Consequence of the two-key split:** the Play build is re-signed by Google
-while the GitHub sideload APK keeps the upload key signature, and both use
-`applicationId ca.dynamicsolutions.sonarbridge`. Android treats that as a
-signature conflict, so neither channel can upgrade the other, and moving
-between them means uninstalling first and losing settings. A second,
-independent blocker sits underneath it: `release.yml` derives the GitHub
-versionCode from `github.run_number` (v0.2.3 shipped as 12) while Play derives
-its own from the tag (203), so even with matching signatures the GitHub build
-could not upgrade a Play install.
+**Current distribution decision:** publish Google's signed universal APK on
+GitHub instead of building a second public APK. Both channels then have the
+same package, signing certificate and versionCode. Downloading from GitHub
+remains supported, with manual APK updates and no in-app APK installer.
 
-**Decided 2026-09-05: the channels stay separate and incompatible.** If this
-is ever revisited, the fix is *not* an `applicationIdSuffix`. It is to stop
-building a second APK at all and publish Play's own signed universal APK to
-GitHub instead, fetched with `androidpublisher.generatedapks.list` and
-`.download` using the service account that already publishes the AAB. That
-gives one certificate and one versionCode, upgrading in both directions. It
-costs the sideload channel its in-app self-updater, since that artifact is the
-play flavor (`UpdateCheck.kt` returns early on `IS_PLAY`), and it makes the
-GitHub release wait on Play finishing its bundle processing.
+The old GitHub APK uses the upload key with the same package ID, so Android
+cannot update it to Google's signer or install the new app beside it. Prepare
+one final legacy-signed APK with migration guidance first. It retains settings
+when installed over old GitHub releases. Users then record settings and save
+raw logs, disconnect, uninstall, install from GitHub or Play and reconfigure.
+Uninstalling clears settings and app files. Existing Play installations do not
+need this migration. Full steps are in the release runbook linked above.
 
-Anyone already holding the GitHub APK has to uninstall once whichever way this
-goes, because no path re-binds an existing install from the upload key to
-Google's. So the cheapest moment to revisit is before production launch, while
-the audience is still testers rather than users with settings to lose.
-
-**The app signing certificate (`deployment_cert.der`) is not needed by this
-repo.** Downloading it is only useful for registering a SHA-1/SHA-256 with a
-Google service (Maps, Sign-In, Firebase, App Links); this app uses none. Both
-workflows and `build.gradle.kts` reference the upload keystore only. If you do
-download it, move it as binary: a text-mode copy or paste rewrites every
-non-ASCII byte to U+FFFD and silently corrupts the file. The fingerprints are
-also printed as text on the Console page, which is all anything ever needs.
+**Trust configuration:** set GitHub repository variable
+`PLAY_SIGNING_CERTIFICATE_SHA256` from the app-signing certificate fingerprint
+on this Console page, or verify it against the authoritative metadata for an
+existing bundle using `inspect-play-state`. The exporter checks that trusted fingerprint against
+Google's generated-APK metadata and `apksigner` output, plus exact package,
+versionCode and versionName. The upload-key fingerprint above is incompatible
+and must not be used. A `.der` certificate file is unnecessary; the textual
+SHA-256 fingerprint suffices. Do not derive the trust setting automatically
+from the APK being downloaded.
 
 **Play Integrity API: deliberately not enabled.** Do not relitigate this
 without a backend. It issues a token that must be verified server-side, and
-this app has no server (the only outbound request is the GitHub release
-check in `UpdateCheck.kt`). Client-side enforcement is cautioned against by
+this app has no backend to verify integrity tokens. Client-side enforcement is cautioned against by
 Google and is removable by the attacker it targets. There is also nothing to
-protect: free app, no accounts, no purchases, no server API. It would actively
-misreport the sideload channel, where every install returns
-`appRecognitionVerdict: UNRECOGNIZED_VERSION` and `appLicensingVerdict:
-UNLICENSED` because the GitHub APK carries the upload key signature. Revisit
-only if SonarBridge ever grows a backend worth defending.
+protect: free app, no accounts, no purchases, no server API. Manual GitHub
+installs are intentionally supported; enforcing Play licensing could prevent
+those users from using the app. Revisit only if SonarBridge ever grows a
+backend worth defending.
 
 **Automatic protection: available, deliberately skipped.** It is one click
 (release flow → *app bundle enhancements*, or the Protected with Play page),
@@ -278,9 +271,9 @@ needs no code, works offline, is reversible per release, and the
 prerequisites already hold (Play App Signing, AAB, minSdk 29 over its floor
 of 24). What it does is prompt users who obtained the app from an unofficial
 source to install it from Play, which is worth little here: the official free
-APK on GitHub *is* an unofficial source, and the protection is injected only
-into the Play-signed artifact, so it never reaches that build anyway. It
-costs app size for a benefit this app cannot use.
+APK on GitHub is an intentional alternative download. Protection injected
+into the Play artifact would also reach the GitHub APK now that both channels
+use that artifact, conflicting with the supported manual-install flow.
 
 ## Going to Production later
 

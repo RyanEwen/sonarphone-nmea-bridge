@@ -48,9 +48,11 @@ Read the source closest to the work before changing it:
   existing custom `Canvas` sonar view. Do not introduce Compose or XML layouts
   without an explicit architecture decision.
 - The foreground service type is `connectedDevice`.
-- Preserve the separate `github` and `play` product flavors. The GitHub flavor
-  supports sideloading and self-update behavior that must not enter the Play
-  flavor.
+- Preserve the separate `github` and `play` product flavors. `github` is for
+  development and the final legacy migration update. Public downloads from
+  both GitHub and Google Play use Google's verified Play-flavor universal APK.
+  Neither flavor downloads APK updates itself. Keep legacy-only battery
+  permission and ADB service access out of the Play flavor.
 
 ## Verification
 

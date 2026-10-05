@@ -33,14 +33,26 @@ one phone, without giving up your internet connection.
   reconnects by itself if the sonar drops out.
 - **Try it on the couch.** Demo mode generates realistic sonar data so you
   can explore the display and test the Navionics pairing with no hardware.
-- **Updates itself.** The app checks GitHub for new releases and offers the
-  download.
+- **Choose your downloads.** GitHub and Google Play offer the same app.
+  Install APK updates manually from GitHub, or use Google Play for updates.
 
 ## Get it
 
-Download the latest APK from the
-[Releases page](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/latest)
-and install it (you may need to allow installs from your browser).
+Download the APK from
+[GitHub](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.5)
+or install from
+[Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge)
+where available. GitHub APKs named `sonarbridge-X.Y.Z-play.apk` are generated
+and signed by Google Play. You do not need to use the Play Store to install
+them; you may need to allow installs from your browser.
+
+**Moving from an older GitHub APK:** first install the
+[final legacy migration update (v0.2.4)](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.4)
+when offered, then follow the [migration guide](docs/android-migration-release-notes.md).
+The new APK cannot replace an older GitHub installation directly. Record your
+settings and save any raw frame logs first, then disconnect, uninstall and
+reinstall once. Re-enter settings and grant permissions afterward. Wait for a
+`-play.apk` before uninstalling. Future GitHub APKs update the new app normally.
 
 You'll need Android 10 or newer and a SonarPhone SP200A (T-Box). Other
 SonarPhone models speak the same protocol and may work, but only the SP200A

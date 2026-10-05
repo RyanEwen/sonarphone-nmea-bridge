@@ -606,17 +606,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         root.addView(header("Updates"))
-        if (BuildConfig.IS_PLAY) {
-            root.addView(note("Version ${BuildConfig.VERSION_NAME}. Updates are delivered through Google Play."))
-        } else {
-            root.addView(
-                MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
-                    text = "Check for updates"
-                    setOnClickListener { UpdateCheck.manualCheck(this@MainActivity, scope) }
-                }
-            )
-            root.addView(note("Version ${BuildConfig.VERSION_NAME}. Updates are also offered automatically when the app opens."))
-        }
+        root.addView(AndroidDownloads.buildGuidanceView(this, migration = !BuildConfig.IS_PLAY))
 
         val mode = prefs.getInt("mode", 0)
         modeGroup.check(mode + 1)
@@ -675,7 +665,7 @@ class MainActivity : AppCompatActivity() {
         battery.visibility =
             if (pm.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE
         renderStatus(BridgeState.flow.value)
-        UpdateCheck.maybeCheck(this, scope)
+        AndroidDownloads.maybeShowMigrationNotice(this)
     }
 
     override fun onPause() {

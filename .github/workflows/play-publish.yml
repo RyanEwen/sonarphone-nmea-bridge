@@ -1,29 +1,36 @@
 name: play-publish
 
-# Publishes to Google Play via the Developer Publishing API (Fastlane supply):
-# uploads the signed AAB and syncs the whole store listing (title, descriptions,
-# icon, feature graphic, phone + tablet screenshots, changelog) from
-# fastlane/metadata/android/.
-#
-# Triggers:
-#   - push of a v* tag  -> full release to the Internal testing track
-#   - manual dispatch   -> pick the track; "listing_only" syncs metadata/images
-#                          without building or uploading an AAB
-#
-# One-time setup required (see docs/PLAY_LISTING.md → "CI auto-publish"):
-#   - a Google Cloud service account with the Play Developer API, granted access
-#     in the Play Console, its JSON key stored as secret PLAY_SERVICE_ACCOUNT_JSON
-#   - the app must already have had its first release created manually
-#   - the existing ANDROID_KEYSTORE_* secrets (already set for release.yml)
+# Reusable Play build and upload lane. Tags call it from release.yml; manual
+# runs can still update a testing track or sync only the store listing.
+# Keep the existing internal-testing default until production is approved.
 
 on:
-  # Manual only: Play publishing needs PLAY_SERVICE_ACCOUNT_JSON and an app
-  # that already exists on Play. Tagging v* publishes the GitHub APK
-  # (release.yml); run this when you also want that build on Play.
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      track:
+        default: internal
+        type: string
+      listing_only:
+        default: false
+        type: boolean
+    secrets:
+      PLAY_SERVICE_ACCOUNT_JSON:
+        required: true
+      ANDROID_KEYSTORE_BASE64:
+        required: true
+      ANDROID_KEYSTORE_PASSWORD:
+        required: true
+      ANDROID_KEY_ALIAS:
+        required: true
+      ANDROID_KEY_PASSWORD:
+        required: true
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version name to build (e.g. 0.2.3) — required unless listing_only'
+        description: 'Existing release tag to build (e.g. v0.2.3), required unless listing_only'
         required: false
       track:
         description: 'Play track'
@@ -44,55 +51,62 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
           fetch-depth: 0
 
       - name: Resolve version + Play versionCode
         id: ver
+        env:
+          TAG: ${{ inputs.version }}
+          LISTING_ONLY: ${{ inputs.listing_only }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_SIGNING_CERTIFICATE_SHA256: ${{ vars.PLAY_SIGNING_CERTIFICATE_SHA256 }}
         run: |
-          NAME="${{ github.event.inputs.version || github.ref_name }}"
-          NAME="${NAME#v}"
-          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
-          # versionCode derived from semver: major*10000 + minor*100 + patch
-          # (0.2.3 -> 203). Monotonic as the version climbs; continues past the
-          # manual 200-202 uploads. Keep minor/patch < 100.
-          if [ -n "${NAME}" ]; then
-            IFS='.' read -r MAJ MIN PAT <<< "${NAME%%-*}"
-            echo "code=$((10#${MAJ:-0}*10000 + 10#${MIN:-0}*100 + 10#${PAT:-0}))" >> "$GITHUB_OUTPUT"
-          fi
+          [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ] || { echo "::error::PLAY_SERVICE_ACCOUNT_JSON is required"; exit 1; }
+          [ "$LISTING_ONLY" = "true" ] && exit 0
+          [[ "${PLAY_SIGNING_CERTIFICATE_SHA256//:/}" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "::error::Set PLAY_SIGNING_CERTIFICATE_SHA256 to the Play app-signing fingerprint"; exit 1; }
+          bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v6
+        if: ${{ !inputs.listing_only }}
+        with:
+          node-version: 24
+
+      - name: Check Play versionCode before building
+        if: ${{ !inputs.listing_only }}
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          ANDROID_VERSION_CODE: ${{ steps.ver.outputs.code }}
+        run: node scripts/play-status.mjs
 
       - name: Generate changelog for this version
         if: ${{ steps.ver.outputs.code != '' }}
+        env:
+          TAG: ${{ inputs.version }}
         run: |
-          TAG="${{ github.event.inputs.version || github.ref_name }}"
-          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
-          RANGE="${TAG}"; [ -n "$PREV" ] && RANGE="${PREV}..${TAG}"
-          EXCLUDE='^- (bump version|merge )|\b(docs?|readme|changelog|chore|ci|workflow|lint|typecheck|devcontainer|dockerfile|compose|gitignore|deps?|refactor|rename|cleanup|clean up|tidy|test|tests|spec|checklist|runbook|co-?authored?)\b'
-          CHANGES=$(git log --no-merges --pretty=format:'- %s' "$RANGE" 2>/dev/null | grep -viE "$EXCLUDE" || true)
-          [ -z "$CHANGES" ] && CHANGES="Improvements and fixes."
           mkdir -p fastlane/metadata/android/en-US/changelogs
-          echo "$CHANGES" > "fastlane/metadata/android/en-US/changelogs/${{ steps.ver.outputs.code }}.txt"
-          cat "fastlane/metadata/android/en-US/changelogs/${{ steps.ver.outputs.code }}.txt"
+          bash scripts/release-notes.sh "$TAG" play > "fastlane/metadata/android/en-US/changelogs/${{ steps.ver.outputs.code }}.txt"
 
       # ---- build the Play AAB (skipped for listing-only) ----
       - uses: actions/setup-java@v5
-        if: ${{ github.event.inputs.listing_only != 'true' }}
+        if: ${{ !inputs.listing_only }}
         with:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v4
-        if: ${{ github.event.inputs.listing_only != 'true' }}
+        if: ${{ !inputs.listing_only }}
 
       # explicit so a runner image without android-36 can't fail the build
       - name: Install SDK platform 36
-        if: ${{ github.event.inputs.listing_only != 'true' }}
+        if: ${{ !inputs.listing_only }}
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
       - name: Decode release keystore
-        if: ${{ github.event.inputs.listing_only != 'true' }}
+        if: ${{ !inputs.listing_only }}
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
 
       - name: Build signed Play AAB
-        if: ${{ github.event.inputs.listing_only != 'true' }}
+        if: ${{ !inputs.listing_only }}
         working-directory: android
         env:
           ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
@@ -117,23 +131,27 @@ jobs:
         run: printf '%s' "$PLAY_KEY" > "$RUNNER_TEMP/play-key.json"
 
       - name: Upload AAB + sync listing
-        if: ${{ github.event.inputs.listing_only != 'true' }}
+        if: ${{ !inputs.listing_only }}
+        env:
+          PLAY_TRACK: ${{ inputs.track }}
         run: |
           fastlane supply \
             --package_name ca.dynamicsolutions.sonarbridge \
             --json_key "$RUNNER_TEMP/play-key.json" \
             --aab android/app/build/outputs/bundle/playRelease/app-play-release.aab \
-            --track "${{ github.event.inputs.track || 'internal' }}" \
+            --track "$PLAY_TRACK" \
             --release_status completed \
             --metadata_path fastlane/metadata/android
 
       - name: Sync listing only (no AAB)
-        if: ${{ github.event.inputs.listing_only == 'true' }}
+        if: ${{ inputs.listing_only }}
+        env:
+          PLAY_TRACK: ${{ inputs.track }}
         run: |
           fastlane supply \
             --package_name ca.dynamicsolutions.sonarbridge \
             --json_key "$RUNNER_TEMP/play-key.json" \
-            --track "${{ github.event.inputs.track || 'internal' }}" \
+            --track "$PLAY_TRACK" \
             --skip_upload_apk true \
             --skip_upload_aab true \
             --skip_upload_changelogs true \
