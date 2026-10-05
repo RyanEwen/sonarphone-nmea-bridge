@@ -196,8 +196,11 @@ Rollout order:
    The chosen transition releases are v0.2.4 (legacy) and v0.2.5 (Play-signed).
    Update the direct download links in the README and migration guide for a
    later public release; do not point them at `/releases/latest` during migration.
-   Production availability still depends on Play approval and tester eligibility;
-   exporting an APK does not approve or promote the app to production.
+   Production is available according to the live Play state. After the internal
+   upload completes, promote its code using `play-publish` with
+   `promote_version_code`, which validates and commits a production-only edit
+   without rebuilding or re-uploading. Google review and store propagation can
+   still delay public availability; exporting an APK alone does not promote it.
 4. Legacy users record settings and save app files before disconnecting,
    uninstalling and reinstalling once. Users who miss the final legacy update can follow the
    release-page instructions directly; their old updater cannot show the new
@@ -221,8 +224,9 @@ syncs. A full build takes an existing `vX.Y.Z` tag; listing-only needs no tag. F
 reject reused or older codes before building. `inspect-play-state` reports
 tracks, bundle codes and signer fingerprints using a temporary edit that is
 always discarded, never committed.
-Promote an already uploaded bundle via Play Console, rather than uploading the
-same versionCode a second time. Release signing credentials remain in GitHub
+Promote an already uploaded completed testing bundle using
+`promote_version_code` in `play-publish`, or via Play Console. Do not upload
+the same versionCode a second time. Release signing credentials remain in GitHub
 secrets and gitignored `android/keystore/release.env`; never change the legacy
 key during migration.
 
@@ -231,6 +235,7 @@ Verify export policy without accessing Play:
 ```sh
 node scripts/play-apk.test.mjs
 node scripts/play-status.test.mjs
+node scripts/play-promote.test.mjs
 node scripts/release-version.test.mjs
 ```
 

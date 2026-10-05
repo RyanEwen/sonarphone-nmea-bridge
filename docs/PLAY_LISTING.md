@@ -4,29 +4,23 @@ Everything you need to publish SonarBridge to the **Internal testing** track,
 plus copy to paste into each Console field. The build side is done — this is
 the Console (web-only) side.
 
-## Current state on Play (2026-07-30)
+## Release state and migration (2026-10-05)
 
-CI publishing works now: `PLAY_SERVICE_ACCOUNT_JSON` is set (service account
-`google-play-store-publisher@sonarbridge.iam.gserviceaccount.com`, no GCP IAM
-role, permissions granted per-app in the Console). **0.2.3 / versionCode 203
-(targetSdk 36) is the active release on both `internal` and `alpha`.**
+Live API inspection confirmed versionCode 203 (0.2.3) completed on production,
+alpha and internal before this rollout. Production is available; the older
+notes about a blocked production launch were stale.
 
-Track history worth knowing: only versionCode 200 (0.2.0) had ever reached
-Play before this. The 0.2.2 AAB referenced by older revisions of this file was
-built but never uploaded, so don't trust a version number here as proof it is
-live: check with `edits.insert` + `GET /edits/{id}/tracks`.
+The migration release v0.2.4 is signed with the existing legacy key and stays
+GitHub's latest so older updaters can receive its notice. The Play-signed
+v0.2.5 APK (versionCode 205) is published alongside it with direct download
+links. Its bundle was uploaded once to internal and is promoted to production
+using that existing upload, without changing testing tracks or rebuilding.
 
-**`production` is still empty and rejects uploads** with `Precondition check
-failed`: a personal developer account must complete the closed-testing period
-(12 testers, 14 days) before production is available. `alpha` is that closed
-test, which is why 0.2.3 went there too.
-
-Promoting an existing build to a second track is *not* another `supply` run:
-a versionCode can only be uploaded once, so re-running the workflow for
-another track fails on the duplicate. Instead update the track against the
-bundle already in the library: `edits.insert` → `PUT /edits/{id}/tracks/<track>`
-with `releases[0].versionCodes = ["203"]` → `:validate` → `:commit`. Replacing
-the releases array supersedes whatever that track was serving.
+Read current tracks with `play-publish` using `inspect_only=true`; use its
+`promote_version_code` input to promote an already completed testing release.
+The production promotion validates the edit before committing it and rejects
+missing, reused or older codes. Track status does not by itself prove when
+Google's review or public-store propagation finishes.
 
 ## The artifact to upload (manual fallback)
 
@@ -176,8 +170,8 @@ legacy migration tag is the exception and uploads no Play bundle. Manual
 **Run workflow** takes an existing `vX.Y.Z` tag and chosen track, or use
 `listing_only` to sync text/graphics/screenshots without a bundle.
 See [the release runbook](../android/README-dev.md#releases--updates) for rollout
-order and the required signing fingerprint variable. The default track remains
-internal testing; the historical state above is not a current readiness check.
+order and the required signing fingerprint variable. The default build/upload track remains internal testing. Promote the completed
+bundle to production using `promote_version_code`, without re-uploading it.
 
 **One-time setup (only you can do this):**
 
@@ -275,10 +269,10 @@ APK on GitHub is an intentional alternative download. Protection injected
 into the Play artifact would also reach the GitHub APK now that both channels
 use that artifact, conflicting with the supported manual-install flow.
 
-## Going to Production later
+## Production promotion
 
-New personal developer accounts must run a **closed test with 12+ testers for
-14 days** before Production is unlocked. Internal testing above doesn't count
-toward that, but it's the right place to shake the Play build out first. When
-ready, promote a build from a closed-testing track and complete that
-requirement, then submit for production review.
+Production access is already enabled for this app. Use `promote_version_code`
+in `play-publish` to promote the completed internal build without uploading it
+again. Inspect the tracks afterward; distinguish the committed production
+release from Google's review and public-store availability. Preserve alpha
+and internal tracks unless a separate request calls for retiring them.

@@ -2,7 +2,7 @@ name: play-publish
 
 # Reusable Play build and upload lane. Tags call it from release.yml; manual
 # runs can still update a testing track or sync only the store listing.
-# Keep the existing internal-testing default until production is approved.
+# Keep the existing internal-testing upload default; promote an existing bundle explicitly.
 
 on:
   workflow_call:
@@ -40,6 +40,10 @@ on:
         default: 'internal'
         type: choice
         options: [internal, alpha, beta, production]
+      promote_version_code:
+        description: 'Promote this existing completed testing versionCode to production, without uploading'
+        required: false
+        type: string
       inspect_only:
         description: 'Read current tracks, version codes and signing metadata without publishing'
         default: false
@@ -53,8 +57,22 @@ permissions:
   contents: read
 
 jobs:
+  promote:
+    if: ${{ inputs.promote_version_code != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Promote existing bundle to production
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PROMOTE_VERSION_CODE: ${{ inputs.promote_version_code }}
+        run: node scripts/play-promote.mjs
+
   inspect:
-    if: ${{ inputs.inspect_only }}
+    if: ${{ inputs.inspect_only && inputs.promote_version_code == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -67,7 +85,7 @@ jobs:
         run: node scripts/play-status.mjs
 
   publish:
-    if: ${{ !inputs.inspect_only }}
+    if: ${{ !inputs.inspect_only && inputs.promote_version_code == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
