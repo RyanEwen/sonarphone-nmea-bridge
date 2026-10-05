@@ -5,7 +5,7 @@ TAG=${1:?Usage: release-notes.sh vX.Y.Z [play]}
 PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
 RANGE=$TAG
 [ -n "$PREV" ] && RANGE="${PREV}..${TAG}"
-EXCLUDE='^- (bump version|merge )|\b(docs?|documentation|readme|changelog|chore|ci|workflow|lint|typecheck|devcontainer|dockerfile|compose|gitignore|deps?|dependency|dependencies|refactor|rename|cleanup|clean up|tidy|reorganize|restructure|test|tests|spec|checklist|runbook|co-?authored?)\b'
+EXCLUDE='^- (bump version|merge )|\b(docs?|documentation|readme|changelog|chore|ci|workflow|lint|typecheck|devcontainer|dockerfile|compose|gitignore|deps?|dependency|dependencies|refactor|rename|cleanup|clean up|tidy|reorganize|restructure|test|tests|spec|checklist|runbook|co-?authored?|claude|codex|skills?)\b'
 # Fail if the tag cannot be read, rather than publishing notes from another checkout.
 COMMITS=$(git log --no-merges --pretty=format:'- %s' "$RANGE")
 CHANGES=$(printf '%s\n' "$COMMITS" | grep -viE "$EXCLUDE" || true)
