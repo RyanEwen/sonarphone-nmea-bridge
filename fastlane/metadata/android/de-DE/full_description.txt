@@ -1,0 +1,26 @@
+SonarBridge bietet dem Vexilar SonarPhone SP200A eine moderne Fischfinder-Anzeige auf deinem Android-Telefon und überträgt Tiefe und Wassertemperatur an eine kompatible Navigations-App.
+
+Verbinde dich direkt mit dem WLAN des SonarPhone. SonarBridge hält die mobilen Daten deines Telefons verfügbar, damit du Karten und Sonar auf einem Gerät nutzen kannst.
+
+FISCHFINDER
+• Laufende Wasserfallanzeige mit klarer Bodenlinie und Darstellung der Bodenhärte
+• Fischmarkierungen für starke Ziele im Freiwasser
+• Stabile automatische Reichweite und manuelle Einstellung
+• Live-A-Scope, einstellbare Verstärkung, Rauschfilter und Oberflächenklarheit
+• Fuß oder Meter, Celsius oder Fahrenheit und einstellbare Textgröße
+• Optionales klassisches Farbschema
+
+BRIDGE FÜR KARTEN-APPS
+• Überträgt Tiefe und Temperatur im NMEA-0183-Format auf deinem Gerät
+• Verbinde eine kompatible Navigations-App mit 127.0.0.1, Port 10110 (TCP), um die aktuelle Tiefe anzuzeigen und unterwegs eigene Tiefenkarten zu erstellen
+
+FÜR DAS WASSER
+• Große, gut lesbare Zahlen; der Bildschirm bleibt bei geöffneter App an
+• Flachwasseralarm
+• Automatische Wiederverbindung nach Signalverlust
+• Demomodus mit simuliertem Sonar zum Ausprobieren ohne Hardware
+
+DEINE SPRACHE
+Verfügbar auf Englisch (USA und Kanada), Spanisch, Französisch (Frankreich und Kanada), Deutsch, vereinfachtem Chinesisch, brasilianischem Portugiesisch und Japanisch. Verwende die Telefonsprache oder wähle eine App-Sprache in den Einstellungen. Die Sonarverbindung bleibt beim Sprachwechsel bestehen.
+
+SonarBridge ist eine unabhängige App. Sie wird nicht von Vexilar, Garmin oder Navionics entwickelt, unterstützt oder empfohlen und ist mit diesen Unternehmen nicht verbunden. „Vexilar“ und „SonarPhone“ sind Marken ihrer jeweiligen Eigentümer und werden hier nur zur Beschreibung der Kompatibilität verwendet.

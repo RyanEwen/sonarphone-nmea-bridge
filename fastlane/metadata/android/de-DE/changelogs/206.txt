@@ -1,0 +1,1 @@
+Wähle die App-Sprache in den Einstellungen oder nutze die Telefonsprache. Englisch, Spanisch, Französisch, Deutsch, vereinfachtes Chinesisch, brasilianisches Portugiesisch und Japanisch werden unterstützt. Die Verbindung bleibt beim Wechsel bestehen.

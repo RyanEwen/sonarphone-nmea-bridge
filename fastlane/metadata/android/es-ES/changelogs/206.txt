@@ -1,0 +1,1 @@
+Elige el idioma de la app en Ajustes o usa el del teléfono. Admite inglés, español, francés, alemán, chino simplificado, portugués de Brasil y japonés. La conexión continúa al cambiar de idioma.

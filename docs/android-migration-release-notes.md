@@ -4,7 +4,7 @@
 You can continue installing SonarBridge manually from GitHub. Future GitHub
 APKs, named `sonarbridge-X.Y.Z-play.apk`, are the same app offered by
 [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge).
-[Download the Play-signed APK from GitHub](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/download/v0.2.5/sonarbridge-0.2.5-play.apk).
+[Download the Play-signed APK from GitHub](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/download/v0.2.6/sonarbridge-0.2.6-play.apk).
 The new app does not download APK updates itself. Download future APKs from
 GitHub manually, or use Google Play for updates where available.
 

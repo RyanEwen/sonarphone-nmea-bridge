@@ -1,0 +1,26 @@
+SonarBridge convierte tu teléfono Android en una pantalla de sonar moderna para el Vexilar SonarPhone SP200A y transmite la profundidad y la temperatura del agua a una app de navegación compatible.
+
+Conéctate directamente al WiFi del SonarPhone. SonarBridge mantiene los datos móviles del teléfono para que puedas usar los mapas y el sonar en el mismo dispositivo.
+
+SONAR
+• Vista de desplazamiento con línea de fondo clara y sombreado de dureza
+• Marcadores de peces para objetivos fuertes a media agua
+• Alcance automático estable y control manual del alcance
+• A-scope en directo, ganancia ajustable, filtro de ruido y claridad de superficie
+• Pies o metros, Celsius o Fahrenheit y tamaño del texto ajustable
+• Esquema de colores clásico opcional
+
+CONEXIÓN CON APPS DE NAVEGACIÓN
+• Transmite profundidad y temperatura en formato NMEA 0183 dentro del dispositivo
+• Conecta una app de navegación compatible a 127.0.0.1, puerto 10110 (TCP), para ver la profundidad en directo y crear mapas de curvas de profundidad mientras navegas
+
+PARA EL AGUA
+• Números grandes y legibles; la pantalla permanece encendida mientras la app está abierta
+• Alarma de aguas poco profundas
+• Reconexión automática si se pierde la señal
+• Modo de demostración con sonar simulado para probar la app sin equipo
+
+TU IDIOMA
+Disponible en inglés (Estados Unidos y Canadá), español, francés (Francia y Canadá), alemán, chino simplificado, portugués de Brasil y japonés. Usa el idioma del teléfono o elige uno en Ajustes. La conexión del sonar continúa al cambiar de idioma.
+
+SonarBridge es una app independiente. No está creada, afiliada ni respaldada por Vexilar, Garmin o Navionics. «Vexilar» y «SonarPhone» son marcas de sus respectivos propietarios y se usan únicamente para describir la compatibilidad.

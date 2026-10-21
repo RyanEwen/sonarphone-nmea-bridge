@@ -33,13 +33,14 @@ one phone, without giving up your internet connection.
   reconnects by itself if the sonar drops out.
 - **Try it on the couch.** Demo mode generates realistic sonar data so you
   can explore the display and test the Navionics pairing with no hardware.
+- **Use your language.** Follow your phone or choose English (United States or Canada), Spanish, French (France or Canada), German, Simplified Chinese, Brazilian Portuguese or Japanese in Settings. Your sonar connection continues when you change languages.
 - **Choose your downloads.** GitHub and Google Play offer the same app.
   Install APK updates manually from GitHub, or use Google Play for updates.
 
 ## Get it
 
 Download the APK from
-[GitHub](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.5)
+[GitHub](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.6)
 or install from
 [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge)
 where available. GitHub APKs named `sonarbridge-X.Y.Z-play.apk` are generated

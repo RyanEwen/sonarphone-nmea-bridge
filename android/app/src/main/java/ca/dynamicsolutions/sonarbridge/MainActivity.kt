@@ -1,5 +1,8 @@
 package ca.dynamicsolutions.sonarbridge
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
@@ -31,6 +34,7 @@ import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.CoroutineScope
@@ -38,7 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.google.android.material.R as MR
@@ -61,6 +64,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var content: FrameLayout
     private var currentTab = -1
+    private var changingLanguage = false
 
     // status tab
     private lateinit var statusView: View
@@ -75,6 +79,7 @@ class MainActivity : AppCompatActivity() {
 
     // settings tab
     private lateinit var settingsView: View
+    private lateinit var languageButton: MaterialButton
     private lateinit var modeGroup: RadioGroup
     private lateinit var ssidLayout: TextInputLayout
     private lateinit var ssidEdit: TextInputEditText
@@ -94,18 +99,27 @@ class MainActivity : AppCompatActivity() {
     private lateinit var keelEdit: TextInputEditText
     private lateinit var tempOffEdit: TextInputEditText
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.context(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // on-the-water use: never dim/lock while the app is in front
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        if (Build.VERSION.SDK_INT >= 33) {
-            requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 1)
+        // A recreated screen must not compete with a pending system permission dialog.
+        if (Build.VERSION.SDK_INT >= 33 && savedInstanceState == null &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+        Units.regionalLocale = AppLanguage.regionalLocale(this)
 
         statusView = buildStatusView()
         sonarView = SonarView(this)
         settingsView = buildSettingsView()
+        restoreDraft(savedInstanceState?.getBundle("settings_draft"))
 
         content = FrameLayout(this)
 
@@ -117,9 +131,9 @@ class MainActivity : AppCompatActivity() {
             resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
         fun buildMenu(nav: NavigationBarView) {
-            nav.menu.add(Menu.NONE, TAB_STATUS, 0, "Status").setIcon(R.drawable.ic_tab_status)
-            nav.menu.add(Menu.NONE, TAB_SONAR, 1, "Sonar").setIcon(R.drawable.ic_tab_sonar)
-            nav.menu.add(Menu.NONE, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_tab_settings)
+            nav.menu.add(Menu.NONE, TAB_STATUS, 0, getString(R.string.nav_status)).setIcon(R.drawable.ic_tab_status)
+            nav.menu.add(Menu.NONE, TAB_SONAR, 1, getString(R.string.nav_sonar)).setIcon(R.drawable.ic_tab_sonar)
+            nav.menu.add(Menu.NONE, TAB_SETTINGS, 2, getString(R.string.nav_settings)).setIcon(R.drawable.ic_tab_settings)
             nav.setOnItemSelectedListener { item -> show(item.itemId); true }
         }
 
@@ -166,8 +180,9 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
         }
+        root.isSaveFromParentEnabled = false
         setContentView(root)
-        navBar.selectedItemId = lastTab
+        navBar.selectedItemId = savedInstanceState?.getInt("current_tab", lastTab) ?: lastTab
 
         scope.launch {
             BridgeState.flow.collect { renderStatus(it) }
@@ -208,13 +223,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         toggle = MaterialButton(this).apply {
-            text = "Connect"
+            text = getString(R.string.connect)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(20) }
         }
         battery = MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
-            text = "Disable battery optimization"
+            text = getString(R.string.battery_optimization)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(4) }
@@ -271,37 +286,38 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configSummary(): String {
-        if (prefs.getBoolean("demo", false)) return "demo data (no sonar)"
+        if (prefs.getBoolean("demo", false)) return getString(R.string.phase_demo)
         return when (MODE_PATTERNS.getOrNull(prefs.getInt("mode", 0))) {
-            "SonarPhone_" -> "any SonarPhone_*"
-            "T-BOX-" -> "any T-BOX-*"
+            "SonarPhone_" -> getString(R.string.summary_sonarphone)
+            "T-BOX-" -> getString(R.string.summary_tbox)
             else -> prefs.getString("ssid", "?")!!
         }
     }
 
     private fun renderStatus(s: BridgeState.Snapshot) {
-        toggle.text = if (s.running) "Disconnect" else "Connect"
+        toggle.text = if (s.running) getString(R.string.disconnect) else getString(R.string.connect)
         depthBig.text = s.depthM?.let { Units.depth(it) } ?: "—"
         subLine.text = if (s.depthM != null) {
             "${Units.temp(s.tempC ?: 0.0)}  ·  ${
-                String.format(Locale.US, "%.1f V", s.vBatt ?: 0.0)
-            }  ·  ${s.phase}"
+                String.format(AppLanguage.regionalLocale(this), "%.1f V", s.vBatt ?: 0.0)
+            }  ·  ${StatusText.phase(this, s.phase)}"
         } else {
-            s.phase
+            StatusText.phase(this, s.phase)
         }
-        val ts = SimpleDateFormat("HH:mm:ss", Locale.US)
-        details.text = buildString {
-            appendLine("network:  ${if (s.running) s.ssid ?: "-" else configSummary()}")
-            appendLine("serial:   ${s.serial ?: "-"}")
-            appendLine("master:   ${s.masterMac ?: "-"}")
-            appendLine("frames:   ${s.frameCount} (${s.frameSize} B)")
-            appendLine("rx units: ${if (s.unitsFeet) "feet (converted)" else "meters"}")
-            appendLine("last rx:  ${if (s.lastFrameWallMs > 0) ts.format(Date(s.lastFrameWallMs)) else "-"}")
-            appendLine("NMEA:     ${s.nmeaClients} client(s) on 127.0.0.1:10110")
-            appendLine("app:      v${BuildConfig.VERSION_NAME}")
-            appendLine()
-            append("Navionics: Paired devices > +\n  Host 127.0.0.1  Port 10110  TCP")
-        }
+        val ts = RegionalFormat.timeFormatter(this)
+        val numbers = java.text.NumberFormat.getIntegerInstance(AppLanguage.regionalLocale(this))
+        details.text = listOf(
+            getString(R.string.status_network, if (s.phase == "DEMO") getString(R.string.phase_demo) else if (s.running) s.ssid ?: "-" else configSummary()),
+            getString(R.string.status_serial, s.serial ?: "-"),
+            getString(R.string.status_master, s.masterMac ?: "-"),
+            getString(R.string.status_frames, numbers.format(s.frameCount), numbers.format(s.frameSize)),
+            getString(R.string.status_units, getString(if (s.unitsFeet) R.string.feet_converted else R.string.meters)),
+            getString(R.string.status_received, if (s.lastFrameWallMs > 0) ts.format(Date(s.lastFrameWallMs)) else "-"),
+            getString(R.string.status_nmea, numbers.format(s.nmeaClients)),
+            getString(R.string.status_app, BuildConfig.VERSION_NAME),
+            "",
+            getString(R.string.navionics_pairing),
+        ).joinToString("\n")
     }
 
     // ---------------------------------------------------------------- settings
@@ -323,12 +339,20 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, dp(4), 0, dp(8))
         }
 
-        root.addView(header("Sonar WiFi network", 0))
+        root.addView(header(getString(R.string.language_heading), 0))
+        languageButton = MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
+            text = AppLanguage.choices[AppLanguage.selectedTag(this@MainActivity)]
+                ?: getString(R.string.follow_device)
+            setOnClickListener { showLanguagePicker() }
+        }
+        root.addView(languageButton)
+        root.addView(note(getString(R.string.language_note)))
+        root.addView(header(getString(R.string.network_heading)))
         modeGroup = RadioGroup(this)
         listOf(
-            "Any SonarPhone (SSID starts with “SonarPhone_”)",
-            "Any T-Box (SSID starts with “T-BOX-”)",
-            "Specific SSID:",
+            getString(R.string.network_sonarphone),
+            getString(R.string.network_tbox),
+            getString(R.string.network_specific),
         ).forEachIndexed { i, label ->
             modeGroup.addView(RadioButton(this).apply { id = i + 1; text = label })
         }
@@ -338,7 +362,7 @@ class MainActivity : AppCompatActivity() {
             setText(prefs.getString("ssid", "SonarPhone_65C0"))
         }
         ssidLayout = TextInputLayout(this).apply {
-            hint = "SSID"
+            hint = getString(R.string.ssid_label)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) }
@@ -347,26 +371,25 @@ class MainActivity : AppCompatActivity() {
         root.addView(ssidLayout)
         root.addView(
             note(
-                "When connecting, Android shows the matching networks in " +
-                    "range — tap your sonar in that list."
+                getString(R.string.network_note)
             )
         )
 
-        root.addView(header("WiFi password"))
+        root.addView(header(getString(R.string.password_heading)))
         passEdit = TextInputEditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setText(prefs.getString("pass", "12345678"))
         }
         root.addView(
             TextInputLayout(this).apply {
-                hint = "Password"
+                hint = getString(R.string.password_label)
                 endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
                 addView(passEdit)
             }
         )
-        root.addView(note("Factory default is 12345678."))
+        root.addView(note(getString(R.string.factory_password)))
 
-        root.addView(header("Units"))
+        root.addView(header(getString(R.string.units_heading)))
         fun segBtn(id: Int, label: String) =
             MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
                 this.id = id
@@ -385,8 +408,8 @@ class MainActivity : AppCompatActivity() {
         }
         distGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "Feet"))
-            addView(segBtn(2, "Meters"))
+            addView(segBtn(1, getString(R.string.feet)))
+            addView(segBtn(2, getString(R.string.meters)))
             check(if (prefs.getString("unit_dist", "ft") == "ft") 1 else 2)
         }
         addGroup(distGroup)
@@ -395,19 +418,19 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) }
-            addView(segBtn(1, "Celsius"))
-            addView(segBtn(2, "Fahrenheit"))
+            addView(segBtn(1, getString(R.string.celsius)))
+            addView(segBtn(2, getString(R.string.fahrenheit)))
             check(if (prefs.getString("unit_temp", "C") == "C") 1 else 2)
         }
         addGroup(tempGroup)
-        root.addView(note("Display only — the NMEA feed to Navionics always uses standard units."))
+        root.addView(note(getString(R.string.units_note)))
 
-        root.addView(header("Text size (sonar view)"))
+        root.addView(header(getString(R.string.text_size_heading)))
         textGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "Normal"))
-            addView(segBtn(2, "Large"))
-            addView(segBtn(3, "XL"))
+            addView(segBtn(1, getString(R.string.text_normal)))
+            addView(segBtn(2, getString(R.string.text_large)))
+            addView(segBtn(3, getString(R.string.text_xl)))
             check(
                 when (prefs.getString("text_size", "normal")) {
                     "large" -> 2; "xl" -> 3; else -> 1
@@ -416,77 +439,74 @@ class MainActivity : AppCompatActivity() {
         }
         addGroup(textGroup)
 
-        root.addView(header("Sonar display"))
+        root.addView(header(getString(R.string.sonar_heading)))
         gainSlider = Slider(this).apply {
             valueFrom = 50f
             valueTo = 200f
             stepSize = 10f
             value = prefs.getInt("gain_pct", 100).coerceIn(50, 200).toFloat()
-            setLabelFormatter { v -> "${v.toInt()}%" }
+            setLabelFormatter { v ->
+                getString(R.string.gain_percent, java.text.NumberFormat.getIntegerInstance(AppLanguage.regionalLocale(this@MainActivity)).format(v.toInt()))
+            }
         }
-        root.addView(TextView(this).apply { text = "Gain (sensitivity)" })
+        root.addView(TextView(this).apply { text = getString(R.string.gain_label) })
         root.addView(gainSlider)
-        root.addView(TextView(this).apply { text = "Display style" })
+        root.addView(TextView(this).apply { text = getString(R.string.display_style) })
         styleGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "Modern"))
-            addView(segBtn(2, "Classic"))
+            addView(segBtn(1, getString(R.string.style_modern)))
+            addView(segBtn(2, getString(R.string.style_classic)))
             check(prefs.getInt("display_style", 0).coerceIn(0, 1) + 1)
         }
         addGroup(styleGroup)
-        root.addView(TextView(this).apply { text = "Fish markers" })
+        root.addView(TextView(this).apply { text = getString(R.string.fish_markers) })
         fishGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "Off"))
-            addView(segBtn(2, "Fish"))
-            addView(segBtn(3, "Fish + depth"))
+            addView(segBtn(1, getString(R.string.off)))
+            addView(segBtn(2, getString(R.string.fish)))
+            addView(segBtn(3, getString(R.string.fish_depth)))
             check(prefs.getInt("fish_markers", 1).coerceIn(0, 2) + 1)
         }
         addGroup(fishGroup)
         root.addView(
             note(
-                "Classic style emulates the original SonarPhone look (navy " +
-                    "background, rainbow returns). Fish markers flag strong " +
-                    "isolated mid-water echoes."
+                getString(R.string.style_note)
             )
         )
 
-        root.addView(TextView(this).apply { text = "Surface clarity" })
+        root.addView(TextView(this).apply { text = getString(R.string.surface_clarity) })
         clarityGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "Off"))
-            addView(segBtn(2, "Low"))
-            addView(segBtn(3, "Med"))
-            addView(segBtn(4, "High"))
+            addView(segBtn(1, getString(R.string.off)))
+            addView(segBtn(2, getString(R.string.low)))
+            addView(segBtn(3, getString(R.string.medium)))
+            addView(segBtn(4, getString(R.string.high)))
             check(prefs.getInt("surface_clarity", 0).coerceIn(0, 3) + 1)
         }
         addGroup(clarityGroup)
-        root.addView(TextView(this).apply { text = "Noise filter" })
+        root.addView(TextView(this).apply { text = getString(R.string.noise_filter) })
         noiseGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "Off"))
-            addView(segBtn(2, "Low"))
-            addView(segBtn(3, "Med"))
-            addView(segBtn(4, "High"))
+            addView(segBtn(1, getString(R.string.off)))
+            addView(segBtn(2, getString(R.string.low)))
+            addView(segBtn(3, getString(R.string.medium)))
+            addView(segBtn(4, getString(R.string.high)))
             check(prefs.getInt("noise_filter", 0).coerceIn(0, 3) + 1)
         }
         addGroup(noiseGroup)
         root.addView(
             note(
-                "Gain brightens or quiets all echoes; noise filter hides weak " +
-                    "speckle; surface clarity fades the clutter band at the top. " +
-                    "These are the SonarPhone app's own display controls, applied " +
-                    "here to the raw echo — they change the picture, not the sonar. " +
-                    "All apply immediately."
+                getString(R.string.filters_note)
             )
         )
 
-        root.addView(header("Device (T-Box)"))
+        root.addView(note(getString(R.string.numeric_input_note)))
+        root.addView(header(getString(R.string.device_heading)))
         beamGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
-            addView(segBtn(1, "200 kHz · 20°"))
-            addView(segBtn(2, "83 kHz · 40°"))
-            addView(segBtn(3, "125 kHz"))
+            addView(segBtn(1, getString(R.string.beam_narrow)))
+            addView(segBtn(2, getString(R.string.beam_wide)))
+            addView(segBtn(3, getString(R.string.beam_single)))
             check(
                 when (prefs.getString("beam", "20")) {
                     "40" -> 2; "125" -> 3; else -> 1
@@ -496,10 +516,7 @@ class MainActivity : AppCompatActivity() {
         addGroup(beamGroup)
         root.addView(
             note(
-                "Transducer beam: narrow (200 kHz) focuses deeper with more " +
-                    "detail, wide (83 kHz) covers more area. 125 kHz is the " +
-                    "single-beam models' frequency — experimental on an SP200A. " +
-                    "Applies on next connect."
+                getString(R.string.beam_note)
             )
         )
         rangeEdit = TextInputEditText(this).apply {
@@ -512,7 +529,7 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(
             TextInputLayout(this).apply {
-                hint = "Device depth range (${if (Units.feet) "ft" else "m"}, blank = auto)"
+                hint = getString(R.string.range_hint, if (Units.feet) "ft" else "m")
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = dp(8) }
@@ -521,9 +538,7 @@ class MainActivity : AppCompatActivity() {
         )
         root.addView(
             note(
-                "Locks the sonar's own range instead of auto (max 240 ft / 73 m). " +
-                    "May sharpen shallow-water detail if the unit re-spans its " +
-                    "samples — experimental. Applies on next connect."
+                getString(R.string.range_note)
             )
         )
 
@@ -538,7 +553,7 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(
             TextInputLayout(this).apply {
-                hint = "Keel offset ($du, +/-)"
+                hint = getString(R.string.keel_hint, du)
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = dp(8) }
@@ -556,20 +571,17 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(
             TextInputLayout(this).apply {
-                hint = "Temperature offset (°${if (Units.fahrenheit) "F" else "C"}, +/-)"
+                hint = getString(R.string.temperature_hint, if (Units.fahrenheit) "F" else "C")
                 addView(tempOffEdit)
             }
         )
         root.addView(
             note(
-                "Keel offset shifts all depth readings (positive = deeper), so " +
-                    "they reflect depth below your keel. Temperature offset " +
-                    "calibrates the reading against a known thermometer. Both " +
-                    "apply to displayed values and the Navionics feed."
+                getString(R.string.offset_note)
             )
         )
 
-        root.addView(header("Shallow water alarm"))
+        root.addView(header(getString(R.string.alarm_heading)))
         alarmEdit = TextInputEditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
             val m = prefs.getFloat("alarm_m", 0f)
@@ -580,32 +592,30 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(
             TextInputLayout(this).apply {
-                hint = "Alarm depth (${if (Units.feet) "ft" else "m"}, blank = off)"
+                hint = getString(R.string.alarm_hint, if (Units.feet) "ft" else "m")
                 addView(alarmEdit)
             }
         )
-        root.addView(note("Repeating tone when the depth reads shallower than this. Applies on next connect."))
+        root.addView(note(getString(R.string.alarm_note)))
 
-        root.addView(header("Demo mode"))
+        root.addView(header(getString(R.string.demo_heading)))
         demoSwitch = MaterialSwitch(this).apply {
-            text = "Generate fake sonar data (no hardware needed)"
+            text = getString(R.string.demo_switch)
             isChecked = prefs.getBoolean("demo", false)
         }
         root.addView(demoSwitch)
         root.addView(
             note(
-                "Use this to test the Navionics pairing and the sonar view " +
-                    "without the T-Box powered on."
+                getString(R.string.demo_note)
             )
         )
         root.addView(
             note(
-                "Settings apply the next time you connect — if already " +
-                    "connected, disconnect and reconnect."
+                getString(R.string.settings_note)
             )
         )
 
-        root.addView(header("Updates"))
+        root.addView(header(getString(R.string.updates_heading)))
         root.addView(AndroidDownloads.buildGuidanceView(this, migration = !BuildConfig.IS_PLAY))
 
         val mode = prefs.getInt("mode", 0)
@@ -657,6 +667,55 @@ class MainActivity : AppCompatActivity() {
         Units.load(prefs)
     }
 
+    /** Use platform-backed app preferences, with a recognizable native label for every option. */
+    private fun showLanguagePicker() {
+        val tags = listOf<String?>(null) + AppLanguage.choices.keys
+        val labels = listOf(getString(R.string.follow_device)) + AppLanguage.choices.values
+        val selected = tags.indexOf(AppLanguage.selectedTag(this)).coerceAtLeast(0)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.language_heading)
+            .setSingleChoiceItems(labels.toTypedArray(), selected) { dialog, index ->
+                dialog.dismiss()
+                // A locale-only refresh must not commit unfinished calibration or password drafts.
+                changingLanguage = AppLanguage.changesConfiguration(this, tags[index])
+                AppLanguage.select(this, tags[index])
+                // A matching explicit language can persist without triggering recreation.
+                languageButton.text = AppLanguage.choices[AppLanguage.selectedTag(this)]
+                    ?: getString(R.string.follow_device)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** Explicit state is needed because programmatic controls reuse local IDs in separate groups. */
+    private fun saveDraft(): Bundle = Bundle().apply {
+        val fields = listOf(ssidEdit, passEdit, rangeEdit, keelEdit, tempOffEdit, alarmEdit)
+        fields.forEachIndexed { index, field -> putString("field_$index", field.text?.toString()) }
+        val groups = listOf(distGroup, tempGroup, textGroup, beamGroup, clarityGroup, noiseGroup, styleGroup, fishGroup)
+        groups.forEachIndexed { index, group -> putInt("group_$index", group.checkedButtonId) }
+        putInt("mode", modeGroup.checkedRadioButtonId)
+        putBoolean("demo", demoSwitch.isChecked)
+        putFloat("gain", gainSlider.value)
+    }
+
+    /** Restore exact draft text, including blank or unfinished decimal entries, after recreation. */
+    private fun restoreDraft(draft: Bundle?) {
+        if (draft == null) return
+        val fields = listOf(ssidEdit, passEdit, rangeEdit, keelEdit, tempOffEdit, alarmEdit)
+        fields.forEachIndexed { index, field -> field.setText(draft.getString("field_$index")) }
+        val groups = listOf(distGroup, tempGroup, textGroup, beamGroup, clarityGroup, noiseGroup, styleGroup, fishGroup)
+        groups.forEachIndexed { index, group -> group.check(draft.getInt("group_$index")) }
+        modeGroup.check(draft.getInt("mode"))
+        demoSwitch.isChecked = draft.getBoolean("demo")
+        gainSlider.value = draft.getFloat("gain", 100f)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("current_tab", currentTab)
+        outState.putBundle("settings_draft", saveDraft())
+        super.onSaveInstanceState(outState)
+    }
+
     // ---------------------------------------------------------------- misc
 
     override fun onResume() {
@@ -669,7 +728,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-        if (currentTab == TAB_SETTINGS) saveSettings()
+        if (currentTab == TAB_SETTINGS && !changingLanguage && !isChangingConfigurations) saveSettings()
         super.onPause()
     }
 

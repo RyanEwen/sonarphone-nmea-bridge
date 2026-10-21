@@ -1,0 +1,1 @@
+Choisissez la langue dans les paramètres ou suivez celle du téléphone. Anglais, espagnol, français, allemand, chinois simplifié, portugais du Brésil et japonais sont pris en charge. La connexion reste active lors du changement.

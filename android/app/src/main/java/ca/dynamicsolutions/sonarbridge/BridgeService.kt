@@ -5,6 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -89,10 +91,8 @@ class BridgeService : Service() {
     override fun onCreate() {
         super.onCreate()
         cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Bridge", NotificationManager.IMPORTANCE_LOW)
-        )
+        refreshNotificationLanguage()
+        getSharedPreferences("cfg", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(languageListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -117,7 +117,7 @@ class BridgeService : Service() {
         log("START ssid=$ssid pattern=$pattern demo=$demo lograw=$logRaw udpFallback=$udpFallbackPort")
         startForeground(
             NOTIF_ID,
-            buildNotification("starting…"),
+            buildNotification(AppLanguage.context(this).getString(R.string.notification_starting)),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
         )
 
@@ -512,6 +512,26 @@ class BridgeService : Service() {
         }
     }
 
+    private val languageListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == AppLanguage.PREFERENCE) refreshNotificationLanguage()
+    }
+
+    /** Rename the existing channel and update its notification without changing the running bridge. */
+    private fun refreshNotificationLanguage() {
+        val manager = getSystemService(NotificationManager::class.java)
+        val localized = AppLanguage.context(this)
+        val channel = manager.getNotificationChannel(CHANNEL)
+            ?: NotificationChannel(CHANNEL, localized.getString(R.string.notification_channel), NotificationManager.IMPORTANCE_LOW)
+        channel.name = localized.getString(R.string.notification_channel)
+        manager.createNotificationChannel(channel)
+        if (BridgeState.flow.value.running) updateNotification(BridgeState.flow.value)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        refreshNotificationLanguage()
+    }
+
     private fun buildNotification(text: String): Notification {
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
@@ -519,7 +539,7 @@ class BridgeService : Service() {
         )
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle("SP200A Bridge")
+            .setContentTitle(AppLanguage.context(this).getString(R.string.notification_title))
             .setContentText(text)
             .setContentIntent(pi)
             .setOngoing(true)
@@ -527,13 +547,15 @@ class BridgeService : Service() {
     }
 
     private fun updateNotification(s: BridgeState.Snapshot) {
+        val localized = AppLanguage.context(this)
+        Units.regionalLocale = AppLanguage.regionalLocale(this)
         val text = if (s.depthM != null) {
             String.format(
-                Locale.US, "%s · %s · %s · %.1f V",
-                s.phase, Units.depth(s.depthM), Units.temp(s.tempC ?: 0.0), s.vBatt ?: 0.0,
+                Units.regionalLocale, "%s · %s · %s · %.1f V",
+                StatusText.phase(localized, s.phase), Units.depth(s.depthM), Units.temp(s.tempC ?: 0.0), s.vBatt ?: 0.0,
             )
         } else {
-            s.phase
+            StatusText.phase(localized, s.phase)
         }
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
             .notify(NOTIF_ID, buildNotification(text))
@@ -542,6 +564,7 @@ class BridgeService : Service() {
     private fun log(msg: String) = Log.i(TAG, msg)
 
     override fun onDestroy() {
+        getSharedPreferences("cfg", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(languageListener)
         log("service destroyed")
         toneGen?.release(); toneGen = null
         stopBridge()

@@ -9,6 +9,8 @@ import java.util.Locale
  * Navionics converts on its side.
  */
 object Units {
+    @Volatile var regionalLocale: Locale = Locale.US
+
     @Volatile var feet = true
     @Volatile var fahrenheit = false
 
@@ -65,15 +67,15 @@ object Units {
      * ("12.34", " m").
      */
     fun depthParts(m: Double): Pair<String, String> {
-        if (!feet) return String.format(Locale.US, "%.2f", m) to " m"
+        if (!feet) return String.format(regionalLocale, "%.2f", m) to " m"
         val totalFeet = m * 3.28084
         var ft = totalFeet.toInt()
         var inches = Math.round((totalFeet - ft) * 12).toInt()
         if (inches == 12) { ft++; inches = 0 }
-        return "$ft' $inches\"" to ""
+        return String.format(regionalLocale, "%d' %d\"", ft, inches) to ""
     }
 
     fun temp(c: Double): String =
-        if (fahrenheit) String.format(Locale.US, "%.0f °F", c * 9 / 5 + 32)
-        else String.format(Locale.US, "%.0f °C", c)
+        if (fahrenheit) String.format(regionalLocale, "%.0f °F", c * 9 / 5 + 32)
+        else String.format(regionalLocale, "%.0f °C", c)
 }

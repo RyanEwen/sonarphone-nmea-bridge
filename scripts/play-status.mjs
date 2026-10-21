@@ -1,10 +1,11 @@
 /** Inspect existing Play releases without publishing; temporary edits are always discarded. */
 import { resolve } from 'node:path'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { getPlayAccessToken, playRequest, readPlayServiceAccount } from './play-api.mjs'
 import { PLAY_PACKAGE } from './play-apk.mjs'
 
-/** Return active tracks and uploaded bundle codes, leaving the Play app unchanged. */
+/** Return active tracks, bundle codes and localized listings, leaving the Play app unchanged. */
 export async function inspectPlayState(token, request = playRequest) {
   const base = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PLAY_PACKAGE}`
   const call = async (path, method = 'GET') => {
@@ -21,7 +22,8 @@ export async function inspectPlayState(token, request = playRequest) {
   try {
     const tracks = await call(`/edits/${edit.id}/tracks`)
     const bundles = await call(`/edits/${edit.id}/bundles`)
-    return { tracks: tracks.tracks ?? [], bundles: bundles.bundles ?? [] }
+    const listings = await call(`/edits/${edit.id}/listings`)
+    return { tracks: tracks.tracks ?? [], bundles: bundles.bundles ?? [], listings: listings.listings ?? [] }
   } finally {
     // Inspection never validates or commits this edit, so tracks and listing remain unchanged.
     await call(`/edits/${edit.id}`, 'DELETE')
@@ -35,6 +37,13 @@ async function main() {
   const codes = state.bundles.map((bundle) => Number(bundle.versionCode))
   const highestCode = Math.max(0, ...codes)
   console.log(JSON.stringify({ tracks: state.tracks, versionCodes: codes }, null, 2))
+  // Public text digests let release verification compare every localized field without
+  // flooding CI logs with descriptions. Normalize the file/HTTP line-ending boundary.
+  for (const listing of state.listings) {
+    const digests = ['title', 'shortDescription', 'fullDescription'].map((field) =>
+      createHash('sha256').update((listing[field] ?? '').replace(/\r\n/g, '\n').trim()).digest('hex'))
+    console.log(['LISTING', listing.language, ...digests].join('\t'))
+  }
 
   if (process.env.ANDROID_VERSION_CODE) {
     const proposed = Number(process.env.ANDROID_VERSION_CODE)

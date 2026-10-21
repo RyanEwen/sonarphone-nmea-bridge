@@ -223,12 +223,21 @@ class SonarView(context: Context) : android.view.View(context) {
     private val tick = object : Runnable {
         override fun run() {
             step()
+            val state = BridgeState.flow.value
+            contentDescription = context.getString(
+                R.string.sonar_accessibility,
+                state.depthM?.let(Units::depth) ?: context.getString(R.string.no_reading),
+                state.tempC?.let(Units::temp) ?: context.getString(R.string.no_reading),
+                context.getString(R.string.sonar_controls_accessibility),
+            )
             postDelayed(this, 60)
         }
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        contentDescription = context.getString(R.string.sonar_controls_accessibility)
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         post(tick)
     }
 
@@ -535,7 +544,7 @@ class SonarView(context: Context) : android.view.View(context) {
             val y = (d / windowDisp * h).toFloat()
             canvas.drawLine(plotW - dp(10f), y, plotW, y, tickHalo)
             canvas.drawLine(plotW - dp(10f), y, plotW, y, tickPaint)
-            scaleText(String.format(Locale.US, "%.0f", d), y + dp(5f))
+            scaleText(String.format(Units.regionalLocale, "%.0f", d), y + dp(5f))
             d += interval
         }
         scaleText(unit, h - dp(8f))
@@ -568,7 +577,7 @@ class SonarView(context: Context) : android.view.View(context) {
 
         // ---- DEMO pill
         if (BridgeState.flow.value.phase == "DEMO") {
-            val txt = "DEMO"
+            val txt = context.getString(R.string.demo_badge)
             val tw = demoPaint.measureText(txt)
             val pillH = dp(28f) * sc
             val pill = RectF(
@@ -603,10 +612,10 @@ class SonarView(context: Context) : android.view.View(context) {
         if (zoomOpen) {
             minusRect.set(zoomRect.right + dp(8f), chipY, zoomRect.right + dp(8f) + bw, chipY + chipH2)
             val midLabel = if (autoRange) {
-                "AUTO"
+                context.getString(R.string.auto_range)
             } else {
                 val r = rangeM * if (Units.feet) 3.28084 else 1.0
-                String.format(Locale.US, "%.0f %s", r, unit)
+                String.format(Units.regionalLocale, "%.0f %s", r, unit)
             }
             val midW = maxOf(chipTextPaint.measureText(midLabel) + dp(28f) * sc, dp(76f) * sc)
             autoRect.set(minusRect.right + dp(8f), chipY, minusRect.right + dp(8f) + midW, chipY + chipH2)
