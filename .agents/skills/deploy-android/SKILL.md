@@ -13,6 +13,7 @@ Read the **Build**, **Connect the phone**, and **Install** sections of
 - Use `scripts/find-phone.py` if no authorized device appears in `adb devices`.
   If the script has no saved working endpoint, ask the user for the phone IP
   shown on Android's Wireless debugging screen.
+- For demo mode or UI work the shared emulator can be the install target; see "Emulator for demo mode and UI work" in `android/README-dev.md`.
 - Install
   `android/app/build/outputs/apk/github/debug/app-github-debug.apk` with
   `adb install -r`.

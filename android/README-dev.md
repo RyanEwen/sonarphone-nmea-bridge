@@ -6,7 +6,7 @@ root unless a section says otherwise.
 
 ## Build
 
-The long-lived `sonarbridge-builder` container is arm64-native and keeps the
+The long-lived `sonarbridge-builder` container builds natively on the host architecture (x86_64 or arm64) and keeps the
 Gradle cache warm. Start it if it already exists but is stopped:
 
 ```sh
@@ -22,25 +22,27 @@ still end with a configuration-cache message.
 If the builder does not exist, create it once:
 
 ```sh
-docker build -t sonarbridge-build:arm64 \
-  -f android/docker/Dockerfile.arm64 android/docker
+docker build -t sonarbridge-build -f android/docker/Dockerfile android/docker
 mkdir -p android/.gradle
-printf 'android.aapt2FromMavenOverride=/opt/android-tools/aapt2\n' \
-  > android/.gradle/gradle.properties
+# arm64 hosts only: use the image's static aapt2. On x86_64 skip this.
+if [ "$(uname -m)" = aarch64 ]; then
+  printf 'android.aapt2FromMavenOverride=/opt/android-tools/aapt2\n' \
+    > android/.gradle/gradle.properties
+fi
 docker run -d --name sonarbridge-builder --restart unless-stopped \
   -u "$(id -u):$(id -g)" \
   -e GRADLE_USER_HOME=/project/.gradle \
   -e JAVA_TOOL_OPTIONS=-Duser.home=/tmp \
   -e ANDROID_USER_HOME=/tmp/.android \
   -v "$PWD/android:/project" -w /project \
-  sonarbridge-build:arm64 sleep infinity
+  sonarbridge-build sleep infinity
 ```
 
 The writable Java and Android homes are required when the host numeric UID has
 no passwd entry in the builder image; otherwise AGP tries to create `/.android`.
 
-The AAPT2 override is container-local and gitignored. Do not add it to the
-committed `android/gradle.properties`, where it would break non-arm64 builds.
+The AAPT2 override (arm64 only) is container-local and gitignored. Do not add it to the
+committed `android/gradle.properties`, where it would break x86_64 builds.
 The pinned debug keystore at `android/keystore/debug.keystore` keeps
 `adb install -r` compatible across builds.
 
@@ -117,6 +119,10 @@ factory-fresh; run the official SonarPhone app once. The first connection can
 show Android's Wi-Fi approval dialog, which the user must accept on the phone.
 If the T-Box is off, stop the service after testing so the dialog does not
 reappear repeatedly.
+
+### Emulator for demo mode and UI work
+
+The shared local Android emulator (see [its README](../../android-vm/README.md)) can run the app with the `demo` extra (`-e demo true`) and is suitable for UI work. Point `adb` at it from WSL or from a container on the emulator's Docker network, using the shared adb key described in that README, then use the commands above unchanged. Real bridge testing still needs a physical phone, because the emulator cannot join a SonarPhone T-Box Wi-Fi network.
 
 ## Watch it work
 

@@ -1,6 +1,6 @@
 ---
 name: build-android
-description: Build the SonarBridge GitHub-flavor Android debug APK in the repository's arm64 Docker builder. Use for Android builds, APK generation, or build verification in this repository.
+description: Build the SonarBridge GitHub-flavor Android debug APK in the repository's Docker builder. Use for Android builds, APK generation, or build verification in this repository.
 ---
 
 # Build the Android debug APK

@@ -7,7 +7,7 @@ android {
     namespace = "ca.dynamicsolutions.sonarbridge"
     compileSdk = 36
     // build-tools stays 35.0.0: the pinned arm64 aapt2 static build (see
-    // docker/Dockerfile.arm64) only goes up to 35.0.2, and the rest of
+    // docker/Dockerfile, arm64 only) only goes up to 35.0.2, and the rest of
     // build-tools is Java inside AGP.
     buildToolsVersion = "35.0.0"
 
