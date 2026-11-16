@@ -5,11 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.SharedPreferences
-import android.content.res.Configuration
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.ConnectivityManager
@@ -106,12 +106,17 @@ class BridgeService : Service() {
         // exact SSID wins if given; otherwise a prefix pattern — the system
         // connect dialog lists all matching APs in range (the "picker")
         val ssid = intent?.getStringExtra("ssid")
-        val pattern = if (ssid != null) null
-            else intent?.getStringExtra("pattern") ?: prefs.getString("pattern", "SonarPhone_")!!
+        val pattern = if (ssid != null) {
+            null
+        } else {
+            intent?.getStringExtra("pattern") ?: prefs.getString("pattern", "SonarPhone_")!!
+        }
         val pass = intent?.getStringExtra("pass") ?: prefs.getString("pass", "12345678")!!
         val logRaw = intent?.getStringExtra("lograw") == "true"
-        val demo = (intent?.getStringExtra("demo")
-            ?: prefs.getBoolean("demo", false).toString()) == "true"
+        val demo = (
+            intent?.getStringExtra("demo")
+                ?: prefs.getBoolean("demo", false).toString()
+            ) == "true"
         udpFallbackPort = intent?.getStringExtra("udp")?.toIntOrNull() ?: 0
 
         log("START ssid=$ssid pattern=$pattern demo=$demo lograw=$logRaw udpFallback=$udpFallbackPort")
@@ -170,15 +175,22 @@ class BridgeService : Service() {
     }
 
     private fun stopBridge() {
-        sonarJob?.cancel(); sonarJob = null
-        demoJob?.cancel(); demoJob = null
-        emitJob?.cancel(); emitJob = null
+        sonarJob?.cancel()
+        sonarJob = null
+        demoJob?.cancel()
+        demoJob = null
+        emitJob?.cancel()
+        emitJob = null
         netCallback?.let { runCatching { cm.unregisterNetworkCallback(it) } }
         netCallback = null
-        nmea?.stop(); nmea = null
-        udpFallback?.close(); udpFallback = null
-        rawLog?.let { runCatching { it.close() } }; rawLog = null
-        wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
+        nmea?.stop()
+        nmea = null
+        udpFallback?.close()
+        udpFallback = null
+        rawLog?.let { runCatching { it.close() } }
+        rawLog = null
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
     }
 
     // ---------------------------------------------------------------- wifi
@@ -190,7 +202,7 @@ class BridgeService : Service() {
         } else {
             // system dialog lists every AP whose SSID starts with the prefix
             specBuilder.setSsidPattern(
-                PatternMatcher(pattern ?: "SonarPhone_", PatternMatcher.PATTERN_PREFIX)
+                PatternMatcher(pattern ?: "SonarPhone_", PatternMatcher.PATTERN_PREFIX),
             )
         }
         if (pass.isNotBlank()) specBuilder.setWpa2Passphrase(pass)
@@ -209,7 +221,8 @@ class BridgeService : Service() {
 
             override fun onLost(network: Network) {
                 log("WIFI onLost — waiting for AP to return")
-                sonarJob?.cancel(); sonarJob = null
+                sonarJob?.cancel()
+                sonarJob = null
                 setPhase("WIFI_WAIT")
             }
 
@@ -268,7 +281,9 @@ class BridgeService : Service() {
                                 }
                             }
                         }
+
                         is Sp200a.Reply.Busy -> log("BUSY during discover")
+
                         else -> {}
                     }
                     delay(1_000)
@@ -287,7 +302,7 @@ class BridgeService : Service() {
                 val devRangeM = cfg.getFloat("dev_range_m", 0f).toInt()
                 log(
                     "FC settings: meters, range=${if (devRangeM > 0) "0-${devRangeM}m" else "auto"}, " +
-                        "beam=0x%02x".format(beam)
+                        "beam=0x%02x".format(beam),
                 )
                 val fc = Sp200a.buildFc(mac, depthMax = devRangeM, beam = beam)
                 var lastFc = 0L
@@ -355,12 +370,16 @@ class BridgeService : Service() {
                                         s.frameCount, reply.size, depthM, reply.tempC.toDouble(),
                                         reply.vBatt, reply.rangeMin, reply.rangeMax, reply.beam,
                                         reply.echo.size,
-                                    )
+                                    ),
                                 )
                             }
                         }
+
                         is Sp200a.Reply.Busy -> log("BUSY during run")
-                        is Sp200a.Reply.RedyFx -> {} // stray discover reply, ignore
+
+                        is Sp200a.Reply.RedyFx -> {}
+
+                        // stray discover reply, ignore
                         null -> log("unknown packet ${pkt.length}B")
                     }
                 }
@@ -394,7 +413,10 @@ class BridgeService : Service() {
             if (rnd.nextInt(40) == 0 && depth > 3.0) {
                 fish += Fish(rnd.nextDouble(1.5, depth - 1.0), rnd.nextInt(15, 60), rnd.nextInt(150, 240))
             }
-            fish.forEach { it.depth += rnd.nextDouble(-0.08, 0.08); it.life-- }
+            fish.forEach {
+                it.depth += rnd.nextDouble(-0.08, 0.08)
+                it.life--
+            }
             fish.removeAll { it.life <= 0 || it.depth >= depth || it.depth < 0.5 }
 
             val col = ByteArray(EchoHistory.SAMPLES)
@@ -485,17 +507,21 @@ class BridgeService : Service() {
                     runCatching {
                         it.send(
                             DatagramPacket(
-                                payload, payload.size,
-                                InetAddress.getLoopbackAddress(), udpFallbackPort,
-                            )
+                                payload,
+                                payload.size,
+                                InetAddress.getLoopbackAddress(),
+                                udpFallbackPort,
+                            ),
                         )
                     }
                 }
                 lastEmit = now
                 emits++
                 if (emits % 30 == 1L) {
-                    log("NMEA emit #$emits: " +
-                        Nmea.forDepthTemp(depth, s.tempC ?: 0.0).replace("\r\n", " "))
+                    log(
+                        "NMEA emit #$emits: " +
+                            Nmea.forDepthTemp(depth, s.tempC ?: 0.0).replace("\r\n", " "),
+                    )
                 }
                 updateNotification(s)
             }
@@ -534,7 +560,9 @@ class BridgeService : Service() {
 
     private fun buildNotification(text: String): Notification {
         val pi = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
         return Notification.Builder(this, CHANNEL)
@@ -551,8 +579,12 @@ class BridgeService : Service() {
         Units.regionalLocale = AppLanguage.regionalLocale(this)
         val text = if (s.depthM != null) {
             String.format(
-                Units.regionalLocale, "%s · %s · %s · %.1f V",
-                StatusText.phase(localized, s.phase), Units.depth(s.depthM), Units.temp(s.tempC ?: 0.0), s.vBatt ?: 0.0,
+                Units.regionalLocale,
+                "%s · %s · %s · %.1f V",
+                StatusText.phase(localized, s.phase),
+                Units.depth(s.depthM),
+                Units.temp(s.tempC ?: 0.0),
+                s.vBatt ?: 0.0,
             )
         } else {
             StatusText.phase(localized, s.phase)
@@ -566,7 +598,8 @@ class BridgeService : Service() {
     override fun onDestroy() {
         getSharedPreferences("cfg", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(languageListener)
         log("service destroyed")
-        toneGen?.release(); toneGen = null
+        toneGen?.release()
+        toneGen = null
         stopBridge()
         BridgeState.update { BridgeState.Snapshot() }
         scope.cancel()

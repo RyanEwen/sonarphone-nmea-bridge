@@ -130,10 +130,12 @@ class AppLanguageTest {
         }
         // No Activity has been constructed, and no sockets or onStartCommand are involved.
         val manager = app.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("bridge", "old", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "user description"
-            setShowBadge(false)
-        })
+        manager.createNotificationChannel(
+            NotificationChannel("bridge", "old", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "user description"
+                setShowBadge(false)
+            },
+        )
         val controller = Robolectric.buildService(BridgeService::class.java).create()
         try {
             assertEquals("Pont", manager.getNotificationChannel("bridge").name.toString())

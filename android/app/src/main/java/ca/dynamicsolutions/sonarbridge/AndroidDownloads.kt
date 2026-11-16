@@ -26,10 +26,12 @@ object AndroidDownloads {
         val padding = (16 * activity.resources.displayMetrics.density).toInt()
         MaterialAlertDialogBuilder(activity)
             .setTitle(activity.getString(R.string.download_change))
-            .setView(android.widget.ScrollView(activity).apply {
-                setPadding(padding, 0, padding, 0)
-                addView(buildGuidanceView(activity, migration = true))
-            })
+            .setView(
+                android.widget.ScrollView(activity).apply {
+                    setPadding(padding, 0, padding, 0)
+                    addView(buildGuidanceView(activity, migration = true))
+                },
+            )
             .setNegativeButton(activity.getString(R.string.later)) { _, _ -> }
             .setOnDismissListener {
                 prefs.edit().putBoolean(NOTICE_SEEN, true).apply()
@@ -43,14 +45,19 @@ object AndroidDownloads {
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
         }
-        content.addView(TextView(activity).apply {
-            // Match the existing Settings explanatory-note appearance.
-            setTextAppearance(MR.style.TextAppearance_Material3_BodySmall)
-            alpha = 0.7f
-            setPadding(0, (4 * density).toInt(), 0, (8 * density).toInt())
-            text = if (migration) activity.getString(R.string.migration_guidance) else
-                activity.getString(R.string.download_guidance, BuildConfig.VERSION_NAME)
-        })
+        content.addView(
+            TextView(activity).apply {
+                // Match the existing Settings explanatory-note appearance.
+                setTextAppearance(MR.style.TextAppearance_Material3_BodySmall)
+                alpha = 0.7f
+                setPadding(0, (4 * density).toInt(), 0, (8 * density).toInt())
+                text = if (migration) {
+                    activity.getString(R.string.migration_guidance)
+                } else {
+                    activity.getString(R.string.download_guidance, BuildConfig.VERSION_NAME)
+                }
+            },
+        )
         addDownloadButton(activity, content, activity.getString(R.string.download_github), GITHUB_URL)
         addDownloadButton(activity, content, activity.getString(R.string.download_play), PLAY_URL)
         return content
@@ -58,15 +65,17 @@ object AndroidDownloads {
 
     /** Open the user's chosen download page; handle devices without a URL handler. */
     private fun addDownloadButton(activity: Activity, parent: LinearLayout, label: String, url: String) {
-        parent.addView(MaterialButton(activity, null, MR.attr.materialButtonOutlinedStyle).apply {
-            text = label
-            setOnClickListener {
-                try {
-                    activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                } catch (_: android.content.ActivityNotFoundException) {
-                    Toast.makeText(activity, activity.getString(R.string.download_no_handler), Toast.LENGTH_LONG).show()
+        parent.addView(
+            MaterialButton(activity, null, MR.attr.materialButtonOutlinedStyle).apply {
+                text = label
+                setOnClickListener {
+                    try {
+                        activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        Toast.makeText(activity, activity.getString(R.string.download_no_handler), Toast.LENGTH_LONG).show()
+                    }
                 }
-            }
-        })
+            },
+        )
     }
 }

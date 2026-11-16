@@ -75,6 +75,7 @@ class SonarView(context: Context) : android.view.View(context) {
     private var zoomLastAt = 0L
 
     private val bmpPaint = Paint().apply { isFilterBitmap = true }
+
     // subtle hairline keeping the interface crisp; Deeper relies on contrast
     // alone, our 9.5 samples/m needs a little help
     private val bottomLinePaint = Paint().apply {
@@ -157,6 +158,7 @@ class SonarView(context: Context) : android.view.View(context) {
         color = Color.rgb(255, 179, 64)
         isAntiAlias = true
     }
+
     // fish marker: bright magenta reads on both the rainbow and the orange
     // bottom (no palette uses it); dark outline guarantees contrast anywhere
     private val fishColor = Color.rgb(255, 60, 230)
@@ -196,6 +198,7 @@ class SonarView(context: Context) : android.view.View(context) {
             else -> Color.rgb(255, clamp(255 - (v - 192) * 3), 0)
         }
     }
+
     // Modern bottom: orange monochrome, brown floor (density = hardness)
     private val bottomLutModern = IntArray(256) { v ->
         val t = if (v < 26) 0f else (v - 26) / 229f
@@ -207,12 +210,23 @@ class SonarView(context: Context) : android.view.View(context) {
     private val lutClassic = IntArray(256) { v ->
         when {
             v < 24 -> bgClassic
-            v < 70 -> Color.rgb(0, clamp(40 + (v - 24)), clamp(170 + (v - 24) * 2))   // blue
-            v < 120 -> Color.rgb(0, clamp(90 + (v - 70) * 3), clamp(255 - (v - 70) * 2)) // cyan
-            v < 165 -> Color.rgb(clamp((v - 120) * 5), 240, clamp(155 - (v - 120) * 3))  // green
-            v < 205 -> Color.rgb(255, clamp(240 - (v - 165) * 3), 0)                     // yellow->orange
-            v < 235 -> Color.rgb(255, clamp(120 - (v - 205) * 4), 0)                     // red
-            else -> Color.rgb(255, clamp(60 + (v - 235) * 9), clamp((v - 235) * 12))     // white-hot
+
+            v < 70 -> Color.rgb(0, clamp(40 + (v - 24)), clamp(170 + (v - 24) * 2))
+
+            // blue
+            v < 120 -> Color.rgb(0, clamp(90 + (v - 70) * 3), clamp(255 - (v - 70) * 2))
+
+            // cyan
+            v < 165 -> Color.rgb(clamp((v - 120) * 5), 240, clamp(155 - (v - 120) * 3))
+
+            // green
+            v < 205 -> Color.rgb(255, clamp(240 - (v - 165) * 3), 0)
+
+            // yellow->orange
+            v < 235 -> Color.rgb(255, clamp(120 - (v - 205) * 4), 0)
+
+            // red
+            else -> Color.rgb(255, clamp(60 + (v - 235) * 9), clamp((v - 235) * 12)) // white-hot
         }
     }
 
@@ -269,17 +283,32 @@ class SonarView(context: Context) : android.view.View(context) {
         val lo = top
         val hi = bottomIdx.coerceAtMost(samples.size)
         if (hi - lo < 4) return -1f
-        var peak = 0; var peakI = -1
+        var peak = 0
+        var peakI = -1
         for (i in lo until hi) {
             val v = samples[i].toInt() and 0xFF
-            if (v > peak) { peak = v; peakI = i }
+            if (v > peak) {
+                peak = v
+                peakI = i
+            }
         }
         if (peakI < 0 || peak < 130) return -1f
         // background = mean a few samples away; require the peak to stand out
-        var bg = 0; var n = 0
+        var bg = 0
+        var n = 0
         for (d in 6..10) {
-            (peakI - d).let { if (it in 0 until samples.size) { bg += samples[it].toInt() and 0xFF; n++ } }
-            (peakI + d).let { if (it in 0 until samples.size) { bg += samples[it].toInt() and 0xFF; n++ } }
+            (peakI - d).let {
+                if (it in 0 until samples.size) {
+                    bg += samples[it].toInt() and 0xFF
+                    n++
+                }
+            }
+            (peakI + d).let {
+                if (it in 0 until samples.size) {
+                    bg += samples[it].toInt() and 0xFF
+                    n++
+                }
+            }
         }
         val mean = if (n > 0) bg.toFloat() / n else 0f
         if (peak - mean < 70) return -1f // not isolated enough (weeds/thermocline)
@@ -295,7 +324,10 @@ class SonarView(context: Context) : android.view.View(context) {
             val x = j.toFloat() / UP
             val i = x.toInt()
             val t = x - i
-            val p0 = s(i - 1); val p1 = s(i); val p2 = s(i + 1); val p3 = s(i + 2)
+            val p0 = s(i - 1)
+            val p1 = s(i)
+            val p2 = s(i + 1)
+            val p3 = s(i + 2)
             val v = 0.5f * (
                 (2f * p1) +
                     (-p0 + p2) * t +
@@ -317,7 +349,10 @@ class SonarView(context: Context) : android.view.View(context) {
         val floorLut = bottomLut
         // surface clarity: fade the top clutter band (low/med/high metres)
         val clarityM = when (Units.surfaceClarity) {
-            1 -> 0.6; 2 -> 1.0; 3 -> 1.5; else -> 0.0
+            1 -> 0.6
+            2 -> 1.0
+            3 -> 1.5
+            else -> 0.0
         }
         val clarityRows = (clarityM * EchoHistory.SAMPLES_PER_M * UP).toInt()
         for (j in 0 until HI) {
@@ -391,6 +426,7 @@ class SonarView(context: Context) : android.view.View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> return true
+
             MotionEvent.ACTION_UP -> {
                 val x = event.x
                 val y = event.y
@@ -399,19 +435,23 @@ class SonarView(context: Context) : android.view.View(context) {
                         zoomOpen = !zoomOpen
                         zoomLastAt = SystemClock.elapsedRealtime()
                     }
+
                     zoomOpen && minusRect.contains(x, y) -> {
                         setManualRange(rangeIdx - 1)
                         zoomLastAt = SystemClock.elapsedRealtime()
                     }
+
                     zoomOpen && plusRect.contains(x, y) -> {
                         setManualRange(rangeIdx + 1)
                         zoomLastAt = SystemClock.elapsedRealtime()
                     }
+
                     zoomOpen && autoRect.contains(x, y) -> {
                         autoRange = true
                         fitsSmallerSince = 0L
                         zoomLastAt = SystemClock.elapsedRealtime()
                     }
+
                     else -> return performClick().let { true }
                 }
                 invalidate()
@@ -460,18 +500,24 @@ class SonarView(context: Context) : android.view.View(context) {
             // ---- echo bitmap (one or two ring segments)
             if (oldest <= newest) {
                 canvas.drawBitmap(
-                    bitmap, Rect(oldest, 0, newest + 1, windowHi),
-                    RectF(x0, 0f, plotW, h), bmpPaint,
+                    bitmap,
+                    Rect(oldest, 0, newest + 1, windowHi),
+                    RectF(x0, 0f, plotW, h),
+                    bmpPaint,
                 )
             } else {
                 val seg1W = (COLS - oldest) * colW
                 canvas.drawBitmap(
-                    bitmap, Rect(oldest, 0, COLS, windowHi),
-                    RectF(x0, 0f, x0 + seg1W, h), bmpPaint,
+                    bitmap,
+                    Rect(oldest, 0, COLS, windowHi),
+                    RectF(x0, 0f, x0 + seg1W, h),
+                    bmpPaint,
                 )
                 canvas.drawBitmap(
-                    bitmap, Rect(0, 0, newest + 1, windowHi),
-                    RectF(x0 + seg1W, 0f, plotW, h), bmpPaint,
+                    bitmap,
+                    Rect(0, 0, newest + 1, windowHi),
+                    RectF(x0 + seg1W, 0f, plotW, h),
+                    bmpPaint,
                 )
             }
 
@@ -517,8 +563,10 @@ class SonarView(context: Context) : android.view.View(context) {
 
             // ---- live A-scope strip
             canvas.drawBitmap(
-                ascopeBmp, Rect(0, 0, 1, windowHi),
-                RectF(plotW + dp(4f), 0f, w, h), bmpPaint,
+                ascopeBmp,
+                Rect(0, 0, 1, windowHi),
+                RectF(plotW + dp(4f), 0f, w, h),
+                bmpPaint,
             )
         }
 
@@ -532,10 +580,14 @@ class SonarView(context: Context) : android.view.View(context) {
             val tw = labelPaint.measureText(txt)
             canvas.drawRoundRect(
                 RectF(
-                    xR - tw - dp(6f), y - labelPaint.textSize,
-                    xR + dp(5f), y + dp(5f),
+                    xR - tw - dp(6f),
+                    y - labelPaint.textSize,
+                    xR + dp(5f),
+                    y + dp(5f),
                 ),
-                dp(6f), dp(6f), labelScrim,
+                dp(6f),
+                dp(6f),
+                labelScrim,
             )
             canvas.drawText(txt, xR, y, labelPaint)
         }
@@ -581,8 +633,10 @@ class SonarView(context: Context) : android.view.View(context) {
             val tw = demoPaint.measureText(txt)
             val pillH = dp(28f) * sc
             val pill = RectF(
-                plotW - tw - dp(26f) * sc, inset,
-                plotW - dp(6f), inset + pillH,
+                plotW - tw - dp(26f) * sc,
+                inset,
+                plotW - dp(6f),
+                inset + pillH,
             )
             canvas.drawRoundRect(pill, pillH / 2f, pillH / 2f, chipBgPaint)
             canvas.drawRoundRect(pill, pillH / 2f, pillH / 2f, demoStroke)
@@ -605,8 +659,11 @@ class SonarView(context: Context) : android.view.View(context) {
         val mgy = zoomRect.centerY() - mgr * 0.35f
         canvas.drawCircle(mgx, mgy, mgr, magnifierPaint)
         canvas.drawLine(
-            mgx + mgr * 0.75f, mgy + mgr * 0.75f,
-            mgx + mgr * 1.8f, mgy + mgr * 1.8f, magnifierPaint,
+            mgx + mgr * 0.75f,
+            mgy + mgr * 0.75f,
+            mgx + mgr * 1.8f,
+            mgy + mgr * 1.8f,
+            magnifierPaint,
         )
 
         if (zoomOpen) {
@@ -648,7 +705,7 @@ class SonarView(context: Context) : android.view.View(context) {
         fishPath.lineTo(cx + r * 1.35f, cy + r * 0.65f)
         fishPath.close()
         canvas.drawPath(fishPath, fishOutline) // dark halo first
-        canvas.drawPath(fishPath, fishPaint)   // then bright magenta fill
+        canvas.drawPath(fishPath, fishPaint) // then bright magenta fill
     }
 
     /** 1/2/5×10^k interval that yields ~4–6 gridlines. */

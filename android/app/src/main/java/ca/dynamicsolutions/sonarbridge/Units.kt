@@ -12,6 +12,7 @@ object Units {
     @Volatile var regionalLocale: Locale = Locale.US
 
     @Volatile var feet = true
+
     @Volatile var fahrenheit = false
 
     /** Sonar-view text/control scale: 1.0 normal, 1.25 large, 1.5 XL. */
@@ -71,11 +72,16 @@ object Units {
         val totalFeet = m * 3.28084
         var ft = totalFeet.toInt()
         var inches = Math.round((totalFeet - ft) * 12).toInt()
-        if (inches == 12) { ft++; inches = 0 }
+        if (inches == 12) {
+            ft++
+            inches = 0
+        }
         return String.format(regionalLocale, "%d' %d\"", ft, inches) to ""
     }
 
-    fun temp(c: Double): String =
-        if (fahrenheit) String.format(regionalLocale, "%.0f °F", c * 9 / 5 + 32)
-        else String.format(regionalLocale, "%.0f °C", c)
+    fun temp(c: Double): String = if (fahrenheit) {
+        String.format(regionalLocale, "%.0f °F", c * 9 / 5 + 32)
+    } else {
+        String.format(regionalLocale, "%.0f °C", c)
+    }
 }

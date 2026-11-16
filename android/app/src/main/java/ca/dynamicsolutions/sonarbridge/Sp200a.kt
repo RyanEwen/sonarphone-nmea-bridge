@@ -28,7 +28,7 @@ object Sp200a {
     // byte 13: transducer frequency/beam selection (SonarPhony findings —
     // the value is echoed back at REDYFC byte 32)
     const val BEAM_200KHZ_20DEG = 0x08 // SP200/SP300 narrow
-    const val BEAM_80KHZ_40DEG = 0x02  // SP200/SP300 wide
+    const val BEAM_80KHZ_40DEG = 0x02 // SP200/SP300 wide
     const val BEAM_125KHZ_30DEG = 0x04 // SP100/T-POD single beam (experimental on SP200A)
 
     fun buildFc(
@@ -64,13 +64,13 @@ object Sp200a {
         data class RedyFc(
             val size: Int,
             val unitsFeet: Boolean, // byte 21: units actually in effect — authoritative
-            val depth: Double,      // in the units of byte 21
-            val tempC: Int,         // always °C regardless of units (per PDF)
+            val depth: Double, // in the units of byte 21
+            val tempC: Int, // always °C regardless of units (per PDF)
             val vBatt: Double,
             val beam: Int,
             val rangeMin: Int,
             val rangeMax: Int,
-            val echo: ByteArray,    // 758 intensity samples over 80 m max range
+            val echo: ByteArray, // 758 intensity samples over 80 m max range
         ) : Reply()
         object Busy : Reply()
     }
@@ -104,6 +104,5 @@ object Sp200a {
         return null
     }
 
-    fun macString(mac: ByteArray) =
-        mac.joinToString(":") { String.format(Locale.US, "%02x", it) }
+    fun macString(mac: ByteArray) = mac.joinToString(":") { String.format(Locale.US, "%02x", it) }
 }

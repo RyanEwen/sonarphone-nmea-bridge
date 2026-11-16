@@ -3,8 +3,8 @@ package ca.dynamicsolutions.sonarbridge
 import android.app.LocaleManager
 import android.content.Context
 import android.os.Build
-import android.os.Looper
 import android.os.LocaleList
+import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
@@ -52,7 +52,9 @@ class LanguageRecreationTest {
 
     private fun views(view: View): List<View> = listOf(view) + if (view is ViewGroup) {
         (0 until view.childCount).flatMap { views(view.getChildAt(it)) }
-    } else emptyList()
+    } else {
+        emptyList()
+    }
 
     /** The selected radio item invokes the actual language-change listener. */
     private fun select(activity: MainActivity, index: Int) {
@@ -64,8 +66,7 @@ class LanguageRecreationTest {
         list.performItemClick(list.adapter.getView(index, null, list), index, index.toLong())
     }
 
-    private fun field(activity: MainActivity, name: String): TextInputEditText =
-        MainActivity::class.java.getDeclaredField(name).apply { isAccessible = true }.get(activity) as TextInputEditText
+    private fun field(activity: MainActivity, name: String): TextInputEditText = MainActivity::class.java.getDeclaredField(name).apply { isAccessible = true }.get(activity) as TextInputEditText
 
     @Test
     fun actualLanguageChangeAndClearPreserveDraftsTabAndSavedConfiguration() {
@@ -134,9 +135,11 @@ class LanguageRecreationTest {
                 shadowOf(Looper.getMainLooper()).idle()
                 assertSame(activity, controller.get())
                 assertEquals(expectedTag, AppLanguage.selectedTag(activity))
-                assertTrue(views(activity.window.decorView).filterIsInstance<TextView>().any {
-                    it.text.toString() == label
-                })
+                assertTrue(
+                    views(activity.window.decorView).filterIsInstance<TextView>().any {
+                        it.text.toString() == label
+                    },
+                )
 
                 field(activity, "passEdit").setText("saved-with-$index")
                 controller.pause()

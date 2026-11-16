@@ -21,11 +21,14 @@ class NmeaServer(
 ) {
     private class Client(val socket: Socket) {
         val queue = LinkedBlockingQueue<ByteArray>(32)
+
         @Volatile var dead = false
     }
 
     private val clients = CopyOnWriteArrayList<Client>()
+
     @Volatile private var server: ServerSocket? = null
+
     @Volatile private var running = false
 
     fun start() {
@@ -38,7 +41,11 @@ class NmeaServer(
                 server = srv
                 log("NMEA TCP listening on 127.0.0.1:$port")
                 while (running) {
-                    val s = try { srv.accept() } catch (_: IOException) { break }
+                    val s = try {
+                        srv.accept()
+                    } catch (_: IOException) {
+                        break
+                    }
                     val c = Client(s)
                     clients.add(c)
                     onClientCount(clients.size)
@@ -48,7 +55,9 @@ class NmeaServer(
             } catch (e: IOException) {
                 log("NMEA server failed: $e")
             } finally {
-                try { srv.close() } catch (_: IOException) {}
+                try {
+                    srv.close()
+                } catch (_: IOException) {}
             }
         }
     }
@@ -65,7 +74,9 @@ class NmeaServer(
         } finally {
             c.dead = true
             clients.remove(c)
-            try { c.socket.close() } catch (_: IOException) {}
+            try {
+                c.socket.close()
+            } catch (_: IOException) {}
             onClientCount(clients.size)
             log("NMEA client dropped (${clients.size} left)")
         }
@@ -76,17 +87,23 @@ class NmeaServer(
             if (!c.queue.offer(payload)) {
                 // ~32 backlogged payloads: reader is stuck — cut it loose
                 c.dead = true
-                try { c.socket.close() } catch (_: IOException) {}
+                try {
+                    c.socket.close()
+                } catch (_: IOException) {}
             }
         }
     }
 
     fun stop() {
         running = false
-        try { server?.close() } catch (_: IOException) {}
+        try {
+            server?.close()
+        } catch (_: IOException) {}
         for (c in clients) {
             c.dead = true
-            try { c.socket.close() } catch (_: IOException) {}
+            try {
+                c.socket.close()
+            } catch (_: IOException) {}
         }
         clients.clear()
     }

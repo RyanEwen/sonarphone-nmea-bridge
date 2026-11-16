@@ -45,13 +45,16 @@ object AppLanguage {
                     else -> "pt-BR"
                 }
             }
+
             "ja" -> if (script.isEmpty() || script == "Jpan") "ja-JP" else null
+
             "zh" -> when {
                 script == "Hans" -> "zh-CN"
                 script.isNotEmpty() -> null
                 locale.country in setOf("TW", "HK", "MO") -> null
                 else -> "zh-CN"
             }
+
             else -> null
         }
     }
@@ -105,8 +108,7 @@ object AppLanguage {
         val systemLocales = manager?.systemLocales
             ?: context.applicationContext.resources.configuration.locales
         val deviceLocales = (0 until systemLocales.size()).map { systemLocales[it] }
-        fun overlay(locales: List<Locale>): LocaleList =
-            LocaleList(*(locales + deviceLocales).distinct().toTypedArray())
+        fun overlay(locales: List<Locale>): LocaleList = LocaleList(*(locales + deviceLocales).distinct().toTypedArray())
 
         // On API 33+, compare the platform's lists rather than our wrapped Activity context.
         val currentLocales = if (manager != null) {
@@ -143,7 +145,9 @@ object AppLanguage {
     /** Localized resources for cold services too; AppCompat <=32 only wraps Activity contexts. */
     fun context(base: Context): Context {
         val selected = selectedTag(base)
-        val tags = if (selected != null) listOf(selected) else {
+        val tags = if (selected != null) {
+            listOf(selected)
+        } else {
             val locales = if (Build.VERSION.SDK_INT >= 33) {
                 base.getSystemService(LocaleManager::class.java).systemLocales
             } else {

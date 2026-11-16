@@ -2,9 +2,9 @@ package ca.dynamicsolutions.sonarbridge
 
 import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Typeface
 import android.net.Uri
@@ -27,14 +27,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.navigation.NavigationBarView
-import com.google.android.material.navigationrail.NavigationRailView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
-import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.slider.Slider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.navigation.NavigationBarView
+import com.google.android.material.navigationrail.NavigationRailView
+import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.CoroutineScope
@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
         const val TAB_STATUS = 1
         const val TAB_SONAR = 2
         const val TAB_SETTINGS = 3
+
         // remembered across rotation (process survives config change)
         private var lastTab = TAB_STATUS
     }
@@ -134,7 +135,10 @@ class MainActivity : AppCompatActivity() {
             nav.menu.add(Menu.NONE, TAB_STATUS, 0, getString(R.string.nav_status)).setIcon(R.drawable.ic_tab_status)
             nav.menu.add(Menu.NONE, TAB_SONAR, 1, getString(R.string.nav_sonar)).setIcon(R.drawable.ic_tab_sonar)
             nav.menu.add(Menu.NONE, TAB_SETTINGS, 2, getString(R.string.nav_settings)).setIcon(R.drawable.ic_tab_settings)
-            nav.setOnItemSelectedListener { item -> show(item.itemId); true }
+            nav.setOnItemSelectedListener { item ->
+                show(item.itemId)
+                true
+            }
         }
 
         val root: LinearLayout
@@ -143,7 +147,9 @@ class MainActivity : AppCompatActivity() {
             val rail = NavigationRailView(this)
             buildMenu(rail)
             content.layoutParams = LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f,
+                0,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                1f,
             )
             root = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -161,7 +167,9 @@ class MainActivity : AppCompatActivity() {
             val bottom = BottomNavigationView(this)
             buildMenu(bottom)
             content.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f,
             )
             root = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -175,7 +183,7 @@ class MainActivity : AppCompatActivity() {
         // content draws under the clock/notifications and the gesture bar.
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             )
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
@@ -200,7 +208,7 @@ class MainActivity : AppCompatActivity() {
                 TAB_SONAR -> sonarView
                 TAB_SETTINGS -> settingsView
                 else -> statusView
-            }
+            },
         )
         if (tab == TAB_STATUS) renderStatus(BridgeState.flow.value)
     }
@@ -225,13 +233,15 @@ class MainActivity : AppCompatActivity() {
         toggle = MaterialButton(this).apply {
             text = getString(R.string.connect)
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(20) }
         }
         battery = MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
             text = getString(R.string.battery_optimization)
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(4) }
         }
 
@@ -244,7 +254,8 @@ class MainActivity : AppCompatActivity() {
             radius = dp(16).toFloat()
             cardElevation = 0f
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(20) }
             addView(details)
         }
@@ -258,7 +269,7 @@ class MainActivity : AppCompatActivity() {
         toggle.setOnClickListener {
             if (BridgeState.flow.value.running) {
                 startService(
-                    Intent(this, BridgeService::class.java).setAction(BridgeService.ACTION_STOP)
+                    Intent(this, BridgeService::class.java).setAction(BridgeService.ACTION_STOP),
                 )
             } else {
                 val pattern = MODE_PATTERNS[prefs.getInt("mode", 0)]
@@ -266,8 +277,11 @@ class MainActivity : AppCompatActivity() {
                     .setAction(BridgeService.ACTION_START)
                     .putExtra("pass", prefs.getString("pass", "12345678"))
                     .putExtra("demo", prefs.getBoolean("demo", false).toString())
-                if (pattern != null) intent.putExtra("pattern", pattern)
-                else intent.putExtra("ssid", prefs.getString("ssid", "SonarPhone_65C0")!!.toString())
+                if (pattern != null) {
+                    intent.putExtra("pattern", pattern)
+                } else {
+                    intent.putExtra("ssid", prefs.getString("ssid", "SonarPhone_65C0")!!.toString())
+                }
                 startForegroundService(intent)
             }
         }
@@ -307,7 +321,16 @@ class MainActivity : AppCompatActivity() {
         val ts = RegionalFormat.timeFormatter(this)
         val numbers = java.text.NumberFormat.getIntegerInstance(AppLanguage.regionalLocale(this))
         details.text = listOf(
-            getString(R.string.status_network, if (s.phase == "DEMO") getString(R.string.phase_demo) else if (s.running) s.ssid ?: "-" else configSummary()),
+            getString(
+                R.string.status_network,
+                if (s.phase == "DEMO") {
+                    getString(R.string.phase_demo)
+                } else if (s.running) {
+                    s.ssid ?: "-"
+                } else {
+                    configSummary()
+                },
+            ),
             getString(R.string.status_serial, s.serial ?: "-"),
             getString(R.string.status_master, s.masterMac ?: "-"),
             getString(R.string.status_frames, numbers.format(s.frameCount), numbers.format(s.frameSize)),
@@ -354,7 +377,12 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.network_tbox),
             getString(R.string.network_specific),
         ).forEachIndexed { i, label ->
-            modeGroup.addView(RadioButton(this).apply { id = i + 1; text = label })
+            modeGroup.addView(
+                RadioButton(this).apply {
+                    id = i + 1
+                    text = label
+                },
+            )
         }
         root.addView(modeGroup)
 
@@ -364,15 +392,16 @@ class MainActivity : AppCompatActivity() {
         ssidLayout = TextInputLayout(this).apply {
             hint = getString(R.string.ssid_label)
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) }
             addView(ssidEdit)
         }
         root.addView(ssidLayout)
         root.addView(
             note(
-                getString(R.string.network_note)
-            )
+                getString(R.string.network_note),
+            ),
         )
 
         root.addView(header(getString(R.string.password_heading)))
@@ -385,20 +414,21 @@ class MainActivity : AppCompatActivity() {
                 hint = getString(R.string.password_label)
                 endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
                 addView(passEdit)
-            }
+            },
         )
         root.addView(note(getString(R.string.factory_password)))
 
         root.addView(header(getString(R.string.units_heading)))
-        fun segBtn(id: Int, label: String) =
-            MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
-                this.id = id
-                text = label
-            }
+        fun segBtn(id: Int, label: String) = MaterialButton(this, null, MR.attr.materialButtonOutlinedStyle).apply {
+            this.id = id
+            text = label
+        }
+
         // add a toggle group full-width, its buttons sharing the width equally
         fun addGroup(g: MaterialButtonToggleGroup, topPad: Int = 8) {
             g.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(topPad) }
             for (i in 0 until g.childCount) {
                 g.getChildAt(i).layoutParams =
@@ -416,7 +446,8 @@ class MainActivity : AppCompatActivity() {
         tempGroup = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(8) }
             addView(segBtn(1, getString(R.string.celsius)))
             addView(segBtn(2, getString(R.string.fahrenheit)))
@@ -433,8 +464,10 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(3, getString(R.string.text_xl)))
             check(
                 when (prefs.getString("text_size", "normal")) {
-                    "large" -> 2; "xl" -> 3; else -> 1
-                }
+                    "large" -> 2
+                    "xl" -> 3
+                    else -> 1
+                },
             )
         }
         addGroup(textGroup)
@@ -470,8 +503,8 @@ class MainActivity : AppCompatActivity() {
         addGroup(fishGroup)
         root.addView(
             note(
-                getString(R.string.style_note)
-            )
+                getString(R.string.style_note),
+            ),
         )
 
         root.addView(TextView(this).apply { text = getString(R.string.surface_clarity) })
@@ -496,8 +529,8 @@ class MainActivity : AppCompatActivity() {
         addGroup(noiseGroup)
         root.addView(
             note(
-                getString(R.string.filters_note)
-            )
+                getString(R.string.filters_note),
+            ),
         )
 
         root.addView(note(getString(R.string.numeric_input_note)))
@@ -509,15 +542,17 @@ class MainActivity : AppCompatActivity() {
             addView(segBtn(3, getString(R.string.beam_single)))
             check(
                 when (prefs.getString("beam", "20")) {
-                    "40" -> 2; "125" -> 3; else -> 1
-                }
+                    "40" -> 2
+                    "125" -> 3
+                    else -> 1
+                },
             )
         }
         addGroup(beamGroup)
         root.addView(
             note(
-                getString(R.string.beam_note)
-            )
+                getString(R.string.beam_note),
+            ),
         )
         rangeEdit = TextInputEditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
@@ -531,15 +566,16 @@ class MainActivity : AppCompatActivity() {
             TextInputLayout(this).apply {
                 hint = getString(R.string.range_hint, if (Units.feet) "ft" else "m")
                 layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = dp(8) }
                 addView(rangeEdit)
-            }
+            },
         )
         root.addView(
             note(
-                getString(R.string.range_note)
-            )
+                getString(R.string.range_note),
+            ),
         )
 
         val du = if (Units.feet) "ft" else "m"
@@ -555,10 +591,11 @@ class MainActivity : AppCompatActivity() {
             TextInputLayout(this).apply {
                 hint = getString(R.string.keel_hint, du)
                 layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = dp(8) }
                 addView(keelEdit)
-            }
+            },
         )
         tempOffEdit = TextInputEditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or
@@ -573,12 +610,12 @@ class MainActivity : AppCompatActivity() {
             TextInputLayout(this).apply {
                 hint = getString(R.string.temperature_hint, if (Units.fahrenheit) "F" else "C")
                 addView(tempOffEdit)
-            }
+            },
         )
         root.addView(
             note(
-                getString(R.string.offset_note)
-            )
+                getString(R.string.offset_note),
+            ),
         )
 
         root.addView(header(getString(R.string.alarm_heading)))
@@ -594,7 +631,7 @@ class MainActivity : AppCompatActivity() {
             TextInputLayout(this).apply {
                 hint = getString(R.string.alarm_hint, if (Units.feet) "ft" else "m")
                 addView(alarmEdit)
-            }
+            },
         )
         root.addView(note(getString(R.string.alarm_note)))
 
@@ -606,13 +643,13 @@ class MainActivity : AppCompatActivity() {
         root.addView(demoSwitch)
         root.addView(
             note(
-                getString(R.string.demo_note)
-            )
+                getString(R.string.demo_note),
+            ),
         )
         root.addView(
             note(
-                getString(R.string.settings_note)
-            )
+                getString(R.string.settings_note),
+            ),
         )
 
         root.addView(header(getString(R.string.updates_heading)))
@@ -642,11 +679,19 @@ class MainActivity : AppCompatActivity() {
             .putString("unit_temp", if (tempGroup.checkedButtonId == 2) "F" else "C")
             .putString(
                 "text_size",
-                when (textGroup.checkedButtonId) { 2 -> "large"; 3 -> "xl"; else -> "normal" }
+                when (textGroup.checkedButtonId) {
+                    2 -> "large"
+                    3 -> "xl"
+                    else -> "normal"
+                },
             )
             .putString(
                 "beam",
-                when (beamGroup.checkedButtonId) { 2 -> "40"; 3 -> "125"; else -> "20" }
+                when (beamGroup.checkedButtonId) {
+                    2 -> "40"
+                    3 -> "125"
+                    else -> "20"
+                },
             )
             .putFloat("dev_range_m", rangeM.toFloat())
             .putFloat("alarm_m", alarmM.toFloat())
@@ -655,14 +700,20 @@ class MainActivity : AppCompatActivity() {
             .putInt("noise_filter", (noiseGroup.checkedButtonId - 1).coerceIn(0, 3))
             .putInt("display_style", (styleGroup.checkedButtonId - 1).coerceIn(0, 1))
             .putInt("fish_markers", (fishGroup.checkedButtonId - 1).coerceIn(0, 2))
-            .putFloat("keel_offset_m", run {
-                val v = keelEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
-                (if (Units.feet) v * 0.3048 else v).toFloat()
-            })
-            .putFloat("temp_offset_c", run {
-                val v = tempOffEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
-                (if (Units.fahrenheit) v * 5 / 9 else v).toFloat()
-            })
+            .putFloat(
+                "keel_offset_m",
+                run {
+                    val v = keelEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
+                    (if (Units.feet) v * 0.3048 else v).toFloat()
+                },
+            )
+            .putFloat(
+                "temp_offset_c",
+                run {
+                    val v = tempOffEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
+                    (if (Units.fahrenheit) v * 5 / 9 else v).toFloat()
+                },
+            )
             .apply()
         Units.load(prefs)
     }
