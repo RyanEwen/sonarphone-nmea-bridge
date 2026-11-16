@@ -1,0 +1,20 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{js,mjs,cjs,ts,json,yml,yaml,css,md,html}]
+indent_size = 2
+
+# ESPHome C++ and the local mipi_rgb fork follow ESPHome's two-space style.
+[*.{cpp,h}]
+indent_size = 2
+
+[*.{kt,kts}]
+# Kotlin coding conventions, matching kotlin.code.style=official in gradle.properties.
+ktlint_code_style = intellij_idea

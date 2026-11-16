@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+# Binary files git should not diff or normalise.
+*.png binary
+*.jpg binary
+*.webp binary
+*.bin binary
+*.jar binary
+*.keystore binary

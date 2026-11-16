@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/android"
+    schedule:
+      interval: "weekly"
+    # AGP and Kotlin are held pins (AGENTS.md); they move in the scheduled upgrade pass (D-095), not here.
+    ignore:
+      - dependency-name: "com.android.application"
+      - dependency-name: "com.android.tools.build:gradle"
+      - dependency-name: "org.jetbrains.kotlin*"
+    groups:
+      all-deps:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      all-deps:
+        patterns:
+          - "*"

@@ -41,7 +41,8 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 - Keep shared protocol and state-machine behavior aligned between the Kotlin Android client and the ESPHome C++ component when a change applies to both.
 - Use Kotlin and coroutines for socket loops. Keep the core network path free of third-party networking dependencies.
 - `minSdk` is 29 and `compileSdk`/`targetSdk` are 36. Do not target API 37 without first adding the `ACCESS_LOCAL_NETWORK` declaration, runtime request, denial handling, and validation, because the app depends on local-network access.
-- Android Gradle Plugin 8.5.2, Kotlin 1.9.24 and build-tools 35.0.0 are pinned; the reason was not recorded. Review them at the next upgrade pass (D-095) rather than bumping them in passing.
+- Android Gradle Plugin 8.5.2 and Kotlin 1.9.24 are pinned; the reason was not recorded. Review them at the next upgrade pass (D-095) rather than bumping them in passing. Dependabot ignores both for the same reason.
+- Build-tools stays at 35.0.0 because the pinned static arm64 `aapt2` build only goes up to 35.0.2 (see `android/docker/Dockerfile`).
 - Use Material 3 views and `DynamicColors`, programmatic layouts, and the existing custom `Canvas` sonar view. Do not introduce Compose or XML layouts without an explicit architecture decision.
 - The foreground service type is `connectedDevice`.
 - ESPHome reads Wi-Fi settings from a git-ignored `esp32-client/secrets.yaml`; add any new key to `secrets.example.yaml` with a placeholder.
@@ -54,6 +55,7 @@ Android commands run in the `sonarbridge-builder` container described under **Bu
 | Command | Proves | Does not prove |
 | --- | --- | --- |
 | `docker exec sonarbridge-builder ./gradlew assembleGithubDebug` | The development APK compiles and packages | That it installs or connects to a T-Box |
+| `docker exec sonarbridge-builder ./gradlew spotlessCheck` | Kotlin sources and Gradle scripts match the ktlint format (`spotlessApply` rewrites them) | Behaviour |
 | `docker exec sonarbridge-builder ./gradlew testGithubDebugUnitTest` | The Robolectric unit tests pass | Device behaviour or the protocol path |
 | `python3 android/scripts/check-localization.py` | Every locale has the same string keys and placeholders | That the translations read well |
 | `node --test scripts/*.test.mjs` | The Play and release scripts behave as tested | That a real Play upload succeeds |

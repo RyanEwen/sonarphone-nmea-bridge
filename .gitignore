@@ -1,5 +1,40 @@
+# Stack template (Android / Gradle)
+.gradle/
+build/
+
+# Project rules
+# Windows "downloaded from the internet" markers created when files are copied in from Windows.
 *Zone.Identifier
+# Raw sonar frame logs pulled from the phone for protocol work.
 frames/
+# Local build output and evidence (for example the localization verification record's APKs).
 dist/
-# ESPHome secrets; see esp32-client/secrets.example.yaml
+# Writable home the builder container uses when the host UID has no passwd entry.
+android/.home/
+# ESPHome secrets; see esp32-client/secrets.example.yaml.
 esp32-client/secrets.yaml
+# Release signing environment and the Play service-account key (the keystore itself is covered below).
+android/keystore/release.env
+android/keystore/play-key.json
+
+# Shared block (HYG-6), from winui-app-kit build/shared.gitignore. Paste it unchanged as the last part
+# of every repo's .gitignore, so no earlier line can un-ignore what it covers. Change it in the kit.
+/.artifacts/
+/.windows-build/
+.secrets/
+.aws/
+.env
+.env.*
+!.env*.example
+tmp/
+.backups/
+*.pfx
+*.cer
+*.der
+*.keystore
+*.jks
+local.properties
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
