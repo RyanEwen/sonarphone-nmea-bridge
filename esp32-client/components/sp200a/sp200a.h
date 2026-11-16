@@ -4,7 +4,7 @@
 //
 // Protocol ported near-verbatim from the Android bridge's Sp200a.kt /
 // BridgeService.kt state machine; rendering ported from SonarView.kt.
-// See sp200a-nmea-bridge-spec.md in the parent repo for the byte-level spec.
+// See docs/protocol.md in the repository root for the byte-level spec.
 //
 // This is a *client only*: it joins the sonar AP, discovers the T-Box, streams
 // REDYFC frames, publishes depth/temp/battery as sensors, and draws the echo

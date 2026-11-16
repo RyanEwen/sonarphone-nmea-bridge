@@ -1,5 +1,8 @@
 # SP200A Bridge developer runbook
 
+Scope: building, installing, driving, validating and releasing the Android app.
+Governs: `android/`, `.github/workflows/`, `scripts/`.
+
 The GitHub-flavor debug APK can be built and driven entirely over ADB. Its
 package is `ca.dynamicsolutions.sonarbridge`. Run commands from the repository
 root unless a section says otherwise.
@@ -30,6 +33,7 @@ if [ "$(uname -m)" = aarch64 ]; then
     > android/.gradle/gradle.properties
 fi
 docker run -d --name sonarbridge-builder --restart unless-stopped \
+  --memory 5g --memory-swap 5g \
   -u "$(id -u):$(id -g)" \
   -e GRADLE_USER_HOME=/project/.gradle \
   -e JAVA_TOOL_OPTIONS=-Duser.home=/tmp \
@@ -37,6 +41,8 @@ docker run -d --name sonarbridge-builder --restart unless-stopped \
   -v "$PWD/android:/project" -w /project \
   sonarbridge-build sleep infinity
 ```
+
+The memory cap keeps a runaway build from exhausting the host: the Gradle daemon is limited to 2 GiB by `android/gradle.properties`, which leaves room for the Kotlin daemon and workers inside 5 GiB. Apply the same cap to an existing builder with `docker update --memory 5g --memory-swap 5g sonarbridge-builder`.
 
 The writable Java and Android homes are required when the host numeric UID has
 no passwd entry in the builder image; otherwise AGP tries to create `/.android`.
@@ -122,7 +128,7 @@ reappear repeatedly.
 
 ### Emulator for demo mode and UI work
 
-The shared local Android emulator (see [its README](../../android-vm/README.md)) can run the app with the `demo` extra (`-e demo true`) and is suitable for UI work. Point `adb` at it from WSL or from a container on the emulator's Docker network, using the shared adb key described in that README, then use the commands above unchanged. Real bridge testing still needs a physical phone, because the emulator cannot join a SonarPhone T-Box Wi-Fi network.
+An Android emulator can run the app with the `demo` extra (`-e demo true`) and is suitable for UI work; point `adb` at it and use the commands above unchanged. Real bridge testing still needs a physical phone, because an emulator cannot join a SonarPhone T-Box Wi-Fi network.
 
 ## Watch it work
 

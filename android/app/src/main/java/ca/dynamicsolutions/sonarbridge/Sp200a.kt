@@ -3,7 +3,7 @@ package ca.dynamicsolutions.sonarbridge
 import java.util.Locale
 
 /**
- * SP200A T-Box UDP protocol (see sp200a-nmea-bridge-spec.md).
+ * SP200A T-Box UDP protocol (see docs/protocol.md).
  * Offsets verified against SP200AProtocol_20221223.pdf and SonarPhone_V1.00.ino.
  */
 object Sp200a {

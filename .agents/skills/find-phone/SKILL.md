@@ -5,7 +5,7 @@ description: Connect the Android test phone over wireless ADB with this reposito
 
 # Connect the Android test phone
 
-Get an authorized ADB connection to the test phone, following **Connect the phone** in `android/README-dev.md`.
+Get an authorized ADB connection to the test phone, following **Connect the phone** in `docs/development.md`.
 
 1. Check `adb devices` and reuse an authorized connection if one is present.
 2. Run `python3 scripts/find-phone.py`. It reuses a saved endpoint and discovers the rotating port; pass the phone's IP when there is no usable saved endpoint.

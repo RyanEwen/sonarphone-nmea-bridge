@@ -2,7 +2,7 @@
 # JVM/Gradle/Kotlin run native. On amd64, AGP resolves Google's aapt2 from Maven
 # itself. On arm64, Google ships no linux aapt2, so a static build from
 # lzhiyong/android-sdk-tools (pinned) is installed and wired in via
-# android.aapt2FromMavenOverride (see android/README-dev.md).
+# android.aapt2FromMavenOverride (see docs/development.md).
 FROM eclipse-temurin:17-jdk-jammy
 
 # Set automatically by BuildKit to the architecture being built (amd64, arm64).

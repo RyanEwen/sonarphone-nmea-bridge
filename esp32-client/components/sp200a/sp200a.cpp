@@ -31,7 +31,7 @@ namespace sp200a {
 
 static const char *const TAG = "sp200a";
 
-// ---- protocol constants (see sp200a-nmea-bridge-spec.md) ----
+// ---- protocol constants (see docs/protocol.md) ----
 static constexpr int SAMPLES = SP200AClient::SAMPLES_N;
 static constexpr double SAMPLES_PER_M = 9.475;
 

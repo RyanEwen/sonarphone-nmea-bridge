@@ -1,4 +1,7 @@
-# SP200A → NMEA 0183 Bridge — Reference Spec
+# SP200A to NMEA 0183 bridge: reference spec
+
+Scope: the byte-level SP200A T-Box protocol and the NMEA 0183 output, shared by both clients.
+Governs: `android/app/src/main/java/ca/dynamicsolutions/sonarbridge/Sp200a.kt`, `Nmea.kt`, `esp32-client/components/sp200a/`.
 
 Target: feed depth + water temperature from a Vexilar SonarPhone SP200A into the
 Garmin Navionics Boating app (Android) via NMEA 0183, phone-only, with internet

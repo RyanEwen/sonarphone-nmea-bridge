@@ -1,29 +1,45 @@
-# SonarBridge
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/icon.png" alt="SonarBridge" width="128">
+</p>
 
-**Give your Vexilar SonarPhone SP200A a second life.**
-
-Garmin dropped SonarPhone support from the Navionics Boating app, and Vexilar's own app has not aged well, leaving perfectly good T-Box sonars with nowhere to go. SonarBridge turns your Android phone into both the fish finder *and* the missing link to Navionics: it connects directly to the SonarPhone's WiFi, shows a modern sonar display, and feeds live depth into the Navionics app, all on one phone, without giving up your internet connection.
+<h1 align="center">SonarBridge</h1>
 
 <p align="center">
-  <img src="docs/sonar-view.png" alt="Sonar view: fish-finder waterfall with fish markers, bottom, and depth scale" width="260">
-  <img src="docs/status-view.png" alt="Status view: live depth, temperature, battery and connection state" width="260">
-  <img src="docs/settings-view.png" alt="Settings: network, units, and sonar display controls" width="260">
+  Turn your Vexilar SonarPhone into a modern fish finder and depth source.
 </p>
-<p align="center"><em>Sonar view · Status · Settings (shown in demo mode)</em></p>
 
-## What it does
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get SonarBridge on Google Play" height="80">
+  </a>
+  <a href="https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.6">
+    <img src="https://img.shields.io/badge/GitHub-Download%20the%20APK-181717?style=for-the-badge&amp;logo=github" alt="Download the SonarBridge APK from GitHub" height="56">
+  </a>
+</p>
 
-- **A proper fish-finder view.** Scrolling waterfall with fish echoes, a crisp bottom line, and bottom hardness shown the intuitive way: a dense blazing band over rock, a thin faint one over mud. Auto-ranging that doesn't jump around, manual range override, and a live A-scope strip.
-- **Feeds Navionics on the same phone.** Pair the Garmin Navionics Boating app to `127.0.0.1` port `10110` (TCP) and it shows live depth, and can build SonarChart™ Live personal contour maps as you drive.
-- **Keeps your internet.** The sonar's WiFi is joined as a local-only connection, so your phone stays on cellular for charts, weather, and everything else.
-- **Made for the water.** Big readouts with adjustable text size, screen stays on while open, a shallow-water alarm, feet or meters, and it reconnects by itself if the sonar drops out.
-- **Try it on the couch.** Demo mode generates realistic sonar data so you can explore the display and test the Navionics pairing with no hardware.
-- **Use your language.** Follow your phone or choose English (United States or Canada), Spanish, French (France or Canada), German, Simplified Chinese, Brazilian Portuguese or Japanese in Settings. Your sonar connection continues when you change languages.
-- **Choose your downloads.** GitHub and Google Play offer the same app. Install APK updates manually from GitHub, or use Google Play for updates.
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_sonar.png" alt="Sonar view: fish-finder waterfall with fish markers, bottom, and depth scale" width="250">
+  &nbsp;
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_status.png" alt="Status view: live depth, temperature, battery and connection state" width="250">
+  &nbsp;
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_settings.png" alt="Settings: network, units, and sonar display controls" width="250">
+</p>
+
+Garmin dropped SonarPhone support from the Navionics Boating app, and Vexilar's own app has not aged well, leaving perfectly good T-Box sonars with nowhere to go. SonarBridge turns your Android phone into both the fish finder *and* the missing link to Navionics: it connects directly to the SonarPhone's WiFi, shows a modern sonar display, and feeds live depth into the Navionics app, all on one phone, without giving up your internet connection. Give your SP200A a second life.
+
+## Features
+
+- **A proper fish-finder view:** Scrolling waterfall with fish echoes, a crisp bottom line, and bottom hardness shown the intuitive way: a dense blazing band over rock, a thin faint one over mud. Auto-ranging that doesn't jump around, manual range override, and a live A-scope strip.
+- **Feeds Navionics on the same phone:** Pair the Garmin Navionics Boating app to `127.0.0.1` port `10110` (TCP) and it shows live depth, and can build SonarChart™ Live personal contour maps as you drive.
+- **Keeps your internet:** The sonar's WiFi is joined as a local-only connection, so your phone stays on cellular for charts, weather, and everything else.
+- **Made for the water:** Big readouts with adjustable text size, screen stays on while open, a shallow-water alarm, feet or meters, and it reconnects by itself if the sonar drops out.
+- **Try it on the couch:** Demo mode generates realistic sonar data so you can explore the display and test the Navionics pairing with no hardware.
+- **Use your language:** Follow your phone or choose English (United States or Canada), Spanish, French (France or Canada), German, Simplified Chinese, Brazilian Portuguese or Japanese in Settings. Your sonar connection continues when you change languages.
+- **Choose your downloads:** GitHub and Google Play offer the same app. Install APK updates manually from GitHub, or use Google Play for updates.
 
 ## Get it
 
-Download the APK from [GitHub](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.6) or install from [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge) where available. GitHub APKs named `sonarbridge-X.Y.Z-play.apk` are generated and signed by Google Play. You do not need to use the Play Store to install them; you may need to allow installs from your browser.
+Install from Google Play, or download the APK from GitHub Releases using the badges above. GitHub APKs named `sonarbridge-X.Y.Z-play.apk` are generated and signed by Google Play. You do not need to use the Play Store to install them; you may need to allow installs from your browser.
 
 **Moving from an older GitHub APK:** first install the [final legacy migration update (v0.2.4)](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.4) when offered, then follow the [migration guide](docs/android-migration-release-notes.md). The new APK cannot replace an older GitHub installation directly. Record your settings and save any raw frame logs first, then disconnect, uninstall and reinstall once. Re-enter settings and grant permissions afterward. Wait for a `-play.apk` before uninstalling. Future GitHub APKs update the new app normally.
 
@@ -41,7 +57,7 @@ If the T-Box was factory reset, run Vexilar's official app once first so the uni
 
 **Verified working on the water with a real SP200A T-Box** (July 2026): live depth and temperature into both the app's sonar view and Navionics, with automatic reconnects, through a full on-water session. If something looks off with your unit, open an issue with a log.
 
-## Bonus: a standalone head unit
+## Standalone head unit
 
 <p align="center">
   <img src="esp32-client/docs/head-unit.jpg" alt="ESP32 head unit in a 3D-printed case showing the sonar waterfall in demo mode" width="560">
@@ -60,4 +76,10 @@ Build, flash, and design notes live in the [esp32-client README](esp32-client/RE
 
 ## Developers
 
-Protocol notes live in [sp200a-nmea-bridge-spec.md](sp200a-nmea-bridge-spec.md) (byte-level SP200A protocol, verified against Jim McKeown's [SP200A-Client](https://github.com/jim-mckeown/SP200A-Client) work), and the build/deploy/release workflow is in [android/README-dev.md](android/README-dev.md).
+- [Development guide](docs/development.md): build, install, drive over ADB, validate, and release the Android app.
+- [Protocol](docs/protocol.md): the byte-level SP200A protocol, verified against Jim McKeown's [SP200A-Client](https://github.com/jim-mckeown/SP200A-Client) work.
+- [ESP32 head unit](esp32-client/README.md): build, flash, and design notes.
+
+## License
+
+SonarBridge is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). Copyright (c) 2026 Dynamic Solutions.

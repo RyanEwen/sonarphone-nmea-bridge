@@ -5,7 +5,7 @@ description: Build the SonarBridge GitHub-flavor Android debug APK in the reposi
 
 # Build the Android debug APK
 
-Read the **Build** section of `android/README-dev.md` and follow it from the
+Read the **Build** section of `docs/development.md` and follow it from the
 repository root.
 
 - Use the environment's configured container CLI when one is available.

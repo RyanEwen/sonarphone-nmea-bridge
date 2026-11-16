@@ -8,7 +8,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 
 ## Architecture
 
-`sp200a-nmea-bridge-spec.md` is the byte-level protocol source of truth for both clients.
+`docs/protocol.md` is the byte-level protocol source of truth for both clients. A protocol change updates it in the same commit as the code.
 
 | Area | Files |
 | --- | --- |
@@ -49,7 +49,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 
 ## Commands
 
-Android commands run in the `sonarbridge-builder` container described under **Build** in `android/README-dev.md`.
+Android commands run in the `sonarbridge-builder` container described under **Build** in `docs/development.md`.
 
 | Command | Proves | Does not prove |
 | --- | --- | --- |
@@ -58,21 +58,21 @@ Android commands run in the `sonarbridge-builder` container described under **Bu
 | `python3 android/scripts/check-localization.py` | Every locale has the same string keys and placeholders | That the translations read well |
 | `node --test scripts/*.test.mjs` | The Play and release scripts behave as tested | That a real Play upload succeeds |
 
-Test protocol or lifecycle changes on a phone against the relevant state transitions: `WIFI_WAIT`, `DISCOVER`, `RUN`, silence recovery, and reconnect after an AP power cycle. The validation checklist in `android/README-dev.md` lists what to observe.
+Test protocol or lifecycle changes on a phone against the relevant state transitions: `WIFI_WAIT`, `DISCOVER`, `RUN`, silence recovery, and reconnect after an AP power cycle. The validation checklist in `docs/development.md` lists what to observe.
 
 ## Release
 
-Pushing a `vX.Y.Z` tag runs `release.yml`, which uploads the Play bundle to the internal testing track, waits for Google's signed universal APK, and attaches it to a GitHub release. Promotion to production is a separate `play-publish` run. The rollout order and the repository variables it depends on are under **Releases & updates** in `android/README-dev.md`.
+Pushing a `vX.Y.Z` tag runs `release.yml`, which uploads the Play bundle to the internal testing track, waits for Google's signed universal APK, and attaches it to a GitHub release. Promotion to production is a separate `play-publish` run. The rollout order and the repository variables it depends on are under **Releases & updates** in `docs/development.md`.
 
 ## Guidance map
 
 | Guide, doc, or skill | Read or use when | Governs |
 | --- | --- | --- |
-| `sp200a-nmea-bridge-spec.md` | Any protocol, parsing or checksum change | `Sp200a.kt`, `esp32-client/components/sp200a/` |
-| `android/README-dev.md` | Building, installing, driving, validating or releasing the Android app | `android/`, `.github/workflows/`, `scripts/` |
-| `android/docs/localization.md` | Adding or changing interface text or languages | `android/app/src/main/res/values*/`, `AppLanguage.kt` |
+| `docs/protocol.md` | Any protocol, parsing or checksum change | `Sp200a.kt`, `esp32-client/components/sp200a/` |
+| `docs/development.md` | Building, installing, driving, validating or releasing the Android app | `android/`, `.github/workflows/`, `scripts/` |
+| `docs/localization.md` | Adding or changing interface text or languages | `android/app/src/main/res/values*/`, `AppLanguage.kt` |
 | `esp32-client/README.md` | Any ESP32 component, display or config change | `esp32-client/` |
-| `docs/PLAY_LISTING.md` | Changing store listing text or graphics | `fastlane/`, `docs/store/` |
+| `docs/PLAY_LISTING.md` | Changing store listing text or graphics | `fastlane/` |
 | `build-android` skill | Building the development APK | Android builds |
 | `deploy-android` skill | Installing the development APK on the test phone | ADB installs |
 | `drive-android` skill | Starting, stopping or observing the bridge service over ADB | ADB testing |
@@ -84,8 +84,8 @@ Pushing a `vX.Y.Z` tag runs `release.yml`, which uploads the Play bundle to the 
 | What changed | Update |
 | --- | --- |
 | A Kotlin file, component or script added, moved or removed | The Architecture table above |
-| Protocol fields, offsets, or checksum behaviour | `sp200a-nmea-bridge-spec.md`, then both clients |
-| Build, install, drive or release procedure | `android/README-dev.md` and the matching skill |
-| Interface text or supported languages | `android/docs/localization.md`, every `values*/strings.xml` |
+| Protocol fields, offsets, or checksum behaviour | `docs/protocol.md`, then both clients |
+| Build, install, drive or release procedure | `docs/development.md` and the matching skill |
+| Interface text or supported languages | `docs/localization.md`, every `values*/strings.xml` |
 | User-visible features | `README.md` |
 | ESP32 options, secrets keys, or hardware caveats | `esp32-client/README.md`, `esp32-client/secrets.example.yaml` |

@@ -5,11 +5,11 @@ description: Start, stop, observe, or inspect the installed SonarBridge service 
 
 # Drive the Android bridge
 
-Read the **Drive and observe** section of `android/README-dev.md` and use the
+Read the **Drive and observe** section of `docs/development.md` and use the
 specific command needed for the request.
 
 - Confirm an authorized device is connected before issuing ADB commands.
-- The shared emulator also works for demo mode and UI work; see "Emulator for demo mode and UI work" in the README. Real bridge testing needs a physical phone.
+- An emulator also works for demo mode and UI work; see "Emulator for demo mode and UI work" in the README. Real bridge testing needs a physical phone.
 - The app package is `ca.dynamicsolutions.sonarbridge`.
 - Starting without extras selects a `SonarPhone_` SSID prefix and password
   `12345678`. Preserve user-supplied `ssid`, `pattern`, `pass`, `lograw`, `udp`,

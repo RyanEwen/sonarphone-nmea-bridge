@@ -6,14 +6,14 @@ description: Build and install the SonarBridge GitHub debug APK on the Android t
 # Deploy the Android debug APK
 
 Read the **Build**, **Connect the phone**, and **Install** sections of
-`android/README-dev.md`, then complete them in that order.
+`docs/development.md`, then complete them in that order.
 
 - Finish and verify the build before installing; do not leave it running in the
   background while deployment continues.
 - Use `scripts/find-phone.py` if no authorized device appears in `adb devices`.
   If the script has no saved working endpoint, ask the user for the phone IP
   shown on Android's Wireless debugging screen.
-- For demo mode or UI work the shared emulator can be the install target; see "Emulator for demo mode and UI work" in `android/README-dev.md`.
+- For demo mode or UI work an emulator can be the install target; see "Emulator for demo mode and UI work" in `docs/development.md`.
 - Install
   `android/app/build/outputs/apk/github/debug/app-github-debug.apk` with
   `adb install -r`.
