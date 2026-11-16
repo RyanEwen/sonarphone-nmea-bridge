@@ -74,6 +74,10 @@ The [`esp32-client/`](esp32-client/) folder turns a ~$20 ESP32-S3 touchscreen (G
 
 Build, flash, and design notes live in the [esp32-client README](esp32-client/README.md).
 
+## Privacy
+
+SonarBridge collects no telemetry, analytics or crash reports, and has no accounts: sonar data stays on your phone, and the NMEA feed goes only to apps on the same phone. Android's own backup keeps your settings, except the sonar's Wi-Fi password. Read the [privacy policy](https://ryanewen.github.io/sonarphone-nmea-bridge/privacy.html).
+
 ## Developers
 
 - [Development guide](docs/development.md): build, install, drive over ADB, validate, and release the Android app.

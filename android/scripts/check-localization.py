@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Validate Android catalog parity, printf arguments and declared language coverage."""
+import json
 from pathlib import Path
 from collections import Counter
 import re
@@ -50,4 +51,11 @@ for path in (ROOT / "app/src/main").rglob("*.xml"):
     references.update(re.findall(r"@string/([a-z_]+)", path.read_text()))
 assert references <= source.keys(), f"Missing source strings: {references - source.keys()}"
 assert source.keys() <= references, f"Unused source strings: {source.keys() - references}"
+# The About tagline is the store tagline (BRAND-8): it must equal the Play short description per catalog.
+listing = json.loads((ROOT.parent / "store-assets/play/listings.json").read_text(encoding="utf-8"))["locales"]
+catalog_identity = {"values": "en-US", "values-es": "es-ES", "values-fr": "fr-FR", "values-de": "de-DE",
+                    "values-b+zh+Hans": "zh-CN", "values-pt": "pt-BR", "values-ja": "ja-JP"}
+for folder, identity in catalog_identity.items():
+    tagline = catalog(RES / folder / "strings.xml")["about_tagline"].strip('"')
+    assert tagline == listing[identity]["shortDescription"], f"about_tagline differs from the Play short description: {folder}"
 print(f"PASS: {len(source)} strings in {len(folders)} catalogs; nine locale identities (Canadian ones by fallback); key and placeholder parity")

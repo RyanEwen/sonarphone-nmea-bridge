@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and higher: cloud backup and device transfer both keep every setting
+     except the T-Box passphrase (SonarPassphrase), which the user re-enters. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="credentials.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="credentials.xml" />
+    </device-transfer>
+</data-extraction-rules>

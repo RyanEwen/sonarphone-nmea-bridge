@@ -12,8 +12,13 @@
     <!-- Play-sensitive permissions (self-update, direct battery-opt request)
          live in the `github` flavor manifest only. -->
 
+    <!-- Backup stays on so settings restore after a reinstall or on a new phone; the
+         rules exclude the T-Box passphrase file (SEC-2). -->
     <application
         android:name=".App"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="@string/app_name"
         android:localeConfig="@xml/locales_config"
         android:icon="@mipmap/ic_launcher"
@@ -28,6 +33,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false" />
 
         <!-- exported=false by default (Play-safe); the github flavor overrides
              it to true so the dev build can be driven from adb. -->

@@ -275,7 +275,7 @@ class MainActivity : AppCompatActivity() {
                 val pattern = MODE_PATTERNS[prefs.getInt("mode", 0)]
                 val intent = Intent(this, BridgeService::class.java)
                     .setAction(BridgeService.ACTION_START)
-                    .putExtra("pass", prefs.getString("pass", "12345678"))
+                    .putExtra("pass", SonarPassphrase.get(this@MainActivity))
                     .putExtra("demo", prefs.getBoolean("demo", false).toString())
                 if (pattern != null) {
                     intent.putExtra("pattern", pattern)
@@ -407,7 +407,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(header(getString(R.string.password_heading)))
         passEdit = TextInputEditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setText(prefs.getString("pass", "12345678"))
+            setText(SonarPassphrase.get(this@MainActivity))
         }
         root.addView(
             TextInputLayout(this).apply {
@@ -652,8 +652,13 @@ class MainActivity : AppCompatActivity() {
             ),
         )
 
-        root.addView(header(getString(R.string.updates_heading)))
-        root.addView(AndroidDownloads.buildGuidanceView(this, migration = !BuildConfig.IS_PLAY))
+        // Last row of Settings (BRAND-8): name, version, updates and links live on the About screen.
+        root.addView(ListRow.heading(this, getString(R.string.about_heading)))
+        root.addView(
+            ListRow.create(this, getString(R.string.about_version, BuildConfig.VERSION_NAME)) {
+                startActivity(Intent(this, AboutActivity::class.java))
+            },
+        )
 
         val mode = prefs.getInt("mode", 0)
         modeGroup.check(mode + 1)
@@ -670,10 +675,10 @@ class MainActivity : AppCompatActivity() {
         val alarmM = if (Units.feet) alarmDisp * 0.3048 else alarmDisp
         val rangeDisp = rangeEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
         val rangeM = (if (Units.feet) rangeDisp * 0.3048 else rangeDisp).coerceIn(0.0, 73.0)
+        SonarPassphrase.set(this, passEdit.text?.toString() ?: "")
         prefs.edit()
             .putInt("mode", (modeGroup.checkedRadioButtonId - 1).coerceIn(0, 2))
             .putString("ssid", ssidEdit.text?.toString() ?: "")
-            .putString("pass", passEdit.text?.toString() ?: "")
             .putBoolean("demo", demoSwitch.isChecked)
             .putString("unit_dist", if (distGroup.checkedButtonId == 2) "m" else "ft")
             .putString("unit_temp", if (tempGroup.checkedButtonId == 2) "F" else "C")

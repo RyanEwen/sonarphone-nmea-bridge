@@ -77,7 +77,16 @@
     <string name="later">"Mais tarde"</string>
     <string name="download_github">"Baixar pelo GitHub"</string>
     <string name="download_play">"Baixar no Google Play"</string>
-    <string name="download_no_handler">"Nenhum app pode abrir esta página de download"</string>
+    <string name="link_no_handler">"Nenhum app pode abrir este link"</string>
+    <string name="about_heading">"Sobre"</string>
+    <string name="about_version">"Versão %1$s"</string>
+    <string name="about_links">"Links"</string>
+    <string name="about_source_code">"Código-fonte"</string>
+    <string name="about_privacy_policy">"Política de privacidade"</string>
+    <string name="about_support">"Suporte"</string>
+    <string name="about_license">"Licença"</string>
+    <string name="about_third_party_notices">"Avisos de terceiros"</string>
+    <string name="about_tagline">"Sonar moderno e dados de profundidade para seu Vexilar SonarPhone SP200A."</string>
     <string name="download_guidance">"Versão %1$s. GitHub e Google Play oferecem o mesmo app. Baixe os futuros APKs manualmente pelo GitHub ou use o Google Play para atualizar. O app não baixa atualizações de APK por conta própria."</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"Idioma do app"</string>

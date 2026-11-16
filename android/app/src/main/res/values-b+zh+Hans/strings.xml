@@ -77,7 +77,16 @@
     <string name="later">"稍后"</string>
     <string name="download_github">"从 GitHub 下载"</string>
     <string name="download_play">"从 Google Play 获取"</string>
-    <string name="download_no_handler">"没有应用可以打开此下载页面"</string>
+    <string name="link_no_handler">"没有应用可以打开此链接"</string>
+    <string name="about_heading">"关于"</string>
+    <string name="about_version">"版本 %1$s"</string>
+    <string name="about_links">"链接"</string>
+    <string name="about_source_code">"源代码"</string>
+    <string name="about_privacy_policy">"隐私策略"</string>
+    <string name="about_support">"支持"</string>
+    <string name="about_license">"许可证"</string>
+    <string name="about_third_party_notices">"第三方声明"</string>
+    <string name="about_tagline">"将 Vexilar SonarPhone SP200A 变成现代探鱼器和深度数据源。"</string>
     <string name="download_guidance">"版本 %1$s。GitHub 和 Google Play 提供同一个应用。今后请从 GitHub 手动下载 APK，或通过 Google Play 更新。应用本身不会下载 APK 更新。"</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"应用语言"</string>

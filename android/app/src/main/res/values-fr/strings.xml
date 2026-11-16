@@ -77,7 +77,16 @@
     <string name="later">"Plus tard"</string>
     <string name="download_github">"Télécharger depuis GitHub"</string>
     <string name="download_play">"Obtenir sur Google Play"</string>
-    <string name="download_no_handler">"Aucune application ne peut ouvrir cette page de téléchargement"</string>
+    <string name="link_no_handler">"Aucune application ne peut ouvrir ce lien"</string>
+    <string name="about_heading">"À propos"</string>
+    <string name="about_version">"Version %1$s"</string>
+    <string name="about_links">"Liens"</string>
+    <string name="about_source_code">"Code source"</string>
+    <string name="about_privacy_policy">"Politique de confidentialité"</string>
+    <string name="about_support">"Assistance"</string>
+    <string name="about_license">"Licence"</string>
+    <string name="about_third_party_notices">"Mentions tierces"</string>
+    <string name="about_tagline">"Un sonar moderne et les données de profondeur de votre SonarPhone SP200A."</string>
     <string name="download_guidance">"Version %1$s. GitHub et Google Play proposent la même application. Téléchargez les futurs APK manuellement depuis GitHub ou utilisez Google Play pour les mises à jour. L’application ne télécharge pas elle-même les mises à jour APK."</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"Langue de l’application"</string>

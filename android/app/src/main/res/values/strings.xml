@@ -76,7 +76,16 @@
     <string name="later">"Later"</string>
     <string name="download_github">"Download from GitHub"</string>
     <string name="download_play">"Get it on Google Play"</string>
-    <string name="download_no_handler">"No app can open this download page"</string>
+    <string name="link_no_handler">"No app can open this link"</string>
+    <string name="about_heading">"About"</string>
+    <string name="about_version">"Version %1$s"</string>
+    <string name="about_links">"Links"</string>
+    <string name="about_source_code">"Source code"</string>
+    <string name="about_privacy_policy">"Privacy policy"</string>
+    <string name="about_support">"Support"</string>
+    <string name="about_license">"License"</string>
+    <string name="about_third_party_notices">"Third-party notices"</string>
+    <string name="about_tagline">"Turn your Vexilar SonarPhone into a modern fish finder and depth source."</string>
     <string name="download_guidance">"Version %1$s. GitHub and Google Play offer the same app. Download future APKs manually from GitHub, or use Google Play for updates. The app does not download APK updates itself."</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"App language"</string>

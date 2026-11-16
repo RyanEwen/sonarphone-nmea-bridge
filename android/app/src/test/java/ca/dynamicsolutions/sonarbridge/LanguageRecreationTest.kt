@@ -41,8 +41,8 @@ class LanguageRecreationTest {
     @Before
     fun reset() {
         RuntimeEnvironment.setQualifiers("en-rUS")
-        prefs.edit().clear().putFloat("keel_offset_m", 2f).putFloat("alarm_m", 4f)
-            .putString("pass", "saved-password").apply()
+        prefs.edit().clear().putFloat("keel_offset_m", 2f).putFloat("alarm_m", 4f).apply()
+        SonarPassphrase.set(app, "saved-password")
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
         if (Build.VERSION.SDK_INT >= 33) {
             app.getSystemService(LocaleManager::class.java).applicationLocales = LocaleList.getEmptyLocaleList()
@@ -108,7 +108,7 @@ class LanguageRecreationTest {
             select(activity, 0)
             field(activity, "passEdit").setText("ordinary-save")
             controller.pause()
-            assertEquals("ordinary-save", prefs.getString("pass", null))
+            assertEquals("ordinary-save", SonarPassphrase.get(app))
         } finally {
             controller.stop().destroy()
         }
@@ -143,7 +143,7 @@ class LanguageRecreationTest {
 
                 field(activity, "passEdit").setText("saved-with-$index")
                 controller.pause()
-                assertEquals("saved-with-$index", prefs.getString("pass", null))
+                assertEquals("saved-with-$index", SonarPassphrase.get(app))
                 controller.resume()
             }
             assertNull(shadowOf(app).nextStartedService)

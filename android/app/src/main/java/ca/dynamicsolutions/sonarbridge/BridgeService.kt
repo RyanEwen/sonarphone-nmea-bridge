@@ -111,7 +111,7 @@ class BridgeService : Service() {
         } else {
             intent?.getStringExtra("pattern") ?: prefs.getString("pattern", "SonarPhone_")!!
         }
-        val pass = intent?.getStringExtra("pass") ?: prefs.getString("pass", "12345678")!!
+        val pass = intent?.getStringExtra("pass") ?: SonarPassphrase.get(this)
         val logRaw = intent?.getStringExtra("lograw") == "true"
         val demo = (
             intent?.getStringExtra("demo")

@@ -2,11 +2,8 @@ package ca.dynamicsolutions.sonarbridge
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.R as MR
@@ -14,8 +11,6 @@ import com.google.android.material.R as MR
 /** Download choices and migration guidance shared by the launch notice and Settings. */
 object AndroidDownloads {
     private const val NOTICE_SEEN = "play_migration_notice_seen"
-    private const val GITHUB_URL = "https://github.com/RyanEwen/sonarphone-nmea-bridge/releases"
-    private const val PLAY_URL = "https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge"
 
     /** Legacy release installations see this once; dismissing never changes sonar settings. */
     fun maybeShowMigrationNotice(activity: Activity) {
@@ -58,23 +53,17 @@ object AndroidDownloads {
                 }
             },
         )
-        addDownloadButton(activity, content, activity.getString(R.string.download_github), GITHUB_URL)
-        addDownloadButton(activity, content, activity.getString(R.string.download_play), PLAY_URL)
+        addDownloadButton(activity, content, activity.getString(R.string.download_github), AppLinks.RELEASES)
+        addDownloadButton(activity, content, activity.getString(R.string.download_play), AppLinks.PLAY)
         return content
     }
 
-    /** Open the user's chosen download page; handle devices without a URL handler. */
+    /** A button that opens the user's chosen download page. */
     private fun addDownloadButton(activity: Activity, parent: LinearLayout, label: String, url: String) {
         parent.addView(
             MaterialButton(activity, null, MR.attr.materialButtonOutlinedStyle).apply {
                 text = label
-                setOnClickListener {
-                    try {
-                        activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    } catch (_: android.content.ActivityNotFoundException) {
-                        Toast.makeText(activity, activity.getString(R.string.download_no_handler), Toast.LENGTH_LONG).show()
-                    }
-                }
+                setOnClickListener { AppLinks.open(activity, url) }
             },
         )
     }

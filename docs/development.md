@@ -186,6 +186,24 @@ legacy fallback.
    as a free Digital Yacht Sonar Server). Raw-sonar split view is NOT
    possible because Garmin removed third-party sonar rendering after v19.
 
+## Data the app keeps
+
+Everything is on the phone; there is no server and no account. Unconfirmed until a real uninstall has been checked on a device.
+
+| What | Where | Backed up | After uninstall |
+| --- | --- | --- | --- |
+| Settings (sonar network, units, ranges, offsets, alarm, display, demo; app language on Android 12 and lower) | App-private preferences file `cfg` | Yes, Android backup and device transfer | Removed with the app |
+| T-Box Wi-Fi passphrase | App-private preferences file `credentials` (`SonarPassphrase`) | No: excluded by `res/xml/backup_rules.xml` and `data_extraction_rules.xml` | Removed with the app |
+| App language on Android 13 and higher | Held by Android as the app's per-app language | By Android | Removed with the app |
+| Raw sonar frame logs (only when started with `-e lograw true`) | App-specific external storage (`Android/data/ca.dynamicsolutions.sonarbridge/files/`), or app-private storage if that is unavailable | No (not in the backup domain) | Removed with the app |
+| Notification channel | Android | No | Removed with the app |
+
+**Backup:** settings follow Android's own backup and device transfer, which the user controls in Android settings; the passphrase is re-entered after a restore (it is usually the T-Box factory default). There is no server data to back up.
+
+**Export:** there is no user data to export beyond the settings themselves and optional raw frame logs, which a developer pulls over ADB (see **Drive and observe**).
+
+**Deletion:** there is no account. Uninstalling the app, or clearing its storage in Android settings, deletes everything above; a copy in the user's Android backup is managed, and can be deleted, from their Google account's backups.
+
 ## Releases & updates
 
 The public APK on GitHub is the universal APK Google Play generates and signs; the app does not download or install updates itself. The full procedure is the `release` skill (`.agents/skills/release/SKILL.md`); in short:
