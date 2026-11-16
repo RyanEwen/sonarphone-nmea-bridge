@@ -13,12 +13,13 @@ The root `package.json` holds the entry points; `npm run validate` is the gate C
 
 | Command | Runs |
 | --- | --- |
-| `npm run validate` | `format:check`, `lint`, `test`, `check:l10n`, `check:release-notes` and `verify:android`, stopping at the first failure |
+| `npm run validate` | `format:check`, `lint`, `test`, `check:l10n`, `check:release-notes`, `check:listings` and `verify:android`, stopping at the first failure |
 | `npm run format` / `format:check` | Spotless (ktlint) on Kotlin sources and Gradle scripts: rewrite, or fail on a difference |
 | `npm run lint` | Android lint for both debug variants |
 | `npm run test` | Robolectric unit tests for both flavors, then `node --test` for `scripts/*.test.mjs` |
 | `npm run check:l10n` | `android/scripts/check-localization.py` |
 | `npm run check:release-notes` | Every file in `release-notes/` is named correctly, complete for every catalog, and within Play's 500-character limit |
+| `npm run check:listings` | `store-assets/play/listings.json` has every listing locale and fits Play's limits |
 | `npm run verify:android` | Debug builds of both flavors |
 | `npm run build:android` | The installable GitHub-flavor debug APK |
 | `npm run install:android` | Installs that APK on the connected device with `adb install -r` |
@@ -215,3 +216,22 @@ Build verification:
 npm run verify:android
 npm run package:android
 ```
+
+## Play Console access and app signing
+
+**API access** (set up 2026-07-30): Play Console has a linked Google Cloud project with a service account whose JSON key is the `PLAY_SERVICE_ACCOUNT_JSON` repository secret. If the key ever needs replacing: give the service account no Google Cloud IAM role (those govern Cloud resources, not Play); grant it app-level Console permissions instead (view app information, manage store presence, release to testing tracks, release to production). Grants take a few minutes to propagate. A missing grant shows as `403 PERMISSION_DENIED` on `edits.insert` while token minting still succeeds; a disabled Android Publisher API gives a different, explicit "has not been used in project" error.
+
+**Play app signing** has been on since the first upload (2026-07-18). Google holds the app-signing key; you hold only the upload key.
+
+| Key | Lives in | Signs |
+| --- | --- | --- |
+| App signing (Google's) | Google, not exportable | What users install, from Play and from GitHub |
+| Upload (yours) | `android/keystore/release.keystore` (git-ignored) and the write-only `ANDROID_KEYSTORE_BASE64` secret | Bundles sent to Play; also the final legacy APK, v0.2.4 |
+
+The upload key's alias is `sonarbridge` and its SHA-256 fingerprint is `D9:BE:CA:DD:57:3C:DE:44:24:C7:CC:92:A0:88:F7:A7:4F:EC:23:17:61:D3:14:D1:ED:A2:60:1C:C4:BE:F3:C9`. Keep a durable backup of `release.keystore` and `release.env`: the GitHub secret cannot be read back, and losing both means an upload-key reset request to Play support. Never use the upload-key fingerprint for `PLAY_SIGNING_CERTIFICATE_SHA256`; set that from the app-signing certificate in Play Console, or read it from an existing bundle with the Play Check workflow. Do not derive it from the APK being downloaded.
+
+**Distribution decision:** GitHub carries Google's signed universal APK rather than a second public build, so both channels share package, signer and versionCode, and a manual GitHub install can later update from either.
+
+**Play Integrity API: deliberately not enabled.** Its token must be verified on a server, and this app has no backend; client-side enforcement is removable by the attacker it targets, and there is nothing to protect (free, no accounts, no purchases). Enforcing Play licensing would also block the supported GitHub installs. Revisit only if the app gains a backend.
+
+**Automatic protection: available, deliberately skipped.** It prompts users who installed from an unofficial source to reinstall from Play, but the GitHub APK is an intended source, and the protection would ship inside that same artifact.

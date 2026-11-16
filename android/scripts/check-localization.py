@@ -25,7 +25,9 @@ def placeholders(text):
 
 
 source = catalog(RES / "values/strings.xml")
-folders = {"values", "values-en", "values-en-rCA", "values-es", "values-fr", "values-fr-rCA", "values-de", "values-b+zh+Hans", "values-pt", "values-ja"}
+# English and the Canadian identities have no folders of their own (D-068): Android treats the default
+# catalog as English during locale negotiation, and fr-CA falls back to values-fr. AppLanguageTest covers it.
+folders = {"values", "values-es", "values-fr", "values-de", "values-b+zh+Hans", "values-pt", "values-ja"}
 actual = {path.parent.name for path in RES.glob("values*/strings.xml")}
 assert actual == folders, f"Unexpected/missing catalogs: {actual ^ folders}"
 for folder in sorted(folders):
@@ -48,6 +50,4 @@ for path in (ROOT / "app/src/main").rglob("*.xml"):
     references.update(re.findall(r"@string/([a-z_]+)", path.read_text()))
 assert references <= source.keys(), f"Missing source strings: {references - source.keys()}"
 assert source.keys() <= references, f"Unused source strings: {source.keys() - references}"
-assert catalog(RES / "values-en-rCA/strings.xml") == source
-assert catalog(RES / "values-fr-rCA/strings.xml") == catalog(RES / "values-fr/strings.xml")
-print(f"PASS: {len(source)} strings in {len(folders)} catalogs; nine locale identities; key and placeholder parity")
+print(f"PASS: {len(source)} strings in {len(folders)} catalogs; nine locale identities (Canadian ones by fallback); key and placeholder parity")

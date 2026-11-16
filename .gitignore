@@ -11,8 +11,9 @@ frames/
 dist/
 # Writable home the builder container uses when the host UID has no passwd entry.
 android/.home/
-# Play "What's new" files, written by CI from release-notes/ (scripts/release-notes.mjs).
-fastlane/metadata/android/*/changelogs/
+# fastlane's Play metadata tree, generated in CI from store-assets/play/ and release-notes/
+# (scripts/play-metadata.mjs, scripts/release-notes.mjs).
+/fastlane/
 # ESPHome build output and firmware images; firmware is built on demand with your own secrets.yaml.
 esp32-client/.esphome/
 *.factory.bin

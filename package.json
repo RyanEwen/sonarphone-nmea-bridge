@@ -19,7 +19,8 @@
     "test:android": "scripts/gradle testGithubDebugUnitTest testPlayDebugUnitTest",
     "test:scripts": "node --test 'scripts/*.test.mjs'",
     "check:l10n": "python3 android/scripts/check-localization.py",
-    "validate": "npm run format:check && npm run lint && npm run test && npm run check:l10n && npm run check:release-notes && npm run verify:android",
-    "check:release-notes": "node scripts/release-notes.mjs check"
+    "validate": "npm run format:check && npm run lint && npm run test && npm run check:l10n && npm run check:release-notes && npm run check:listings && npm run verify:android",
+    "check:release-notes": "node scripts/release-notes.mjs check",
+    "check:listings": "node scripts/play-metadata.mjs check"
   }
 }

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/icon.png" alt="SonarBridge" width="128">
+  <img src="store-assets/play/icon.png" alt="SonarBridge" width="128">
 </p>
 
 <h1 align="center">SonarBridge</h1>
@@ -18,11 +18,11 @@
 </p>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_sonar.png" alt="Sonar view: fish-finder waterfall with fish markers, bottom, and depth scale" width="250">
+  <img src="store-assets/play/screenshots/phone/01-sonar.png" alt="Sonar view: fish-finder waterfall with fish markers, bottom, and depth scale" width="250">
   &nbsp;
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_status.png" alt="Status view: live depth, temperature, battery and connection state" width="250">
+  <img src="store-assets/play/screenshots/phone/03-status.png" alt="Status view: live depth, temperature, battery and connection state" width="250">
   &nbsp;
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_settings.png" alt="Settings: network, units, and sonar display controls" width="250">
+  <img src="store-assets/play/screenshots/phone/04-settings.png" alt="Settings: network, units, and sonar display controls" width="250">
 </p>
 
 Garmin dropped SonarPhone support from the Navionics Boating app, and Vexilar's own app has not aged well, leaving perfectly good T-Box sonars with nowhere to go. SonarBridge turns your Android phone into both the fish finder *and* the missing link to Navionics: it connects directly to the SonarPhone's WiFi, shows a modern sonar display, and feeds live depth into the Navionics app, all on one phone, without giving up your internet connection. Give your SP200A a second life.
@@ -60,7 +60,7 @@ If the T-Box was factory reset, run Vexilar's official app once first so the uni
 ## Standalone head unit
 
 <p align="center">
-  <img src="esp32-client/docs/head-unit.jpg" alt="ESP32 head unit in a 3D-printed case showing the sonar waterfall in demo mode" width="560">
+  <img src="store-assets/web/screenshots/head-unit.jpg" alt="ESP32 head unit in a 3D-printed case showing the sonar waterfall in demo mode" width="560">
 </p>
 <p align="center"><em>The head unit in a 3D-printed case, running in demo mode</em></p>
 

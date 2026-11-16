@@ -4,13 +4,14 @@ updates:
     directory: "/android"
     schedule:
       interval: "weekly"
-    # AGP and Kotlin are held pins (AGENTS.md), and the Gradle wrapper moves with AGP; all three move
-    # in the scheduled upgrade pass (D-095), not here.
+    # AGP and Kotlin are held pins (AGENTS.md); the Gradle wrapper and Material move with AGP (Material
+    # 1.14 needs a newer compileSdk/AGP). All four move in the scheduled upgrade pass (D-095), not here.
     ignore:
       - dependency-name: "com.android.application"
       - dependency-name: "com.android.tools.build:gradle"
       - dependency-name: "org.jetbrains.kotlin*"
       - dependency-name: "gradle-wrapper"
+      - dependency-name: "com.google.android.material:material"
     groups:
       all-deps:
         patterns:

@@ -137,11 +137,14 @@ jobs:
           bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v7
-        if: ${{ !inputs.listing_only }}
         with:
           node-version-file: .nvmrc
           # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
           package-manager-cache: false
+
+      # The listing source is store-assets/play/; fastlane's tree is generated, never committed (LIST-6).
+      - name: Generate the fastlane listing tree
+        run: node scripts/play-metadata.mjs build fastlane/metadata/android
 
       - name: Check Play versionCode before building
         if: ${{ !inputs.listing_only }}

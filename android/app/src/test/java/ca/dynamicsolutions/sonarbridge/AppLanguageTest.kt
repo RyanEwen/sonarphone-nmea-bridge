@@ -65,6 +65,10 @@ class AppLanguageTest {
         }
         assertEquals("Settings", wording("xx-YY,en-US,es-ES"))
         assertEquals("Paramètres", wording("xx-YY,fr-CA,en-US"))
+        // English and the Canadian identities have no catalogs of their own: the default catalog counts as
+        // English, and fr-CA falls back to French, even ahead of a supported second language.
+        assertEquals("Settings", wording("en-CA,es-ES"))
+        assertEquals("Paramètres", wording("fr-CA,es-ES"))
         assertEquals("Ajustes", wording("zh-Hant-TW,es-ES,en-US"))
         assertEquals("Settings", wording("zh-Hant-HK,en-US"))
         assertEquals("设置", wording("zh-Hans-TW,en-US"))
