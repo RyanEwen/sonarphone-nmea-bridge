@@ -1,37 +1,91 @@
-# SonarBridge repository guidance
+# SonarBridge: Agent Instructions
 
-## Project shape
+SonarBridge gives owners of a Vexilar SonarPhone SP200A (T-Box) a modern sonar display and feeds live NMEA 0183 depth and temperature to Garmin Navionics. It has two clients: the primary Android app, shipped on Google Play and as the Play-signed APK on GitHub Releases, and an ESPHome-based standalone display and NMEA bridge for an ESP32-8048S050 panel. It builds on no shared kits.
 
-SonarBridge supports a Vexilar SonarPhone SP200A through two clients:
+## Standards
 
-- `android/`: the primary Android app. It displays sonar data and sends NMEA 0183 depth and temperature to Garmin Navionics on the same phone.
-- `esp32-client/`: an ESPHome-based standalone display and NMEA bridge for an ESP32-8048S050 panel.
+This repo follows the shared standards at https://github.com/Dynamic-Solutions-Canada/app-standards. Read the index for this stack, https://github.com/Dynamic-Solutions-Canada/app-standards/blob/main/stacks/android.md, then the topic file for the area you are changing. If `external/standards/` exists, it is the same content pinned for offline use. Where this file differs from the standards, this file wins and says why.
 
-Read the source closest to the work before changing it:
+## Architecture
 
-- `sp200a-nmea-bridge-spec.md` is the byte-level protocol source of truth.
-- `android/README-dev.md` is the Android build, deployment, and validation runbook.
-- `esp32-client/README.md` documents the ESPHome component, local display-driver fork, performance constraints, and hardware caveats.
+`sp200a-nmea-bridge-spec.md` is the byte-level protocol source of truth for both clients.
 
-## Architecture invariants
+| Area | Files |
+| --- | --- |
+| T-Box protocol client | `android/app/src/main/java/ca/dynamicsolutions/sonarbridge/Sp200a.kt` |
+| Connection state machine and foreground service | `BridgeService.kt`, `BridgeState.kt` (same package) |
+| NMEA sentences and the local TCP server | `Nmea.kt`, `NmeaServer.kt` |
+| Tabs, dialogs and settings (Views in code) | `MainActivity.kt` |
+| Sonar waterfall (custom `Canvas` view) and its history | `SonarView.kt`, `EchoHistory.kt` |
+| Units, regional formats and status text | `Units.kt`, `RegionalFormat.kt`, `StatusText.kt` |
+| App language selection | `AppLanguage.kt`, `App.kt`; strings in `android/app/src/main/res/values*/strings.xml` |
+| GitHub and Play download links | `AndroidDownloads.kt` |
+| Flavor-only manifest entries | `android/app/src/github/AndroidManifest.xml` |
+| ESP32 sonar client, display and NMEA bridge | `esp32-client/components/sp200a/` |
+| ESP32 display driver (intentional local fork) | `esp32-client/components/mipi_rgb/` |
+| ESP32 device config and its secrets template | `esp32-client/sp200a-8048S050.yaml`, `esp32-client/secrets.example.yaml` |
+| Play publishing, release notes and versioning | `scripts/play-*.mjs`, `scripts/release-*.sh`, `.github/workflows/` |
+| Test phone discovery over wireless ADB | `scripts/find-phone.py` |
+
+## Behaviour
 
 - The Android app must keep the phone's normal internet route while connected to the T-Box access point. Use `WifiNetworkSpecifier` with `ConnectivityManager.requestNetwork()` and bind sonar UDP sockets to the returned local-only `Network`. Do not replace this with legacy `WifiManager` connection APIs or `WifiNetworkSuggestion`.
 - The Android NMEA server listens on `127.0.0.1:10110` over TCP. It emits `$SDDPT`, `$SDDBT`, and `$YXMTW`, including keepalive emissions no more than five seconds apart so Navionics does not clear an unchanged depth. This path is verified on the water.
+- Preserve the separate `github` and `play` product flavors. `github` is for development and the final legacy migration update. Public downloads from both GitHub and Google Play use Google's verified Play-flavor universal APK. Neither flavor downloads APK updates itself. Keep legacy-only battery permission and ADB service access out of the Play flavor.
+
+## Conventions and gotchas
+
 - Request metres from the T-Box and convert values as needed for `$SDDBT`.
 - T-Box authentication uses the master MAC returned by `REDYFX`, not the Android or ESP32 Wi-Fi MAC.
 - Parse `REDYFC` by its tag and fixed field offsets, never by total packet length. Preserve the additive 16-bit little-endian `FC` checksum behavior documented in the protocol specification.
 - Keep shared protocol and state-machine behavior aligned between the Kotlin Android client and the ESPHome C++ component when a change applies to both.
-
-## Android conventions
-
 - Use Kotlin and coroutines for socket loops. Keep the core network path free of third-party networking dependencies.
-- `minSdk` is 29 and `compileSdk`/`targetSdk` are 36. Do not target API 37 without first adding the `ACCESS_LOCAL_NETWORK` declaration, runtime request, denial handling, and validation for this local-network-dependent app.
+- `minSdk` is 29 and `compileSdk`/`targetSdk` are 36. Do not target API 37 without first adding the `ACCESS_LOCAL_NETWORK` declaration, runtime request, denial handling, and validation, because the app depends on local-network access.
+- Android Gradle Plugin 8.5.2, Kotlin 1.9.24 and build-tools 35.0.0 are pinned; the reason was not recorded. Review them at the next upgrade pass (D-095) rather than bumping them in passing.
 - Use Material 3 views and `DynamicColors`, programmatic layouts, and the existing custom `Canvas` sonar view. Do not introduce Compose or XML layouts without an explicit architecture decision.
 - The foreground service type is `connectedDevice`.
-- Preserve the separate `github` and `play` product flavors. `github` is for development and the final legacy migration update. Public downloads from both GitHub and Google Play use Google's verified Play-flavor universal APK. Neither flavor downloads APK updates itself. Keep legacy-only battery permission and ADB service access out of the Play flavor.
-
-## Verification
-
-- For Android build, phone discovery, deployment, and ADB operation, use the repository skills in `.agents/skills/` and the commands in `android/README-dev.md`.
-- Test protocol or lifecycle changes against the relevant state transitions: `WIFI_WAIT`, `DISCOVER`, `RUN`, silence recovery, and reconnect after an AP power cycle.
+- ESPHome reads Wi-Fi settings from a git-ignored `esp32-client/secrets.yaml`; add any new key to `secrets.example.yaml` with a placeholder.
 - For ESP32 changes, preserve the rendering and PSRAM constraints in `esp32-client/README.md`; the local `mipi_rgb` fork is intentional.
+
+## Commands
+
+Android commands run in the `sonarbridge-builder` container described under **Build** in `android/README-dev.md`.
+
+| Command | Proves | Does not prove |
+| --- | --- | --- |
+| `docker exec sonarbridge-builder ./gradlew assembleGithubDebug` | The development APK compiles and packages | That it installs or connects to a T-Box |
+| `docker exec sonarbridge-builder ./gradlew testGithubDebugUnitTest` | The Robolectric unit tests pass | Device behaviour or the protocol path |
+| `python3 android/scripts/check-localization.py` | Every locale has the same string keys and placeholders | That the translations read well |
+| `node --test scripts/*.test.mjs` | The Play and release scripts behave as tested | That a real Play upload succeeds |
+
+Test protocol or lifecycle changes on a phone against the relevant state transitions: `WIFI_WAIT`, `DISCOVER`, `RUN`, silence recovery, and reconnect after an AP power cycle. The validation checklist in `android/README-dev.md` lists what to observe.
+
+## Release
+
+Pushing a `vX.Y.Z` tag runs `release.yml`, which uploads the Play bundle to the internal testing track, waits for Google's signed universal APK, and attaches it to a GitHub release. Promotion to production is a separate `play-publish` run. The rollout order and the repository variables it depends on are under **Releases & updates** in `android/README-dev.md`.
+
+## Guidance map
+
+| Guide, doc, or skill | Read or use when | Governs |
+| --- | --- | --- |
+| `sp200a-nmea-bridge-spec.md` | Any protocol, parsing or checksum change | `Sp200a.kt`, `esp32-client/components/sp200a/` |
+| `android/README-dev.md` | Building, installing, driving, validating or releasing the Android app | `android/`, `.github/workflows/`, `scripts/` |
+| `android/docs/localization.md` | Adding or changing interface text or languages | `android/app/src/main/res/values*/`, `AppLanguage.kt` |
+| `esp32-client/README.md` | Any ESP32 component, display or config change | `esp32-client/` |
+| `docs/PLAY_LISTING.md` | Changing store listing text or graphics | `fastlane/`, `docs/store/` |
+| `build-android` skill | Building the development APK | Android builds |
+| `deploy-android` skill | Installing the development APK on the test phone | ADB installs |
+| `drive-android` skill | Starting, stopping or observing the bridge service over ADB | ADB testing |
+| `find-phone` skill | ADB shows no device or the wireless-debugging port has rotated | Phone connection |
+| `commit` skill | Creating a commit | Git commits |
+
+## Keeping docs current
+
+| What changed | Update |
+| --- | --- |
+| A Kotlin file, component or script added, moved or removed | The Architecture table above |
+| Protocol fields, offsets, or checksum behaviour | `sp200a-nmea-bridge-spec.md`, then both clients |
+| Build, install, drive or release procedure | `android/README-dev.md` and the matching skill |
+| Interface text or supported languages | `android/docs/localization.md`, every `values*/strings.xml` |
+| User-visible features | `README.md` |
+| ESP32 options, secrets keys, or hardware caveats | `esp32-client/README.md`, `esp32-client/secrets.example.yaml` |

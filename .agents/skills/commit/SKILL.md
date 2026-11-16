@@ -1,13 +1,11 @@
 ---
 name: commit
-description: Review, validate, stage, and commit repository changes when the user asks Codex to create a Git commit.
+description: Review, validate, stage, and commit repository changes. Use when the user asks for a Git commit.
 ---
 
 # Commit repository changes
 
 Create one coherent, verified commit from the changes the user placed in scope.
-
-## Workflow
 
 1. Read the repository instructions, inspect staged and unstaged changes, and check recent commit style.
 2. Select a coherent scope. Preserve unrelated work, secrets, dependencies, and generated output unless the repository explicitly tracks that output.
@@ -17,3 +15,5 @@ Create one coherent, verified commit from the changes the user placed in scope.
 6. Use an imperative commit subject. Add a short body only when it explains a non-obvious reason.
 7. Commit without another confirmation unless the user asked to review or approve the message first.
 8. Follow the repository's branch and push policy. If none exists, push only when the user explicitly requested it.
+
+Report: the commit hash and subject, the paths it includes, and the validation that ran.
