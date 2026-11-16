@@ -10,7 +10,7 @@
   "scripts": {
     "verify:android": "scripts/gradle assembleDebug",
     "build:android": "scripts/gradle assembleGithubDebug",
-    "package:android": "scripts/gradle bundlePlayRelease assembleGithubRelease",
+    "package:android": "scripts/gradle bundlePlayRelease",
     "install:android": "adb install -r android/app/build/outputs/apk/github/debug/app-github-debug.apk",
     "format": "scripts/gradle spotlessApply",
     "format:check": "scripts/gradle spotlessCheck",
@@ -19,6 +19,7 @@
     "test:android": "scripts/gradle testGithubDebugUnitTest testPlayDebugUnitTest",
     "test:scripts": "node --test 'scripts/*.test.mjs'",
     "check:l10n": "python3 android/scripts/check-localization.py",
-    "validate": "npm run format:check && npm run lint && npm run test && npm run check:l10n && npm run verify:android"
+    "validate": "npm run format:check && npm run lint && npm run test && npm run check:l10n && npm run check:release-notes && npm run verify:android",
+    "check:release-notes": "node scripts/release-notes.mjs check"
   }
 }

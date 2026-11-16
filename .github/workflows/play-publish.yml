@@ -1,8 +1,9 @@
 name: Publish to Google Play
 
-# Reusable Play build and upload lane. Tags call it from release.yml; manual
-# runs can still update a testing track or sync only the store listing.
-# Keep the existing internal-testing upload default; promote an existing bundle explicitly.
+# Reusable Play build and upload lane. A tag (release.yml) uploads the bundle to
+# production as a draft; publishing is a second, deliberate run of this workflow
+# with publish_draft, which checks the draft against the tag (REL-7). Manual runs
+# can also upload to a testing track or sync only the store listing.
 
 on:
   workflow_call:
@@ -11,7 +12,10 @@ on:
         required: true
         type: string
       track:
-        default: internal
+        default: production
+        type: string
+      release_status:
+        default: draft
         type: string
       inspect_only:
         default: false
@@ -33,17 +37,22 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Existing release tag to build (e.g. v0.2.3), required unless listing_only'
+        description: 'Existing release tag (e.g. v0.2.7); required unless listing_only'
         required: false
+      publish_draft:
+        description: 'Send the production draft created by this tag to review (no build or upload)'
+        default: false
+        type: boolean
       track:
-        description: 'Play track'
-        default: 'internal'
+        description: 'Play track for an upload'
+        default: 'production'
         type: choice
         options: [internal, alpha, beta, production]
-      promote_version_code:
-        description: 'Promote this existing completed testing versionCode to production, without uploading'
-        required: false
-        type: string
+      release_status:
+        description: 'draft holds the upload in Play Console; completed releases it on that track'
+        default: 'draft'
+        type: choice
+        options: [draft, completed]
       inspect_only:
         description: 'Read current tracks, version codes and signing metadata without publishing'
         default: false
@@ -59,29 +68,37 @@ permissions:
 # Uploads publish; never cancel. When called from release.yml the caller's
 # concurrency group applies as well.
 concurrency:
-  group: play-publish-${{ inputs.version || inputs.promote_version_code || github.ref }}
+  group: play-publish-${{ inputs.version || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  promote:
-    if: ${{ inputs.promote_version_code != '' }}
+  # Second, deliberate release step (REL-7): commit the tag's production draft for review.
+  publish-draft:
+    if: ${{ inputs.publish_draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ format('refs/tags/{0}', inputs.version) }}
+      - name: Resolve Play versionCode from the tag
+        id: ver
+        env:
+          TAG: ${{ inputs.version }}
+        run: bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
           package-manager-cache: false
-      - name: Promote existing bundle to production
+      - name: Send the production draft to review
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          PROMOTE_VERSION_CODE: ${{ inputs.promote_version_code }}
-        run: node scripts/play-promote.mjs
+          PLAY_VERSION_CODE: ${{ steps.ver.outputs.code }}
+        run: node scripts/play-publish-draft.mjs
 
   inspect:
-    if: ${{ inputs.inspect_only && inputs.promote_version_code == '' }}
+    if: ${{ inputs.inspect_only && !inputs.publish_draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -96,8 +113,8 @@ jobs:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: node scripts/play-status.mjs
 
-  publish:
-    if: ${{ !inputs.inspect_only && inputs.promote_version_code == '' }}
+  upload:
+    if: ${{ !inputs.inspect_only && !inputs.publish_draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -133,13 +150,13 @@ jobs:
           ANDROID_VERSION_CODE: ${{ steps.ver.outputs.code }}
         run: node scripts/play-status.mjs
 
-      - name: Generate changelog for this version
+      # Committed notes only (REL-6): fails here, before building, if any locale is missing or too long.
+      - name: Write Play "What's new" from release-notes/
         if: ${{ steps.ver.outputs.code != '' }}
         env:
           TAG: ${{ inputs.version }}
-        run: |
-          mkdir -p fastlane/metadata/android/en-US/changelogs
-          bash scripts/release-notes.sh "$TAG" play > "fastlane/metadata/android/en-US/changelogs/${{ steps.ver.outputs.code }}.txt"
+          CODE: ${{ steps.ver.outputs.code }}
+        run: node scripts/release-notes.mjs play "$TAG" "$CODE" fastlane/metadata/android
 
       # ---- build the Play AAB (skipped for listing-only) ----
       - uses: actions/setup-java@v5
@@ -188,13 +205,14 @@ jobs:
         if: ${{ !inputs.listing_only }}
         env:
           PLAY_TRACK: ${{ inputs.track }}
+          RELEASE_STATUS: ${{ inputs.release_status }}
         run: |
           fastlane supply \
             --package_name ca.dynamicsolutions.sonarbridge \
             --json_key "$RUNNER_TEMP/play-key.json" \
             --aab android/app/build/outputs/bundle/playRelease/app-play-release.aab \
             --track "$PLAY_TRACK" \
-            --release_status completed \
+            --release_status "$RELEASE_STATUS" \
             --metadata_path fastlane/metadata/android
 
       - name: Sync listing only (no AAB)

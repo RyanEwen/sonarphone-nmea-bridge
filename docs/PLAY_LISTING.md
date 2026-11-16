@@ -16,11 +16,7 @@ v0.2.5 APK (versionCode 205) is published alongside it with direct download
 links. Its bundle was uploaded once to internal and is promoted to production
 using that existing upload, without changing testing tracks or rebuilding.
 
-Read current tracks with `play-publish` using `inspect_only=true`; use its
-`promote_version_code` input to promote an already completed testing release.
-The production promotion validates the edit before committing it and rejects
-missing, reused or older codes. Track status does not by itself prove when
-Google's review or public-store propagation finishes.
+Read current tracks with `play-publish` using `inspect_only=true`. Since the migration ended, a tag uploads to production as a draft and `publish_draft` sends it to review; see the release runbook. Track status does not by itself prove when Google's review or public-store propagation finishes.
 
 ## The artifact to upload (manual fallback)
 
@@ -161,13 +157,11 @@ Edit those files, push, and `.github/workflows/play-publish.yml` pushes them to
 Play — no more clicking through the Console.
 
 **Triggers:** regular `v*` tags call this reusable Play upload lane from
-`release.yml`, then publish the verified Google-signed APK on GitHub. The final
-legacy migration tag is the exception and uploads no Play bundle. Manual
+`release.yml`, uploading the bundle to production as a draft, then publish the verified Google-signed APK on GitHub. Manual
 **Run workflow** takes an existing `vX.Y.Z` tag and chosen track, or use
 `listing_only` to sync text/graphics/screenshots without a bundle.
 See [the release runbook](../docs/development.md#releases--updates) for rollout
-order and the required signing fingerprint variable. The default build/upload track remains internal testing. Promote the completed
-bundle to production using `promote_version_code`, without re-uploading it.
+order and the required signing fingerprint variable. Send the tag's production draft to review with `publish_draft`, without re-uploading it.
 
 **One-time setup (only you can do this):**
 
@@ -265,10 +259,6 @@ APK on GitHub is an intentional alternative download. Protection injected
 into the Play artifact would also reach the GitHub APK now that both channels
 use that artifact, conflicting with the supported manual-install flow.
 
-## Production promotion
+## Publishing a production draft
 
-Production access is already enabled for this app. Use `promote_version_code`
-in `play-publish` to promote the completed internal build without uploading it
-again. Inspect the tracks afterward; distinguish the committed production
-release from Google's review and public-store availability. Preserve alpha
-and internal tracks unless a separate request calls for retiring them.
+Production access is already enabled for this app. Run `play-publish` with the release tag and `publish_draft=true` to send the draft that tag created to review; it checks the draft's versionCode against the tag and uploads nothing. Inspect the tracks afterward; distinguish the committed production release from Google's review and public-store availability. Preserve alpha and internal tracks unless a separate request calls for retiring them.

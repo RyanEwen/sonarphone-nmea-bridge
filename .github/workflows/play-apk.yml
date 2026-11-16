@@ -46,11 +46,11 @@ jobs:
       - name: Resolve existing release and inspection tools
         env:
           TAG: ${{ inputs.tag }}
-          LEGACY_MIGRATION_TAG: ${{ vars.LEGACY_MIGRATION_TAG }}
           GH_TOKEN: ${{ github.token }}
         run: |
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-          [ "$TAG" != "$LEGACY_MIGRATION_TAG" ] || { echo "::error::Keep the final legacy migration APK available"; exit 1; }
+          # v0.2.4 is the final legacy-key APK; old installs and the migration guide still link to it.
+          [ "$TAG" != "v0.2.4" ] || { echo "::error::Keep the final legacy migration APK available"; exit 1; }
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
           BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)

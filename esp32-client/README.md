@@ -32,7 +32,7 @@ It needs **no phone and no Android app**. It reimplements the sonar-facing half 
    ```
    (Run ESPHome in Docker per your usual setup.)
 
-CI compiles the firmware on every change under `esp32-client/` (the ESP32 Build workflow), using ESPHome 2026.7.4 and the placeholder secrets.
+No prebuilt firmware image is published: ESPHome compiles your Wi-Fi settings into the image, so build it yourself with your own `secrets.yaml`. CI compiles the firmware on every change under `esp32-client/` (the ESP32 Build workflow), using ESPHome 2026.7.4 and the placeholder secrets, so a broken build is caught before you flash it.
 
 The hardware config is pulled live from `github://RyanEwen/esphome-lvgl/devices/ESP32-8048S050.yaml`. Nothing in the sonar code touches the display/touch/psram setup you already proved out.
 

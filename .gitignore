@@ -11,6 +11,11 @@ frames/
 dist/
 # Writable home the builder container uses when the host UID has no passwd entry.
 android/.home/
+# Play "What's new" files, written by CI from release-notes/ (scripts/release-notes.mjs).
+fastlane/metadata/android/*/changelogs/
+# ESPHome build output and firmware images; firmware is built on demand with your own secrets.yaml.
+esp32-client/.esphome/
+*.factory.bin
 # ESPHome secrets; see esp32-client/secrets.example.yaml.
 esp32-client/secrets.yaml
 # Release signing environment and the Play service-account key (the keystore itself is covered below).

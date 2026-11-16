@@ -13,15 +13,16 @@ The root `package.json` holds the entry points; `npm run validate` is the gate C
 
 | Command | Runs |
 | --- | --- |
-| `npm run validate` | `format:check`, `lint`, `test`, `check:l10n` and `verify:android`, stopping at the first failure |
+| `npm run validate` | `format:check`, `lint`, `test`, `check:l10n`, `check:release-notes` and `verify:android`, stopping at the first failure |
 | `npm run format` / `format:check` | Spotless (ktlint) on Kotlin sources and Gradle scripts: rewrite, or fail on a difference |
 | `npm run lint` | Android lint for both debug variants |
 | `npm run test` | Robolectric unit tests for both flavors, then `node --test` for `scripts/*.test.mjs` |
 | `npm run check:l10n` | `android/scripts/check-localization.py` |
+| `npm run check:release-notes` | Every file in `release-notes/` is named correctly, complete for every catalog, and within Play's 500-character limit |
 | `npm run verify:android` | Debug builds of both flavors |
 | `npm run build:android` | The installable GitHub-flavor debug APK |
 | `npm run install:android` | Installs that APK on the connected device with `adb install -r` |
-| `npm run package:android` | The Play release bundle and the GitHub release APK (signed only when the release signing variables are set) |
+| `npm run package:android` | The Play release bundle (signed only when the release signing variables are set) |
 
 Gradle tasks go through `scripts/gradle`. In CI, or with `SONARBRIDGE_GRADLE=local`, it runs the wrapper directly. Otherwise it uses the running `sonarbridge-builder` container, or else a disposable container from the `sonarbridge-build` image capped at `SONARBRIDGE_GRADLE_MEMORY` (default `4g`, no swap) with one worker.
 
@@ -186,81 +187,23 @@ legacy fallback.
 
 ## Releases & updates
 
-The public APK on GitHub is now the universal APK generated and signed by
-Google Play. Keep the GitHub flavor for development and one final legacy
-migration release. The app no longer downloads or installs APK updates itself.
+The public APK on GitHub is the universal APK Google Play generates and signs; the app does not download or install updates itself. The full procedure is the `release` skill (`.agents/skills/release/SKILL.md`); in short:
 
-Before rollout, set these GitHub repository variables:
+1. Write the notes for the version in `release-notes/`: `<X.Y.Z>.md` (en-US) plus one `<X.Y.Z>.<identity>.md` for es-ES, fr-FR, de-DE, zh-CN, pt-BR and ja-JP. User-facing bullets only, no heading, at most 500 characters each; Canadian listings reuse en-US and fr-FR. `npm run check:release-notes` checks them. Get the notes approved, then commit them on `main`.
+2. Create an annotated `vX.Y.Z` tag on that commit and push it. The tag is the version; the versionCode is `major*10000 + minor*100 + patch`, with minor and patch below 100.
+3. The Release workflow runs the CI gate, uploads the Play bundle to **production as a draft** with each locale's notes, waits for Google's universal APK, verifies its package, version and signer, and publishes the GitHub Release "SonarBridge X.Y.Z" (marked Latest) with that APK. Missing or over-long notes fail the run before anything is built.
+4. Check the draft in Play Console, then run **Publish to Google Play** with the tag and `publish_draft=true`. It sends that draft to review after checking its versionCode against the tag, without uploading anything.
+5. Afterwards, run Play Check and confirm an installed copy updates.
 
-- `PLAY_SIGNING_CERTIFICATE_SHA256`: the **app-signing** SHA-256 fingerprint
-  from Play Console, not the upload key. The Play Check workflow (`play-check.yml`) can
-  also read the authoritative signer from Google's existing bundle metadata
-  without downloading or publishing anything. The existing `play-publish`
-  workflow also offers `inspect_only` for the same read-only check. Export fails closed if it is missing
-  or differs from either Google's metadata or the actual APK signer.
-- `LEGACY_MIGRATION_TAG`: the exact tag chosen for the final old-key update.
-  Set this **before pushing that tag**. That tag builds only the legacy APK;
-  subsequent tags use the Play lane. Keep the variable as the historical tag
-  so re-running the transition cannot accidentally upload it to Play.
-- `KEEP_LEGACY_MIGRATION_LATEST=true`: keep the migration release as GitHub's
-  latest while publishing the Play-signed release alongside it. Old updaters
-  call `/releases/latest`; new users follow the direct Play-signed links in
-  the README and migration guide. Set this to `false` only when the transition
-  is finished and mark the intended Play-signed release as latest.
+`PLAY_SIGNING_CERTIFICATE_SHA256` (repository variable) is the **app-signing** SHA-256 fingerprint from Play Console, not the upload key; the APK export fails closed if it is missing or differs from Google's metadata or the APK's signer. Release signing credentials stay in GitHub secrets and the git-ignored `android/keystore/release.env`.
 
-Rollout order:
+If the Play upload succeeded but the GitHub export failed, do not rebuild or re-upload that versionCode: run **Replace GitHub APK** (`play-apk.yml`) for the existing release. It never touches v0.2.4.
 
-1. Choose a fresh `vX.Y.Z` tag and set `LEGACY_MIGRATION_TAG` to it. The tag
-   must contain this migration code and have a versionCode higher than all
-   existing GitHub APKs. The shared scheme is `major*10000 + minor*100 + patch`,
-   with minor/patch below 100. Review the prior published codes before tagging.
-2. Push that tag. `release.yml` builds `assembleGithubRelease` with the existing
-   upload/legacy signing key and publishes `sonarbridge-X.Y.Z.apk`. Existing
-   apps can install it through their current updater, retaining settings.
-   It shows the migration notice once and keeps it in Settings, with equal
-   GitHub and Play links. Debug builds do not show the launch notice.
-3. Publish the next higher tag alongside the migration release, keeping
-   `KEEP_LEGACY_MIGRATION_LATEST=true` during the transition. It builds `bundlePlayRelease`, uploads to the
-   existing **internal** Play track, waits for Google's universal APK, verifies
-   package/version/signer, then publishes `sonarbridge-X.Y.Z-play.apk` to GitHub with `make_latest=false`.
-   The chosen transition releases are v0.2.4 (legacy) and v0.2.5 (Play-signed).
-   Update the direct download links in the README and migration guide for a
-   later public release; do not point them at `/releases/latest` during migration.
-   Production is available according to the live Play state. After the internal
-   upload completes, promote its code using `play-publish` with
-   `promote_version_code`, which validates and commits a production-only edit
-   without rebuilding or re-uploading. Google review and store propagation can
-   still delay public availability; exporting an APK alone does not promote it.
-4. Legacy users record settings and save app files before disconnecting,
-   uninstalling and reinstalling once. Users who miss the final legacy update can follow the
-   release-page instructions directly; their old updater cannot show the new
-   notice and attempting an in-place Play APK update will fail. Check sonar readings, alarm/calibration,
-   permissions and Navionics afterward. Existing Play users update normally.
+`play-publish` can also be run by hand: upload a tag to a testing track (`track`, `release_status`), sync only the listing (`listing_only`), or read tracks, codes and signer fingerprints without changing anything (`inspect_only`). Uploads first reject reused or older versionCodes.
 
-Manual `release` runs build the exact named tag. `legacy_migration=true` is
-an explicit escape hatch for the final old-key update; never use it for future
-regular releases. Do not dispatch it concurrently with a tag release.
+Signing-key migration (finished): v0.2.4 was the final APK signed with the old upload key and v0.2.5 the first Play-signed one. v0.2.4 stays on its release for old installs, and `docs/android-migration-release-notes.md` is the user guide.
 
-If Play upload succeeded but GitHub export failed, do not rebuild/re-upload
-that versionCode. Run the Replace GitHub APK workflow (`play-apk.yml`) for an existing GitHub release, or
-create a reviewed GitHub release first and then run that workflow. It downloads
-an existing Play version and uploads the verified replacement before deleting
-the old asset. It preserves existing release notes, so review migration copy
-separately. Do not replace the final migration release while it is still
-needed by users running old APKs.
-
-`play-publish` remains available for manual track selection and listing-only
-syncs. A full build takes an existing `vX.Y.Z` tag; listing-only needs no tag. Full uploads first inspect current Play codes and
-reject reused or older codes before building. Play Check reports
-tracks, bundle codes and signer fingerprints using a temporary edit that is
-always discarded, never committed.
-Promote an already uploaded completed testing bundle using
-`promote_version_code` in `play-publish`, or via Play Console. Do not upload
-the same versionCode a second time. Release signing credentials remain in GitHub
-secrets and gitignored `android/keystore/release.env`; never change the legacy
-key during migration.
-
-Verify export policy without accessing Play:
+Verify the release scripts without accessing Play:
 
 ```sh
 npm run test:scripts
@@ -272,9 +215,3 @@ Build verification:
 npm run verify:android
 npm run package:android
 ```
-
-Debug APKs use the pinned debug key; they cannot prove migration from a legacy
-release key or Google's real signer. Before rollout, test a signed final legacy
-update over an old release with customized settings, then verify the manual
-uninstall/reinstall flow and a later Play-signed APK update. Never uninstall a
-user's app or clear their settings as part of routine validation.

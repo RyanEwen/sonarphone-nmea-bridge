@@ -24,7 +24,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 | ESP32 sonar client, display and NMEA bridge | `esp32-client/components/sp200a/` |
 | ESP32 display driver (intentional local fork) | `esp32-client/components/mipi_rgb/` |
 | ESP32 device config and its secrets template | `esp32-client/sp200a-8048S050.yaml`, `esp32-client/secrets.example.yaml` |
-| Play publishing, release notes and versioning | `scripts/play-*.mjs`, `scripts/release-*.sh`, `.github/workflows/` |
+| Play publishing, release notes and versioning | `scripts/play-*.mjs`, `scripts/release-notes.mjs`, `scripts/release-version.sh`, `release-notes/`, `.github/workflows/` |
 | Test phone discovery over wireless ADB | `scripts/find-phone.py` |
 | Command entry points and the Gradle runner | `package.json`, `scripts/gradle` |
 
@@ -62,12 +62,13 @@ The root `package.json` holds the entry points. Gradle tasks run through `script
 | `npm run lint` | Android lint passes for both debug variants | Runtime behaviour |
 | `npm run test` | The Robolectric unit tests (both flavors) and the Play and release script tests pass | Device behaviour, or that a real Play upload succeeds |
 | `npm run check:l10n` | Every locale has the same string keys and placeholders | That the translations read well |
+| `npm run check:release-notes` | Release notes are complete for every catalog and fit Play's limit | That they read well |
 
 Test protocol or lifecycle changes on a phone against the relevant state transitions: `WIFI_WAIT`, `DISCOVER`, `RUN`, silence recovery, and reconnect after an AP power cycle. The validation checklist in `docs/development.md` lists what to observe.
 
 ## Release
 
-Pushing a `vX.Y.Z` tag runs `release.yml`, which first runs the same gate as CI, then uploads the Play bundle to the internal testing track, waits for Google's signed universal APK, and attaches it to a GitHub release. Promotion to production is a separate `play-publish` run. The rollout order and the repository variables it depends on are under **Releases & updates** in `docs/development.md`.
+Use the `release` skill. Notes are committed per version in `release-notes/` before the tag. Pushing a `vX.Y.Z` tag runs `release.yml`: the CI gate, then the Play bundle uploaded to production as a draft with those notes, then Google's signed universal APK attached to the GitHub Release. Sending the draft to review is a separate, deliberate `play-publish` run with `publish_draft` (REL-7). Summary and recovery steps are under **Releases & updates** in `docs/development.md`.
 
 ## Guidance map
 
@@ -83,6 +84,7 @@ Pushing a `vX.Y.Z` tag runs `release.yml`, which first runs the same gate as CI,
 | `drive-android` skill | Starting, stopping or observing the bridge service over ADB | ADB testing |
 | `find-phone` skill | ADB shows no device or the wireless-debugging port has rotated | Phone connection |
 | `commit` skill | Creating a commit | Git commits |
+| `release` skill | Releasing a new version | `release-notes/`, tags, `release.yml`, `play-publish.yml` |
 
 ## Keeping docs current
 

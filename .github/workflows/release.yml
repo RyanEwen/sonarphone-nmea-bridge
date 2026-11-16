@@ -1,8 +1,9 @@
 name: Release
 
-# Build/upload the Play bundle first. Publish only Google's verified universal
-# APK on GitHub, with the same package, version and signing identity as Play.
-# No upload-key APK fallback is permitted.
+# A vX.Y.Z tag runs the gate, uploads the Play bundle to production as a draft,
+# then publishes Google's verified universal APK on GitHub with the committed
+# release notes. Sending the Play draft to review is a separate, deliberate run of
+# the Publish to Google Play workflow (REL-7). No upload-key APK fallback exists.
 
 on:
   push:
@@ -11,12 +12,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Existing release tag to build (e.g. v0.2.0)'
+        description: 'Existing release tag to build (e.g. v0.2.7)'
         required: true
-      legacy_migration:
-        description: 'Publish the final upload-key APK with migration guidance'
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -36,11 +33,11 @@ jobs:
 
   play:
     needs: validate
-    if: ${{ !inputs.legacy_migration && (vars.LEGACY_MIGRATION_TAG == '' || (inputs.version || github.ref_name) != vars.LEGACY_MIGRATION_TAG) }}
     uses: ./.github/workflows/play-publish.yml
     with:
       version: ${{ inputs.version || github.ref_name }}
-      track: internal
+      track: production
+      release_status: draft
       listing_only: false
     secrets: inherit
 
@@ -55,7 +52,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
-          fetch-depth: 0 # full history + tags for the changelog
 
       - name: Resolve version
         id: ver
@@ -63,10 +59,6 @@ jobs:
           TAG: ${{ inputs.version || github.ref_name }}
         run: bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Generate release notes
-        env:
-          TAG: ${{ inputs.version || github.ref_name }}
-        run: bash scripts/release-notes.sh "$TAG" > RELEASE_NOTES.md
 
       - uses: actions/setup-java@v5
         with:
@@ -97,97 +89,17 @@ jobs:
             --version "${{ steps.ver.outputs.name }}" \
             --output "sonarbridge-${{ steps.ver.outputs.name }}-play.apk"
 
-      - name: Add migration guidance
-        run: |
-          cat docs/android-migration-release-notes.md >> RELEASE_NOTES.md
-          printf '\n*AI disclosure: this comment and the related code were written with the assistance of AI.*\n' >> RELEASE_NOTES.md
+      # Committed en-US notes, the get-it section and the D-097 disclosure line.
+      - name: Write release notes
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: node scripts/release-notes.mjs github "$TAG" > RELEASE_NOTES.md
 
       - name: Publish release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.tag }}
+          name: SonarBridge ${{ steps.ver.outputs.name }}
           body_path: RELEASE_NOTES.md
           files: sonarbridge-*-play.apk
-          # Old updaters must still find the final migration APK during the transition.
-          make_latest: ${{ vars.KEEP_LEGACY_MIGRATION_LATEST == 'true' && 'false' || 'true' }}
-
-  legacy-migration:
-    needs: validate
-    if: ${{ inputs.legacy_migration || (vars.LEGACY_MIGRATION_TAG != '' && (inputs.version || github.ref_name) == vars.LEGACY_MIGRATION_TAG) }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
-          fetch-depth: 0 # full history + tags for the changelog
-
-      - name: Resolve version
-        id: ver
-        env:
-          TAG: ${{ inputs.version || github.ref_name }}
-        run: bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Generate release notes
-        env:
-          TAG: ${{ inputs.version || github.ref_name }}
-        run: bash scripts/release-notes.sh "$TAG" > RELEASE_NOTES.md
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
-
-      # explicit so a runner image without android-36 can't fail the tag build
-      - name: Install SDK platform 36
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
-
-      - name: Decode release keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
-
-      - name: Build signed APK
-        working-directory: android
-        env:
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_VERSION_NAME: ${{ steps.ver.outputs.name }}
-          ANDROID_VERSION_CODE: ${{ steps.ver.outputs.code }}
-        # One final APK signed by the legacy key, so existing installations
-        # can receive migration guidance without first clearing their settings.
-        run: ./gradlew --no-daemon assembleGithubRelease
-
-      - name: Verify legacy signing key
-        env:
-          EXPECTED_CERTIFICATE: d9becadd573cde4424c7cc92a088f7a74fec231761d314d1eda2601cc4bef3c9
-        run: |
-          CERTIFICATE=$("$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs \
-            android/app/build/outputs/apk/github/release/app-github-release.apk \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-          [ "${CERTIFICATE,,}" = "$EXPECTED_CERTIFICATE" ] || { echo "::error::Legacy APK signer changed; existing GitHub installs cannot update"; exit 1; }
-
-      - name: Stage APK
-        # flavored output dir is apk/<flavor>/<buildType>/, not apk/<flavorBuildType>/
-        run: |
-          cp android/app/build/outputs/apk/github/release/app-github-release.apk \
-             "sonarbridge-${{ steps.ver.outputs.name }}.apk"
-
-      - name: Add migration guidance
-        run: |
-          cat docs/android-migration-release-notes.md >> RELEASE_NOTES.md
-          printf '\n*AI disclosure: this comment and the related code were written with the assistance of AI.*\n' >> RELEASE_NOTES.md
-
-      - name: Publish release
-        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.tag }}
-          body_path: RELEASE_NOTES.md
-          files: sonarbridge-*.apk
           make_latest: true
