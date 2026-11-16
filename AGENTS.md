@@ -26,6 +26,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 | ESP32 device config and its secrets template | `esp32-client/sp200a-8048S050.yaml`, `esp32-client/secrets.example.yaml` |
 | Play publishing, release notes and versioning | `scripts/play-*.mjs`, `scripts/release-*.sh`, `.github/workflows/` |
 | Test phone discovery over wireless ADB | `scripts/find-phone.py` |
+| Command entry points and the Gradle runner | `package.json`, `scripts/gradle` |
 
 ## Behaviour
 
@@ -50,21 +51,22 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 
 ## Commands
 
-Android commands run in the `sonarbridge-builder` container described under **Build** in `docs/development.md`.
+The root `package.json` holds the entry points. Gradle tasks run through `scripts/gradle`, which picks the build container and its memory cap; see **Checks** in `docs/development.md`.
 
 | Command | Proves | Does not prove |
 | --- | --- | --- |
-| `docker exec sonarbridge-builder ./gradlew assembleGithubDebug` | The development APK compiles and packages | That it installs or connects to a T-Box |
-| `docker exec sonarbridge-builder ./gradlew spotlessCheck` | Kotlin sources and Gradle scripts match the ktlint format (`spotlessApply` rewrites them) | Behaviour |
-| `docker exec sonarbridge-builder ./gradlew testGithubDebugUnitTest` | The Robolectric unit tests pass | Device behaviour or the protocol path |
-| `python3 android/scripts/check-localization.py` | Every locale has the same string keys and placeholders | That the translations read well |
-| `node --test scripts/*.test.mjs` | The Play and release scripts behave as tested | That a real Play upload succeeds |
+| `npm run validate` | Everything below, as CI runs it on every push, pull request and release | Device behaviour or the protocol path |
+| `npm run build:android` | The development APK compiles and packages | That it installs or connects to a T-Box |
+| `npm run format:check` | Kotlin sources and Gradle scripts match the ktlint format (`npm run format` rewrites them) | Behaviour |
+| `npm run lint` | Android lint passes for both debug variants | Runtime behaviour |
+| `npm run test` | The Robolectric unit tests (both flavors) and the Play and release script tests pass | Device behaviour, or that a real Play upload succeeds |
+| `npm run check:l10n` | Every locale has the same string keys and placeholders | That the translations read well |
 
 Test protocol or lifecycle changes on a phone against the relevant state transitions: `WIFI_WAIT`, `DISCOVER`, `RUN`, silence recovery, and reconnect after an AP power cycle. The validation checklist in `docs/development.md` lists what to observe.
 
 ## Release
 
-Pushing a `vX.Y.Z` tag runs `release.yml`, which uploads the Play bundle to the internal testing track, waits for Google's signed universal APK, and attaches it to a GitHub release. Promotion to production is a separate `play-publish` run. The rollout order and the repository variables it depends on are under **Releases & updates** in `docs/development.md`.
+Pushing a `vX.Y.Z` tag runs `release.yml`, which first runs the same gate as CI, then uploads the Play bundle to the internal testing track, waits for Google's signed universal APK, and attaches it to a GitHub release. Promotion to production is a separate `play-publish` run. The rollout order and the repository variables it depends on are under **Releases & updates** in `docs/development.md`.
 
 ## Guidance map
 
@@ -89,5 +91,6 @@ Pushing a `vX.Y.Z` tag runs `release.yml`, which uploads the Play bundle to the 
 | Protocol fields, offsets, or checksum behaviour | `docs/protocol.md`, then both clients |
 | Build, install, drive or release procedure | `docs/development.md` and the matching skill |
 | Interface text or supported languages | `docs/localization.md`, every `values*/strings.xml` |
+| A check, test suite or build command added | `package.json` (and `validate` when it is static), **Checks** in `docs/development.md`, Commands above |
 | User-visible features | `README.md` |
 | ESP32 options, secrets keys, or hardware caveats | `esp32-client/README.md`, `esp32-client/secrets.example.yaml` |

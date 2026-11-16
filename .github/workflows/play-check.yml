@@ -1,4 +1,4 @@
-name: inspect-play-state
+name: Play Check
 
 # Read existing versions and authoritative signing metadata, without publishing.
 on:
@@ -7,14 +7,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: play-check
+  cancel-in-progress: true
+
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
       - name: Inspect releases and signing metadata
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}

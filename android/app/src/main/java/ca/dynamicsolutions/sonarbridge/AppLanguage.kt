@@ -105,13 +105,14 @@ object AppLanguage {
         } else {
             null
         }
-        val systemLocales = manager?.systemLocales
+        // The repeated SDK checks let lint see that LocaleManager is only called on API 33+.
+        val systemLocales = (if (Build.VERSION.SDK_INT >= 33) manager?.systemLocales else null)
             ?: context.applicationContext.resources.configuration.locales
         val deviceLocales = (0 until systemLocales.size()).map { systemLocales[it] }
         fun overlay(locales: List<Locale>): LocaleList = LocaleList(*(locales + deviceLocales).distinct().toTypedArray())
 
         // On API 33+, compare the platform's lists rather than our wrapped Activity context.
-        val currentLocales = if (manager != null) {
+        val currentLocales = if (Build.VERSION.SDK_INT >= 33 && manager != null) {
             val applicationLocales = manager.applicationLocales
             overlay((0 until applicationLocales.size()).map { applicationLocales[it] })
         } else {

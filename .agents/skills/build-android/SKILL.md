@@ -5,14 +5,10 @@ description: Build the SonarBridge GitHub-flavor Android debug APK in the reposi
 
 # Build the Android debug APK
 
-Read the **Build** section of `docs/development.md` and follow it from the
-repository root.
+Read the **Checks** and **Build** sections of `docs/development.md` and work from the repository root.
 
-- Use the environment's configured container CLI when one is available.
-- Reuse `sonarbridge-builder`; start it if it exists but is stopped, and create
-  it only if it is absent.
-- Run `./gradlew assembleGithubDebug` in the builder. Do not use the aggregate
-  `assembleDebug` task when only the sideloadable development APK is needed.
+- Run `npm run build:android`. `scripts/gradle` uses `sonarbridge-builder` when it is running (start it if it exists but is stopped), and otherwise a disposable, memory-capped container from the `sonarbridge-build` image.
+- Do not use `npm run verify:android` (both flavors) when only the sideloadable development APK is needed.
 - Do not hide the Gradle exit status behind a log-truncation pipeline.
 - Report success only when Gradle succeeds and
   `android/app/build/outputs/apk/github/debug/app-github-debug.apk` exists with

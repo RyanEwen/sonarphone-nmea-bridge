@@ -11,6 +11,7 @@
         <service
             android:name=".BridgeService"
             android:exported="true"
+            android:foregroundServiceType="connectedDevice"
             tools:replace="android:exported" />
     </application>
 </manifest>

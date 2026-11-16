@@ -1,0 +1,24 @@
+{
+  "name": "sonarbridge",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": "24.22.3",
+    "npm": "11.19.1"
+  },
+  "scripts": {
+    "verify:android": "scripts/gradle assembleDebug",
+    "build:android": "scripts/gradle assembleGithubDebug",
+    "package:android": "scripts/gradle bundlePlayRelease assembleGithubRelease",
+    "install:android": "adb install -r android/app/build/outputs/apk/github/debug/app-github-debug.apk",
+    "format": "scripts/gradle spotlessApply",
+    "format:check": "scripts/gradle spotlessCheck",
+    "lint": "scripts/gradle lintGithubDebug lintPlayDebug",
+    "test": "npm run test:android && npm run test:scripts",
+    "test:android": "scripts/gradle testGithubDebugUnitTest testPlayDebugUnitTest",
+    "test:scripts": "node --test 'scripts/*.test.mjs'",
+    "check:l10n": "python3 android/scripts/check-localization.py",
+    "validate": "npm run format:check && npm run lint && npm run test && npm run check:l10n && npm run verify:android"
+  }
+}

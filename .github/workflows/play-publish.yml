@@ -1,4 +1,4 @@
-name: play-publish
+name: Publish to Google Play
 
 # Reusable Play build and upload lane. Tags call it from release.yml; manual
 # runs can still update a testing track or sync only the store listing.
@@ -56,15 +56,22 @@ on:
 permissions:
   contents: read
 
+# Uploads publish; never cancel. When called from release.yml the caller's
+# concurrency group applies as well.
+concurrency:
+  group: play-publish-${{ inputs.version || inputs.promote_version_code || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   promote:
     if: ${{ inputs.promote_version_code != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
       - name: Promote existing bundle to production
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -74,11 +81,12 @@ jobs:
   inspect:
     if: ${{ inputs.inspect_only && inputs.promote_version_code == '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
       - name: Inspect releases and signing metadata
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -87,6 +95,7 @@ jobs:
   publish:
     if: ${{ !inputs.inspect_only && inputs.promote_version_code == '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
@@ -109,7 +118,7 @@ jobs:
       - uses: actions/setup-node@v6
         if: ${{ !inputs.listing_only }}
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Check Play versionCode before building
         if: ${{ !inputs.listing_only }}
@@ -132,7 +141,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         if: ${{ !inputs.listing_only }}
 
       # explicit so a runner image without android-36 can't fail the build
@@ -157,7 +166,7 @@ jobs:
         run: ./gradlew --no-daemon bundlePlayRelease
 
       # ---- publish via Fastlane supply ----
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: '3.3'
 

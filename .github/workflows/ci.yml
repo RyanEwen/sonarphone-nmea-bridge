@@ -1,0 +1,47 @@
+name: CI
+
+# The push and pull request gate: the same `npm run validate` developers run
+# locally. release.yml calls it before anything is published (CI-4).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to validate (the release tag when called from release.yml)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# github.workflow is the caller's name when this runs as a reusable workflow,
+# so a release's gate gets its own group and is never cancelled; only plain CI
+# runs cancel the run they replace.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: ${{ github.workflow == 'CI' }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    # Cold Gradle and Robolectric caches dominate; a warm run takes about ten minutes.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      # explicit so a runner image without android-36 can't fail the build
+      - name: Install SDK platform 36
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - name: Validate
+        run: npm run validate

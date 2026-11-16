@@ -1,4 +1,4 @@
-name: release
+name: Release
 
 # Build/upload the Play bundle first. Publish only Google's verified universal
 # APK on GitHub, with the same package, version and signing identity as Play.
@@ -19,7 +19,7 @@ on:
         type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 # A duplicate tag run must not race another build/upload of the same version.
 concurrency:
@@ -27,7 +27,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The same gate as ci.yml, on the tag being released, before anything publishes (CI-4).
+  # Jobs that call a reusable workflow cannot set timeout-minutes; the called jobs do.
+  validate:
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
+
   play:
+    needs: validate
     if: ${{ !inputs.legacy_migration && (vars.LEGACY_MIGRATION_TAG == '' || (inputs.version || github.ref_name) != vars.LEGACY_MIGRATION_TAG) }}
     uses: ./.github/workflows/play-publish.yml
     with:
@@ -39,6 +47,10 @@ jobs:
   android:
     needs: play
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Waiting for Google's universal APK can take up to about 30 minutes.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,7 +73,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
 
       # explicit so a runner image without android-36 can't fail the tag build
       - name: Install SDK platform 36
@@ -69,7 +81,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Download and verify Google-signed APK
         env:
@@ -89,7 +101,7 @@ jobs:
           printf '\n*AI disclosure: this comment and the related code were written with the assistance of AI.*\n' >> RELEASE_NOTES.md
 
       - name: Publish release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: ${{ steps.ver.outputs.tag }}
@@ -99,8 +111,12 @@ jobs:
           make_latest: ${{ vars.KEEP_LEGACY_MIGRATION_LATEST == 'true' && 'false' || 'true' }}
 
   legacy-migration:
+    needs: validate
     if: ${{ inputs.legacy_migration || (vars.LEGACY_MIGRATION_TAG != '' && (inputs.version || github.ref_name) == vars.LEGACY_MIGRATION_TAG) }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -123,7 +139,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
 
       # explicit so a runner image without android-36 can't fail the tag build
       - name: Install SDK platform 36
@@ -166,7 +182,7 @@ jobs:
           printf '\n*AI disclosure: this comment and the related code were written with the assistance of AI.*\n' >> RELEASE_NOTES.md
 
       - name: Publish release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: ${{ steps.ver.outputs.tag }}

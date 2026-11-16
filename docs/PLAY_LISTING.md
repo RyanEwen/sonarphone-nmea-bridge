@@ -239,7 +239,7 @@ need this migration. Full steps are in the release runbook linked above.
 **Trust configuration:** set GitHub repository variable
 `PLAY_SIGNING_CERTIFICATE_SHA256` from the app-signing certificate fingerprint
 on this Console page, or verify it against the authoritative metadata for an
-existing bundle using `inspect-play-state`. The exporter checks that trusted fingerprint against
+existing bundle using the Play Check workflow. The exporter checks that trusted fingerprint against
 Google's generated-APK metadata and `apksigner` output, plus exact package,
 versionCode and versionName. The upload-key fingerprint above is incompatible
 and must not be used. A `.der` certificate file is unnecessary; the textual

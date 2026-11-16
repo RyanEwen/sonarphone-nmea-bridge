@@ -7,6 +7,24 @@ The GitHub-flavor debug APK can be built and driven entirely over ADB. Its
 package is `ca.dynamicsolutions.sonarbridge`. Run commands from the repository
 root unless a section says otherwise.
 
+## Checks
+
+The root `package.json` holds the entry points; `npm run validate` is the gate CI runs on every push and pull request, and before every release.
+
+| Command | Runs |
+| --- | --- |
+| `npm run validate` | `format:check`, `lint`, `test`, `check:l10n` and `verify:android`, stopping at the first failure |
+| `npm run format` / `format:check` | Spotless (ktlint) on Kotlin sources and Gradle scripts: rewrite, or fail on a difference |
+| `npm run lint` | Android lint for both debug variants |
+| `npm run test` | Robolectric unit tests for both flavors, then `node --test` for `scripts/*.test.mjs` |
+| `npm run check:l10n` | `android/scripts/check-localization.py` |
+| `npm run verify:android` | Debug builds of both flavors |
+| `npm run build:android` | The installable GitHub-flavor debug APK |
+| `npm run install:android` | Installs that APK on the connected device with `adb install -r` |
+| `npm run package:android` | The Play release bundle and the GitHub release APK (signed only when the release signing variables are set) |
+
+Gradle tasks go through `scripts/gradle`. In CI, or with `SONARBRIDGE_GRADLE=local`, it runs the wrapper directly. Otherwise it uses the running `sonarbridge-builder` container, or else a disposable container from the `sonarbridge-build` image capped at `SONARBRIDGE_GRADLE_MEMORY` (default `4g`, no swap) with one worker.
+
 ## Build
 
 The long-lived `sonarbridge-builder` container builds natively on the host architecture (x86_64 or arm64) and keeps the
@@ -175,7 +193,7 @@ migration release. The app no longer downloads or installs APK updates itself.
 Before rollout, set these GitHub repository variables:
 
 - `PLAY_SIGNING_CERTIFICATE_SHA256`: the **app-signing** SHA-256 fingerprint
-  from Play Console, not the upload key. The `inspect-play-state` workflow can
+  from Play Console, not the upload key. The Play Check workflow (`play-check.yml`) can
   also read the authoritative signer from Google's existing bundle metadata
   without downloading or publishing anything. The existing `play-publish`
   workflow also offers `inspect_only` for the same read-only check. Export fails closed if it is missing
@@ -224,7 +242,7 @@ an explicit escape hatch for the final old-key update; never use it for future
 regular releases. Do not dispatch it concurrently with a tag release.
 
 If Play upload succeeded but GitHub export failed, do not rebuild/re-upload
-that versionCode. Run `replace-github-apk` for an existing GitHub release, or
+that versionCode. Run the Replace GitHub APK workflow (`play-apk.yml`) for an existing GitHub release, or
 create a reviewed GitHub release first and then run that workflow. It downloads
 an existing Play version and uploads the verified replacement before deleting
 the old asset. It preserves existing release notes, so review migration copy
@@ -233,7 +251,7 @@ needed by users running old APKs.
 
 `play-publish` remains available for manual track selection and listing-only
 syncs. A full build takes an existing `vX.Y.Z` tag; listing-only needs no tag. Full uploads first inspect current Play codes and
-reject reused or older codes before building. `inspect-play-state` reports
+reject reused or older codes before building. Play Check reports
 tracks, bundle codes and signer fingerprints using a temporary edit that is
 always discarded, never committed.
 Promote an already uploaded completed testing bundle using
@@ -245,16 +263,14 @@ key during migration.
 Verify export policy without accessing Play:
 
 ```sh
-node scripts/play-apk.test.mjs
-node scripts/play-status.test.mjs
-node scripts/play-promote.test.mjs
-node scripts/release-version.test.mjs
+npm run test:scripts
 ```
 
-Build verification uses the existing Docker builder:
+Build verification:
 
 ```sh
-docker exec sonarbridge-builder ./gradlew assembleGithubDebug assemblePlayDebug bundlePlayRelease
+npm run verify:android
+npm run package:android
 ```
 
 Debug APKs use the pinned debug key; they cannot prove migration from a legacy

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Run the Android Gradle wrapper with the given tasks, from any directory.
+#
+# Where Gradle runs, in order of preference:
+#   1. Directly on this machine when CI is set, or SONARBRIDGE_GRADLE=local
+#      (CI runners install the JDK and SDK themselves).
+#   2. In the long-lived `sonarbridge-builder` container when it is running
+#      (see docs/development.md, "Build").
+#   3. In a disposable container from the `sonarbridge-build` image, under a
+#      hard memory cap (SONARBRIDGE_GRADLE_MEMORY, default 4g, no swap) with one
+#      worker and the Kotlin compiler in-process, so it fits inside the cap.
+# It exits with Gradle's status, and with a clear error when none of these is
+# available.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+android_dir="$repo_root/android"
+
+if [ "$#" -eq 0 ]; then
+  echo "usage: scripts/gradle <task> [task...]" >&2
+  exit 2
+fi
+
+# 1. Local or CI: the machine already has a JDK and the Android SDK.
+if [ -n "${CI:-}" ] || [ "${SONARBRIDGE_GRADLE:-}" = "local" ]; then
+  cd "$android_dir"
+  exec ./gradlew "$@"
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "scripts/gradle: docker is not available. Install it, or set SONARBRIDGE_GRADLE=local to use a local JDK and Android SDK." >&2
+  exit 1
+fi
+
+# 2. The documented long-lived builder, which keeps the Gradle cache warm.
+if [ "$(docker inspect -f '{{.State.Running}}' sonarbridge-builder 2>/dev/null || true)" = "true" ]; then
+  exec docker exec sonarbridge-builder ./gradlew "$@"
+fi
+
+# 3. A disposable container from the builder image, capped so a heavy task
+#    cannot exhaust the host.
+if ! docker image inspect sonarbridge-build >/dev/null 2>&1; then
+  echo "scripts/gradle: no sonarbridge-builder container or sonarbridge-build image. Build the image as described under \"Build\" in docs/development.md." >&2
+  exit 1
+fi
+
+memory="${SONARBRIDGE_GRADLE_MEMORY:-4g}"
+
+exec docker run --rm \
+  --memory "$memory" --memory-swap "$memory" \
+  -u "$(id -u):$(id -g)" \
+  -e GRADLE_USER_HOME=/project/.gradle \
+  -e JAVA_TOOL_OPTIONS=-Duser.home=/tmp \
+  -e ANDROID_USER_HOME=/tmp/.android \
+  -v "$android_dir:/project" -w /project \
+  sonarbridge-build \
+  ./gradlew --no-daemon --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process "$@"
