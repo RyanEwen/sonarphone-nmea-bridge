@@ -69,7 +69,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
@@ -86,7 +86,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
@@ -119,7 +119,7 @@ jobs:
           [[ "${PLAY_SIGNING_CERTIFICATE_SHA256//:/}" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "::error::Set PLAY_SIGNING_CERTIFICATE_SHA256 to the Play app-signing fingerprint"; exit 1; }
           bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: ${{ !inputs.listing_only }}
         with:
           node-version-file: .nvmrc
