@@ -1,0 +1,5 @@
+# Mechanical reformats, skipped by git blame (STYLE-2).
+# Enable locally with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Apply the Spotless ktlint format
+76e153c5dd2f3e945aa144f98b5e8f7c3b1edee5
