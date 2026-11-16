@@ -108,7 +108,7 @@ compatibility.
 Both include a landscape shot showing the left nav rail. All captured in demo
 mode with a clean status bar.
 
-**Category:** Tools (or Sports). **Contact email:** ryan.ewen@gmail.com
+**Category:** Tools (or Sports). **Contact email:** contact@dynamic-solutions.ca
 **Privacy policy URL:**
 ```
 https://ryanewen.github.io/sonarphone-nmea-bridge/privacy.html
