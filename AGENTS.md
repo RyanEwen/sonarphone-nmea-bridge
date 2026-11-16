@@ -48,6 +48,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 - The foreground service type is `connectedDevice`.
 - ESPHome reads Wi-Fi settings from a git-ignored `esp32-client/secrets.yaml`; add any new key to `secrets.example.yaml` with a placeholder.
 - For ESP32 changes, preserve the rendering and PSRAM constraints in `esp32-client/README.md`; the local `mipi_rgb` fork is intentional.
+- The ESP32 Build workflow (`.github/workflows/esp32.yml`) compiles the firmware with ESPHome 2026.7.4 on every `esp32-client/` change. That version tracks the `mipi_rgb` fork's base; move both together.
 
 ## Commands
 

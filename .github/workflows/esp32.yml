@@ -1,0 +1,38 @@
+name: ESP32 Build
+
+# Compiles the ESPHome head-unit firmware when it changes, so a broken sp200a
+# component or mipi_rgb fork is caught before anyone flashes it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'esp32-client/**'
+      - '.github/workflows/esp32.yml'
+  pull_request:
+    paths:
+      - 'esp32-client/**'
+      - '.github/workflows/esp32.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: esp32-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    # The first run downloads the ESP-IDF toolchain; a compile is about ten minutes.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      # The real secrets.yaml is git-ignored; placeholders are enough to compile.
+      - name: Use the example secrets
+        run: cp esp32-client/secrets.example.yaml esp32-client/secrets.yaml
+      # Pinned to the 2026.7 line the local mipi_rgb fork is based on (esp32-client/README.md).
+      # Move it together with a re-sync of the fork.
+      - name: Compile firmware
+        run: |
+          docker run --rm -v "$PWD/esp32-client:/config" \
+            ghcr.io/esphome/esphome:2026.7.4 compile sp200a-8048S050.yaml

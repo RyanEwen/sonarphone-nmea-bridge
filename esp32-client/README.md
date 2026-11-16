@@ -32,6 +32,8 @@ It needs **no phone and no Android app**. It reimplements the sonar-facing half 
    ```
    (Run ESPHome in Docker per your usual setup.)
 
+CI compiles the firmware on every change under `esp32-client/` (the ESP32 Build workflow), using ESPHome 2026.7.4 and the placeholder secrets.
+
 The hardware config is pulled live from `github://RyanEwen/esphome-lvgl/devices/ESP32-8048S050.yaml`. Nothing in the sonar code touches the display/touch/psram setup you already proved out.
 
 ## Phone AP + NMEA bridge (Navionics support)
