@@ -1,6 +1,5 @@
 package ca.dynamicsolutions.sonarbridge
 
-import android.content.SharedPreferences
 import java.util.Locale
 
 /**
@@ -39,21 +38,22 @@ object Units {
     /** Fish markers: 0 off, 1 symbols, 2 symbols + depth. */
     @Volatile var fishMarkers = 0
 
-    fun load(prefs: SharedPreferences) {
-        feet = prefs.getString("unit_dist", "ft") == "ft"
-        fahrenheit = prefs.getString("unit_temp", "C") == "F"
-        sonarScale = when (prefs.getString("text_size", "normal")) {
+    /** Apply the display-related settings; [AppSettings] owns the keys, defaults and ranges. */
+    fun load(settings: AppSettings.Values) {
+        feet = settings.feet
+        fahrenheit = settings.fahrenheit
+        sonarScale = when (settings.textSize) {
             "large" -> 1.25f
             "xl" -> 1.5f
             else -> 1.0f
         }
-        gain = prefs.getInt("gain_pct", 100).coerceIn(50, 200) / 100f
-        surfaceClarity = prefs.getInt("surface_clarity", 0).coerceIn(0, 3)
-        noiseFilter = prefs.getInt("noise_filter", 0).coerceIn(0, 3)
-        keelOffsetM = prefs.getFloat("keel_offset_m", 0f)
-        tempOffsetC = prefs.getFloat("temp_offset_c", 0f)
-        displayStyle = prefs.getInt("display_style", 0).coerceIn(0, 1)
-        fishMarkers = prefs.getInt("fish_markers", 1).coerceIn(0, 2) // on (Fish) by default
+        gain = settings.gainPercent / 100f
+        surfaceClarity = settings.surfaceClarity
+        noiseFilter = settings.noiseFilter
+        keelOffsetM = settings.keelOffsetM
+        tempOffsetC = settings.tempOffsetC
+        displayStyle = settings.displayStyle
+        fishMarkers = settings.fishMarkers
     }
 
     /** Full depth readout: feet-and-inches (12' 4") or metres (12.34 m). */

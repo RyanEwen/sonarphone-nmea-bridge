@@ -1,35 +1,24 @@
 package ca.dynamicsolutions.sonarbridge
 
 import android.app.Activity
-import android.content.Context
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.R as MR
 
 /** Download choices and migration guidance shared by the launch notice and Settings. */
 object AndroidDownloads {
-    private const val NOTICE_SEEN = "play_migration_notice_seen"
 
     /** Legacy release installations see this once; dismissing never changes sonar settings. */
     fun maybeShowMigrationNotice(activity: Activity) {
         if (BuildConfig.IS_PLAY || BuildConfig.DEBUG) return
-        val prefs = activity.getSharedPreferences("cfg", Context.MODE_PRIVATE)
-        if (prefs.getBoolean(NOTICE_SEEN, false)) return
+        val settings = AppSettings(activity)
+        if (settings.migrationNoticeSeen) return
 
-        val padding = (16 * activity.resources.displayMetrics.density).toInt()
-        MaterialAlertDialogBuilder(activity)
-            .setTitle(activity.getString(R.string.download_change))
-            .setView(
-                android.widget.ScrollView(activity).apply {
-                    setPadding(padding, 0, padding, 0)
-                    addView(buildGuidanceView(activity, migration = true))
-                },
-            )
+        AppDialog.scrolling(activity, activity.getString(R.string.download_change), buildGuidanceView(activity, migration = true))
             .setNegativeButton(activity.getString(R.string.later)) { _, _ -> }
             .setOnDismissListener {
-                prefs.edit().putBoolean(NOTICE_SEEN, true).apply()
+                settings.migrationNoticeSeen = true
             }
             .show()
     }

@@ -12,7 +12,7 @@ import java.util.Locale
 
 /** Android owns the app locale on API 33+; older versions share one preference with services. */
 object AppLanguage {
-    internal const val PREFERENCE = "ui_language"
+    internal const val PREFERENCE = AppSettings.KEY_UI_LANGUAGE
 
     /** Native labels stay recognizable even before the user can read the current language. */
     val choices = linkedMapOf(
@@ -64,7 +64,7 @@ object AppLanguage {
 
     /** Initialize before any Activity or Service. Migration never replaces a platform choice. */
     fun initialize(context: Context) {
-        val prefs = context.getSharedPreferences("cfg", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(AppSettings.FILE, Context.MODE_PRIVATE)
         val stored = prefs.all[PREFERENCE] as? String
         val tag = canonicalTag(stored)
         if (Build.VERSION.SDK_INT >= 33) {
@@ -91,7 +91,7 @@ object AppLanguage {
         val locales = context.getSystemService(LocaleManager::class.java).applicationLocales
         if (locales.isEmpty) null else canonicalTag(locales[0].toLanguageTag())
     } else {
-        canonicalTag(context.getSharedPreferences("cfg", Context.MODE_PRIVATE).all[PREFERENCE] as? String)
+        canonicalTag(context.getSharedPreferences(AppSettings.FILE, Context.MODE_PRIVATE).all[PREFERENCE] as? String)
     }
 
     /**
@@ -126,7 +126,7 @@ object AppLanguage {
     fun select(context: Context, tag: String?) {
         val canonical = canonicalTag(tag)
         if (Build.VERSION.SDK_INT < 33) {
-            val edit = context.getSharedPreferences("cfg", Context.MODE_PRIVATE).edit()
+            val edit = context.getSharedPreferences(AppSettings.FILE, Context.MODE_PRIVATE).edit()
             if (canonical == null) edit.remove(PREFERENCE) else edit.putString(PREFERENCE, canonical)
             edit.apply()
         }

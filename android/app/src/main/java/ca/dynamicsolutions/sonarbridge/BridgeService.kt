@@ -92,7 +92,7 @@ class BridgeService : Service() {
         super.onCreate()
         cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         refreshNotificationLanguage()
-        getSharedPreferences("cfg", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(languageListener)
+        AppSettings(this).preferences.registerOnSharedPreferenceChangeListener(languageListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -102,20 +102,20 @@ class BridgeService : Service() {
             return START_NOT_STICKY
         }
 
-        val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
+        val settings = AppSettings(this)
         // exact SSID wins if given; otherwise a prefix pattern — the system
         // connect dialog lists all matching APs in range (the "picker")
         val ssid = intent?.getStringExtra("ssid")
         val pattern = if (ssid != null) {
             null
         } else {
-            intent?.getStringExtra("pattern") ?: prefs.getString("pattern", "SonarPhone_")!!
+            intent?.getStringExtra("pattern") ?: settings.searchPattern()
         }
         val pass = intent?.getStringExtra("pass") ?: SonarPassphrase.get(this)
         val logRaw = intent?.getStringExtra("lograw") == "true"
         val demo = (
             intent?.getStringExtra("demo")
-                ?: prefs.getBoolean("demo", false).toString()
+                ?: settings.read().demo.toString()
             ) == "true"
         udpFallbackPort = intent?.getStringExtra("udp")?.toIntOrNull() ?: 0
 
@@ -143,7 +143,7 @@ class BridgeService : Service() {
             )
         }
 
-        alarmM = getSharedPreferences("cfg", MODE_PRIVATE).getFloat("alarm_m", 0f).toDouble()
+        alarmM = AppSettings(this).read().alarmM.toDouble()
         if (alarmM > 0) log(String.format(Locale.US, "shallow alarm armed at %.2f m", alarmM))
 
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
@@ -292,14 +292,14 @@ class BridgeService : Service() {
 
                 // ---- RUN: FC every 10 s, parse stream, watchdog on 15 s silence
                 setPhase("RUN")
-                val cfg = getSharedPreferences("cfg", MODE_PRIVATE)
-                val beam = when (cfg.getString("beam", "20")) {
+                val settings = AppSettings(this@BridgeService).read()
+                val beam = when (settings.beam) {
                     "40" -> Sp200a.BEAM_80KHZ_40DEG
                     "125" -> Sp200a.BEAM_125KHZ_30DEG
                     else -> Sp200a.BEAM_200KHZ_20DEG
                 }
                 // device range in whole meters (we request meters); 0 = auto
-                val devRangeM = cfg.getFloat("dev_range_m", 0f).toInt()
+                val devRangeM = settings.deviceRangeM.toInt()
                 log(
                     "FC settings: meters, range=${if (devRangeM > 0) "0-${devRangeM}m" else "auto"}, " +
                         "beam=0x%02x".format(beam),
@@ -596,7 +596,7 @@ class BridgeService : Service() {
     private fun log(msg: String) = Log.i(TAG, msg)
 
     override fun onDestroy() {
-        getSharedPreferences("cfg", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(languageListener)
+        AppSettings(this).preferences.unregisterOnSharedPreferenceChangeListener(languageListener)
         log("service destroyed")
         toneGen?.release()
         toneGen = null

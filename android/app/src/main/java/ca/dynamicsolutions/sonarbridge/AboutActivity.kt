@@ -8,7 +8,6 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.R as MR
 
 /**
@@ -79,21 +78,12 @@ class AboutActivity : AppCompatActivity() {
     /** Show the build-generated notices file (third_party_notices.txt) in a scrolling dialog. */
     private fun showThirdPartyNotices() {
         val text = assets.open(NOTICES_ASSET).bufferedReader().use { it.readText() }
-        val padding = (20 * resources.displayMetrics.density).toInt()
-        MaterialAlertDialogBuilder(this)
-            .setTitle(getString(R.string.about_third_party_notices))
-            .setView(
-                ScrollView(this).apply {
-                    setPadding(padding, padding / 2, padding, 0)
-                    addView(
-                        TextView(this@AboutActivity).apply {
-                            this.text = text
-                            setTextAppearance(MR.style.TextAppearance_Material3_BodySmall)
-                            setTextIsSelectable(true)
-                        },
-                    )
-                },
-            )
+        val content = TextView(this).apply {
+            this.text = text
+            setTextAppearance(MR.style.TextAppearance_Material3_BodySmall)
+            setTextIsSelectable(true)
+        }
+        AppDialog.scrolling(this, getString(R.string.about_third_party_notices), content)
             .setPositiveButton(android.R.string.ok, null)
             .show()
     }

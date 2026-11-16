@@ -193,7 +193,7 @@ Everything is on the phone; there is no server and no account. Unconfirmed until
 | What | Where | Backed up | After uninstall |
 | --- | --- | --- | --- |
 | Settings (sonar network, units, ranges, offsets, alarm, display, demo; app language on Android 12 and lower) | App-private preferences file `cfg` | Yes, Android backup and device transfer | Removed with the app |
-| T-Box Wi-Fi passphrase | App-private preferences file `credentials` (`SonarPassphrase`) | No: excluded by `res/xml/backup_rules.xml` and `data_extraction_rules.xml` | Removed with the app |
+| T-Box Wi-Fi passphrase | App-private preferences file `credentials`, encrypted with AES/GCM under an Android Keystore key (`SonarPassphrase`) | No: excluded by `res/xml/backup_rules.xml` and `data_extraction_rules.xml` | Removed with the app |
 | App language on Android 13 and higher | Held by Android as the app's per-app language | By Android | Removed with the app |
 | Raw sonar frame logs (only when started with `-e lograw true`) | App-specific external storage (`Android/data/ca.dynamicsolutions.sonarbridge/files/`), or app-private storage if that is unavailable | No (not in the backup domain) | Removed with the app |
 | Notification channel | Android | No | Removed with the app |

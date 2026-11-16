@@ -15,7 +15,10 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 | T-Box protocol client | `android/app/src/main/java/ca/dynamicsolutions/sonarbridge/Sp200a.kt` |
 | Connection state machine and foreground service | `BridgeService.kt`, `BridgeState.kt` (same package) |
 | NMEA sentences and the local TCP server | `Nmea.kt`, `NmeaServer.kt` |
-| Tabs, dialogs and settings (Views in code) | `MainActivity.kt` |
+| Screen and tab navigation (Views in code) | `MainActivity.kt` |
+| Status tab and Settings tab | `StatusTab.kt`, `SettingsTab.kt` |
+| Every setting's key, default and range (one typed wrapper, CONF-8) | `AppSettings.kt` |
+| The one dialog shape | `AppDialog.kt` |
 | Sonar waterfall (custom `Canvas` view) and its history | `SonarView.kt`, `EchoHistory.kt` |
 | Units, regional formats and status text | `Units.kt`, `RegionalFormat.kt`, `StatusText.kt` |
 | App language selection | `AppLanguage.kt`, `App.kt`; strings in `android/app/src/main/res/values*/strings.xml` |
@@ -23,7 +26,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 | Every web address the app opens | `AppLinks.kt` |
 | Shared list row and section heading | `ListRow.kt` |
 | GitHub and Play download guidance | `AndroidDownloads.kt` |
-| T-Box passphrase storage (excluded from backup) | `SonarPassphrase.kt`, `res/xml/backup_rules.xml`, `res/xml/data_extraction_rules.xml` |
+| T-Box passphrase, encrypted with an Android Keystore key and excluded from backup | `SonarPassphrase.kt`, `res/xml/backup_rules.xml`, `res/xml/data_extraction_rules.xml` |
 | Generated third-party notices | The `generate<Variant>ThirdPartyNotices` task in `android/app/build.gradle.kts` |
 | Flavor-only manifest entries | `android/app/src/github/AndroidManifest.xml` |
 | ESP32 sonar client, display and NMEA bridge | `esp32-client/components/sp200a/` |
@@ -52,9 +55,10 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 - Build-tools stays at 35.0.0 because the pinned static arm64 `aapt2` build only goes up to 35.0.2 (see `android/docker/Dockerfile`).
 - Use Material 3 views and `DynamicColors`, programmatic layouts, and the existing custom `Canvas` sonar view. Do not introduce Compose or XML layouts without an explicit architecture decision.
 - The foreground service type is `connectedDevice`.
-- Read and write the T-Box passphrase only through `SonarPassphrase`; it lives in its own preferences file so backup can exclude it while every other setting is backed up (SEC-2).
+- Read and write settings only through `AppSettings` (CONF-8), and the T-Box passphrase only through `SonarPassphrase`, which encrypts it with AES/GCM under an Android Keystore key in its own file that backup excludes (SEC-2). Robolectric has no Keystore, so tests call `TestKeys.install()`.
+- New dialogs use `AppDialog`; new rows use `ListRow`.
 - Put any new web address in `AppLinks`, so a repository or policy move edits one file.
-- New About or Settings rows use `ListRow`; About labels copy winui-app-kit's `kit.about.*` wording and translations (BRAND-8), and `about_tagline` must equal the Play short description (checked by `check:l10n`).
+- About labels copy winui-app-kit's `kit.about.*` wording and translations (BRAND-8), and `about_tagline` must equal the Play short description (checked by `check:l10n`).
 - ESPHome reads Wi-Fi settings from a git-ignored `esp32-client/secrets.yaml`; add any new key to `secrets.example.yaml` with a placeholder.
 - For ESP32 changes, preserve the rendering and PSRAM constraints in `esp32-client/README.md`; the local `mipi_rgb` fork is intentional.
 - The ESP32 Build workflow (`.github/workflows/esp32.yml`) compiles the firmware with ESPHome 2026.7.4 on every `esp32-client/` change. That version tracks the `mipi_rgb` fork's base; move both together.

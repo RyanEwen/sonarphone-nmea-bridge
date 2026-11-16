@@ -40,6 +40,7 @@ class LanguageRecreationTest {
 
     @Before
     fun reset() {
+        TestKeys.install()
         RuntimeEnvironment.setQualifiers("en-rUS")
         prefs.edit().clear().putFloat("keel_offset_m", 2f).putFloat("alarm_m", 4f).apply()
         SonarPassphrase.set(app, "saved-password")
@@ -66,7 +67,12 @@ class LanguageRecreationTest {
         list.performItemClick(list.adapter.getView(index, null, list), index, index.toLong())
     }
 
-    private fun field(activity: MainActivity, name: String): TextInputEditText = MainActivity::class.java.getDeclaredField(name).apply { isAccessible = true }.get(activity) as TextInputEditText
+    private fun field(activity: MainActivity, name: String): TextInputEditText = when (name) {
+        "passEdit" -> activity.settingsTab.passEdit
+        "keelEdit" -> activity.settingsTab.keelEdit
+        "alarmEdit" -> activity.settingsTab.alarmEdit
+        else -> error("No settings field $name")
+    }
 
     @Test
     fun actualLanguageChangeAndClearPreserveDraftsTabAndSavedConfiguration() {
