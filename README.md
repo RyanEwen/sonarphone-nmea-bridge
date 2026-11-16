@@ -12,7 +12,7 @@
   <a href="https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge">
     <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get SonarBridge on Google Play" height="80">
   </a>
-  <a href="https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.6">
+  <a href="https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/latest">
     <img src="https://img.shields.io/badge/GitHub-Download%20the%20APK-181717?style=for-the-badge&amp;logo=github" alt="Download the SonarBridge APK from GitHub" height="56">
   </a>
 </p>
