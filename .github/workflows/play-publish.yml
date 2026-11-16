@@ -72,6 +72,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
+          # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
+          package-manager-cache: false
       - name: Promote existing bundle to production
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -87,6 +89,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
+          # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
+          package-manager-cache: false
       - name: Inspect releases and signing metadata
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -119,6 +123,8 @@ jobs:
         if: ${{ !inputs.listing_only }}
         with:
           node-version-file: .nvmrc
+          # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
+          package-manager-cache: false
 
       - name: Check Play versionCode before building
         if: ${{ !inputs.listing_only }}

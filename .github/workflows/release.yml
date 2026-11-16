@@ -82,6 +82,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
+          # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
+          package-manager-cache: false
 
       - name: Download and verify Google-signed APK
         env:
