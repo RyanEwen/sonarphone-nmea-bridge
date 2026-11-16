@@ -33,8 +33,10 @@ component.
 1. Copy `components/sp200a/` into your ESPHome config dir (next to the YAML), or
    point `external_components:` at it (a `type: local` path, or `type: git` at
    this repo's `esp32-client/components`).
-2. In `sp200a-8048S050.yaml`, set `sonar_ssid` / `sonar_password` to your
-   T-Box's AP (SSID prefix is `SonarPhone_`; default password `12345678`).
+2. Copy `secrets.example.yaml` to `secrets.yaml` (git-ignored) next to the
+   YAML and fill in your home Wi-Fi and a unique phone-AP passphrase. The
+   T-Box itself is chosen on the device's settings page (scan, then adopt a
+   `SonarPhone_` network), which joins it with the factory password `12345678`.
 3. Flash over USB the first time:
    ```
    esphome run sp200a-8048S050.yaml
@@ -48,7 +50,7 @@ sonar code touches the display/touch/psram setup you already proved out.
 ## Phone AP + NMEA bridge (Navionics support)
 
 The device doubles as the WiFi bridge the Android app provides: it runs an
-always-on softAP **`SonarDisplay`** (password `12345678`) alongside its
+always-on softAP **`SonarDisplay`** (password: `phone_ap_password` in `secrets.yaml`) alongside its
 connection to the T-Box, and serves NMEA 0183 on **TCP port 10110** on all
 interfaces. A phone joins `SonarDisplay`, and Navionics pairs to
 **`192.168.4.1:10110` (TCP)** — the phone keeps internet over cellular since

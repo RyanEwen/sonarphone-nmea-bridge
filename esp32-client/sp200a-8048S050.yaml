@@ -115,15 +115,15 @@ globals:
 # CRITICAL: the sonar AP has no internet and no ESPHome API. Without
 # reboot_timeout: 0s the node reboots after ~15 min on the water. Do not omit.
 wifi:
-  ssid: "The Three R's IoT"
+  ssid: !secret wifi_iot_ssid
   password: !secret wifi_iot_password
   reboot_timeout: 0s
   # AP declared here so ESPHome creates the netif + DHCP glue; the sp200a
   # component keeps it enabled ALONGSIDE the STA link (ESPHome alone would
   # only use it as a fallback)
   ap:
-    ssid: "SonarDisplay"
-    password: "12345678"
+    ssid: !secret phone_ap_ssid
+    password: !secret phone_ap_password
 
 api:
   reboot_timeout: 0s
@@ -141,6 +141,10 @@ sp200a:
   id: sonar
   demo: true
   feet: false
+  # The component configures the phone AP itself; ESPHome's `wifi: ap:` above
+  # only creates the netif. Both must read the same secrets.
+  phone_ap_ssid: !secret phone_ap_ssid
+  phone_ap_password: !secret phone_ap_password
   depth:
     id: sonar_depth
     name: "Depth"

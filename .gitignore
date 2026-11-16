@@ -1,3 +1,5 @@
 *Zone.Identifier
 frames/
 dist/
+# ESPHome secrets; see esp32-client/secrets.example.yaml
+esp32-client/secrets.yaml

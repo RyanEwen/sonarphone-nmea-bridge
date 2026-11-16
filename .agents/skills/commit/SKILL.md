@@ -18,4 +18,4 @@ Create one coherent, verified commit from the changes the user placed in scope.
 7. Commit without another confirmation unless the user asked to review or approve the message first.
 8. Follow the repository's branch and push policy. If none exists, push only when the user explicitly requested it.
 
-Use `ryan.ewen@gmail.com` as the commit author email. Do not add AI attribution or co-author trailers.
+Do not add AI attribution or co-author trailers.
