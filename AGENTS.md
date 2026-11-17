@@ -16,7 +16,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 | Connection state machine and foreground service | `BridgeService.kt`, `BridgeState.kt` (same package) |
 | NMEA sentences and the local TCP server | `Nmea.kt`, `NmeaServer.kt` |
 | Screen and tab navigation (Views in code) | `MainActivity.kt` |
-| Status tab and Settings tab | `StatusTab.kt`, `SettingsTab.kt` |
+| Status tab and Settings tab; Settings values that follow the Units choice | `StatusTab.kt`, `SettingsTab.kt`, `UnitField.kt` |
 | Every setting's key, default and range (one typed wrapper, CONF-8) | `AppSettings.kt` |
 | The one dialog shape | `AppDialog.kt` |
 | Sonar waterfall (custom `Canvas` view) and its history | `SonarView.kt`, `EchoHistory.kt` |

@@ -4,5 +4,7 @@
         <!-- transparent bars reveal the window background: no grey band -->
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- dark status bar icons on the light theme, light icons on the dark theme -->
+        <item name="android:windowLightStatusBar">?attr/isLightTheme</item>
     </style>
 </resources>

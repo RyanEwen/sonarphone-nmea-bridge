@@ -17,7 +17,6 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import java.util.Locale
 import com.google.android.material.R as MR
 
 /**
@@ -42,15 +41,21 @@ class SettingsTab(private val activity: AppCompatActivity, private val settings:
     private lateinit var tempGroup: MaterialButtonToggleGroup
     private lateinit var textGroup: MaterialButtonToggleGroup
     private lateinit var beamGroup: MaterialButtonToggleGroup
-    internal lateinit var alarmEdit: TextInputEditText
-    private lateinit var rangeEdit: TextInputEditText
+    private lateinit var alarmField: UnitField
+    private lateinit var rangeField: UnitField
     private lateinit var gainSlider: Slider
     private lateinit var clarityGroup: MaterialButtonToggleGroup
     private lateinit var noiseGroup: MaterialButtonToggleGroup
     private lateinit var styleGroup: MaterialButtonToggleGroup
     private lateinit var fishGroup: MaterialButtonToggleGroup
-    internal lateinit var keelEdit: TextInputEditText
-    private lateinit var tempOffEdit: TextInputEditText
+    private lateinit var keelField: UnitField
+    private lateinit var tempOffField: UnitField
+
+    internal val keelEdit get() = keelField.edit
+    internal val alarmEdit get() = alarmField.edit
+
+    /** Fields shown in feet or metres, re-rendered when the distance unit changes. */
+    private val lengthFields get() = listOf(rangeField, keelField, alarmField)
 
     /** The tab's root view, built once per activity. */
     val view: View = build()
@@ -261,64 +266,38 @@ class SettingsTab(private val activity: AppCompatActivity, private val settings:
                 activity.getString(R.string.beam_note),
             ),
         )
-        rangeEdit = TextInputEditText(activity).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            val m = saved.deviceRangeM
-            if (m > 0f) {
-                val v = if (Units.feet) m * 3.28084 else m.toDouble()
-                setText(String.format(Locale.US, "%.0f", v))
-            }
-        }
-        root.addView(
-            TextInputLayout(activity).apply {
-                hint = activity.getString(R.string.range_hint, if (Units.feet) "ft" else "m")
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = dp(8) }
-                addView(rangeEdit)
-            },
+        rangeField = unitField(
+            UnitScale.LENGTH,
+            InputType.TYPE_CLASS_NUMBER,
+            format = "%.0f",
+            hint = { activity.getString(R.string.range_hint, it) },
+            shows = { it > 0 },
+            topMargin = dp(8),
         )
+        root.addView(rangeField.layout)
         root.addView(
             note(
                 activity.getString(R.string.range_note),
             ),
         )
 
-        val du = if (Units.feet) "ft" else "m"
-        keelEdit = TextInputEditText(activity).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or
-                InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
-            val m = saved.keelOffsetM
-            if (m != 0f) {
-                setText(String.format(Locale.US, "%.1f", if (Units.feet) m * 3.28084 else m))
-            }
-        }
-        root.addView(
-            TextInputLayout(activity).apply {
-                hint = activity.getString(R.string.keel_hint, du)
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = dp(8) }
-                addView(keelEdit)
-            },
+        keelField = unitField(
+            UnitScale.LENGTH,
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED,
+            format = "%.1f",
+            hint = { activity.getString(R.string.keel_hint, it) },
+            shows = { it != 0.0 },
+            topMargin = dp(8),
         )
-        tempOffEdit = TextInputEditText(activity).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or
-                InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
-            val c = saved.tempOffsetC
-            if (c != 0f) {
-                val v = if (Units.fahrenheit) c * 9 / 5 else c
-                setText(String.format(Locale.US, "%.1f", v))
-            }
-        }
-        root.addView(
-            TextInputLayout(activity).apply {
-                hint = activity.getString(R.string.temperature_hint, if (Units.fahrenheit) "F" else "C")
-                addView(tempOffEdit)
-            },
+        root.addView(keelField.layout)
+        tempOffField = unitField(
+            UnitScale.TEMPERATURE_CHANGE,
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED,
+            format = "%.1f",
+            hint = { activity.getString(R.string.temperature_hint, it) },
+            shows = { it != 0.0 },
         )
+        root.addView(tempOffField.layout)
         root.addView(
             note(
                 activity.getString(R.string.offset_note),
@@ -326,20 +305,27 @@ class SettingsTab(private val activity: AppCompatActivity, private val settings:
         )
 
         root.addView(header(activity.getString(R.string.alarm_heading)))
-        alarmEdit = TextInputEditText(activity).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            val m = saved.alarmM
-            if (m > 0f) {
-                val v = if (Units.feet) m * 3.28084 else m.toDouble()
-                setText(String.format(Locale.US, "%.1f", v))
-            }
-        }
-        root.addView(
-            TextInputLayout(activity).apply {
-                hint = activity.getString(R.string.alarm_hint, if (Units.feet) "ft" else "m")
-                addView(alarmEdit)
-            },
+        alarmField = unitField(
+            UnitScale.LENGTH,
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL,
+            format = "%.1f",
+            hint = { activity.getString(R.string.alarm_hint, it) },
+            shows = { it > 0 },
         )
+        root.addView(alarmField.layout)
+
+        // Show each unit-bearing value in the saved units, and keep the displayed unit
+        // and the unit save() parses in step whenever a Units toggle changes.
+        rangeField.show(saved.deviceRangeM.toDouble(), saved.feet)
+        keelField.show(saved.keelOffsetM.toDouble(), saved.feet)
+        alarmField.show(saved.alarmM.toDouble(), saved.feet)
+        tempOffField.show(saved.tempOffsetC.toDouble(), saved.fahrenheit)
+        distGroup.addOnButtonCheckedListener { _, id, checked ->
+            if (checked) lengthFields.forEach { it.switchUnit(inAlternate = id == 1) }
+        }
+        tempGroup.addOnButtonCheckedListener { _, id, checked ->
+            if (checked) tempOffField.switchUnit(inAlternate = id == 2)
+        }
         root.addView(note(activity.getString(R.string.alarm_note)))
 
         root.addView(header(activity.getString(R.string.demo_heading)))
@@ -378,10 +364,9 @@ class SettingsTab(private val activity: AppCompatActivity, private val settings:
 
     /** Commit every draft: settings through [AppSettings], the passphrase through [SonarPassphrase]. */
     fun save() {
-        val alarmDisp = alarmEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
-        val alarmM = if (Units.feet) alarmDisp * 0.3048 else alarmDisp
-        val rangeDisp = rangeEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
-        val rangeM = (if (Units.feet) rangeDisp * 0.3048 else rangeDisp).coerceIn(0.0, 73.0)
+        // Each field reads its text in the unit it displays, never the previously saved unit.
+        val alarmM = alarmField.baseValue()
+        val rangeM = rangeField.baseValue().coerceIn(0.0, 73.0)
         SonarPassphrase.set(activity, passEdit.text?.toString() ?: "")
         settings.write(
             AppSettings.Values(
@@ -407,14 +392,8 @@ class SettingsTab(private val activity: AppCompatActivity, private val settings:
                 noiseFilter = (noiseGroup.checkedButtonId - 1).coerceIn(0, 3),
                 displayStyle = (styleGroup.checkedButtonId - 1).coerceIn(0, 1),
                 fishMarkers = (fishGroup.checkedButtonId - 1).coerceIn(0, 2),
-                keelOffsetM = run {
-                    val v = keelEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
-                    (if (Units.feet) v * 0.3048 else v).toFloat()
-                },
-                tempOffsetC = run {
-                    val v = tempOffEdit.text?.toString()?.toDoubleOrNull() ?: 0.0
-                    (if (Units.fahrenheit) v * 5 / 9 else v).toFloat()
-                },
+                keelOffsetM = keelField.baseValue().toFloat(),
+                tempOffsetC = tempOffField.baseValue().toFloat(),
             ),
         )
         Units.load(settings.read())
@@ -437,7 +416,7 @@ class SettingsTab(private val activity: AppCompatActivity, private val settings:
 
     /** Explicit state is needed because programmatic controls reuse local IDs in separate groups. */
     fun saveDraft(): Bundle = Bundle().apply {
-        val fields = listOf(ssidEdit, passEdit, rangeEdit, keelEdit, tempOffEdit, alarmEdit)
+        val fields = draftFields()
         fields.forEachIndexed { index, field -> putString("field_$index", field.text?.toString()) }
         val groups = listOf(distGroup, tempGroup, textGroup, beamGroup, clarityGroup, noiseGroup, styleGroup, fishGroup)
         groups.forEachIndexed { index, group -> putInt("group_$index", group.checkedButtonId) }
@@ -446,13 +425,40 @@ class SettingsTab(private val activity: AppCompatActivity, private val settings:
         putFloat("gain", gainSlider.value)
     }
 
+    /** Every free-text field, in the fixed order drafts store them. */
+    private fun draftFields() = listOf(ssidEdit, passEdit, rangeField.edit, keelField.edit, tempOffField.edit, alarmField.edit)
+
+    /** Build a [UnitField] with its own input and hint container; the caller adds its layout and shows a value. */
+    private fun unitField(
+        scale: UnitScale,
+        inputType: Int,
+        format: String,
+        hint: (String) -> String,
+        shows: (Double) -> Boolean,
+        topMargin: Int = 0,
+    ): UnitField {
+        val edit = TextInputEditText(activity).apply { this.inputType = inputType }
+        val layout = TextInputLayout(activity).apply {
+            if (topMargin > 0) {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { this.topMargin = topMargin }
+            }
+            addView(edit)
+        }
+        return UnitField(layout, edit, scale, format, hint, shows)
+    }
+
     /** Restore exact draft text, including blank or unfinished decimal entries, after recreation. */
     fun restoreDraft(draft: Bundle?) {
         if (draft == null) return
-        val fields = listOf(ssidEdit, passEdit, rangeEdit, keelEdit, tempOffEdit, alarmEdit)
-        fields.forEachIndexed { index, field -> field.setText(draft.getString("field_$index")) }
+        // Units first: restoring them re-renders the unit fields, and the draft text
+        // that follows was typed in those same restored units.
         val groups = listOf(distGroup, tempGroup, textGroup, beamGroup, clarityGroup, noiseGroup, styleGroup, fishGroup)
         groups.forEachIndexed { index, group -> group.check(draft.getInt("group_$index")) }
+        val fields = draftFields()
+        fields.forEachIndexed { index, field -> field.setText(draft.getString("field_$index")) }
         modeGroup.check(draft.getInt("mode"))
         demoSwitch.isChecked = draft.getBoolean("demo")
         gainSlider.value = draft.getFloat("gain", 100f)
