@@ -4,12 +4,12 @@
 You can continue installing SonarBridge manually from GitHub. Future GitHub
 APKs, named `sonarbridge-X.Y.Z-play.apk`, are the same app offered by
 [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge).
-[Download the Play-signed APK from the latest GitHub release](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/latest).
+[Download the Play-signed APK from the latest GitHub release](https://github.com/Dynamic-Solutions-Canada/sonarbridge/releases/latest).
 The new app does not download APK updates itself. Download future APKs from
 GitHub manually, or use Google Play for updates where available.
 
 If you already use an older GitHub APK, first install the
-[final legacy migration update (v0.2.4)](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.4)
+[final legacy migration update (v0.2.4)](https://github.com/Dynamic-Solutions-Canada/sonarbridge/releases/tag/v0.2.4)
 when offered. It preserves your settings and explains the
 switch. Wait until a `-play.apk` is available before uninstalling.
 

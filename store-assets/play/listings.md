@@ -33,7 +33,7 @@ When a change touches one of these, revisit the listing wording in every locale.
 - **App name and default language:** SonarBridge, English (United States).
 - **Category:** Tools. **Price:** free.
 - **Contact email:** the company contact (BRAND-9).
-- **Privacy policy URL:** `https://ryanewen.github.io/sonarphone-nmea-bridge/privacy.html` until the policy moves to the company site.
+- **Privacy policy URL:** `https://www.dynamic-solutions.ca/privacy/sonarbridge`, served by the company website.
 - **App access:** all functionality is available without special access. Reason: there is no login, and demo mode covers the whole app without the sonar.
 - **Ads:** none.
 - **Content rating:** Utility/Tools with no objectionable content; expect Everyone / PEGI 3.

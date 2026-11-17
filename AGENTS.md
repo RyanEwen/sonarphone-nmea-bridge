@@ -110,6 +110,6 @@ Use the `release` skill. Notes are committed per version in `release-notes/` bef
 | Interface text or supported languages | `docs/localization.md`, every `values*/strings.xml` |
 | A check, test suite or build command added | `package.json` (and `validate` when it is static), **Checks** in `docs/development.md`, Commands above |
 | User-visible features | `README.md` |
-| What the app stores, where, or whether it is backed up | **Data the app keeps** in `docs/development.md`, the README's Privacy section, `docs/privacy.html` |
+| What the app stores, where, or whether it is backed up | **Data the app keeps** in `docs/development.md`, the README's Privacy section, the policy page in the company website repo |
 | Listing text, store images or a claim the listing makes | `store-assets/play/listings.json` and `listings.md` (every locale) |
 | ESP32 options, secrets keys, or hardware caveats | `esp32-client/README.md`, `esp32-client/secrets.example.yaml` |

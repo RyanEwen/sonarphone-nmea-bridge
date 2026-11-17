@@ -8,11 +8,11 @@ import android.widget.Toast
 
 /** Every web address the app opens, in one place, so a repository move edits one file. */
 object AppLinks {
-    const val REPOSITORY = "https://github.com/RyanEwen/sonarphone-nmea-bridge"
+    const val REPOSITORY = "https://github.com/Dynamic-Solutions-Canada/sonarbridge"
     const val RELEASES = "$REPOSITORY/releases"
     const val ISSUES = "$REPOSITORY/issues"
     const val LICENSE = "$REPOSITORY/blob/main/LICENSE"
-    const val PRIVACY_POLICY = "https://ryanewen.github.io/sonarphone-nmea-bridge/privacy.html"
+    const val PRIVACY_POLICY = "https://www.dynamic-solutions.ca/privacy/sonarbridge"
     const val PLAY = "https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge"
 
     /** Open [url] in the user's browser; explain instead of crashing when nothing can open it. */

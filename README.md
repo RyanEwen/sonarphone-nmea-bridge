@@ -12,7 +12,7 @@
   <a href="https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge">
     <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get SonarBridge on Google Play" height="80">
   </a>
-  <a href="https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/latest">
+  <a href="https://github.com/Dynamic-Solutions-Canada/sonarbridge/releases/latest">
     <img src="https://img.shields.io/badge/GitHub-Download%20the%20APK-181717?style=for-the-badge&amp;logo=github" alt="Download the SonarBridge APK from GitHub" height="56">
   </a>
 </p>
@@ -41,7 +41,7 @@ Garmin dropped SonarPhone support from the Navionics Boating app, and Vexilar's 
 
 Install from Google Play, or download the APK from GitHub Releases using the badges above. GitHub APKs named `sonarbridge-X.Y.Z-play.apk` are generated and signed by Google Play. You do not need to use the Play Store to install them; you may need to allow installs from your browser.
 
-**Moving from an older GitHub APK:** first install the [final legacy migration update (v0.2.4)](https://github.com/RyanEwen/sonarphone-nmea-bridge/releases/tag/v0.2.4) when offered, then follow the [migration guide](docs/android-migration-release-notes.md). The new APK cannot replace an older GitHub installation directly. Record your settings and save any raw frame logs first, then disconnect, uninstall and reinstall once. Re-enter settings and grant permissions afterward. Wait for a `-play.apk` before uninstalling. Future GitHub APKs update the new app normally.
+**Moving from an older GitHub APK:** first install the [final legacy migration update (v0.2.4)](https://github.com/Dynamic-Solutions-Canada/sonarbridge/releases/tag/v0.2.4) when offered, then follow the [migration guide](docs/android-migration-release-notes.md). The new APK cannot replace an older GitHub installation directly. Record your settings and save any raw frame logs first, then disconnect, uninstall and reinstall once. Re-enter settings and grant permissions afterward. Wait for a `-play.apk` before uninstalling. Future GitHub APKs update the new app normally.
 
 You'll need Android 10 or newer and a SonarPhone SP200A (T-Box). Other SonarPhone models speak the same protocol and may work, but only the SP200A has been targeted.
 
@@ -76,7 +76,7 @@ Build, flash, and design notes live in the [esp32-client README](esp32-client/RE
 
 ## Privacy
 
-SonarBridge collects no telemetry, analytics or crash reports, and has no accounts: sonar data stays on your phone, and the NMEA feed goes only to apps on the same phone. Android's own backup keeps your settings, except the sonar's Wi-Fi password. Read the [privacy policy](https://ryanewen.github.io/sonarphone-nmea-bridge/privacy.html).
+SonarBridge collects no telemetry, analytics or crash reports, and has no accounts: sonar data stays on your phone, and the NMEA feed goes only to apps on the same phone. Android's own backup keeps your settings, except the sonar's Wi-Fi password. Read the [privacy policy](https://www.dynamic-solutions.ca/privacy/sonarbridge).
 
 ## Developers
 
