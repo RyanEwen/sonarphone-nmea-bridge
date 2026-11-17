@@ -37,7 +37,7 @@ jobs:
           node-version-file: .nvmrc
           # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
           package-manager-cache: false
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
