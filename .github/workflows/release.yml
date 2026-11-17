@@ -60,7 +60,7 @@ jobs:
         run: bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
 
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
