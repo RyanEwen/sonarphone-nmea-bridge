@@ -18,8 +18,6 @@ Ship one `vX.Y.Z` Android release from committed notes to a Play production draf
 9. Send the draft to review: `gh workflow run play-publish.yml -f version=vX.Y.Z -f publish_draft=true`, and watch it. It refuses a draft whose versionCode does not match the tag.
 10. Post-release: confirm an installed copy updates from Play or the GitHub APK; update the product's website page or the promo catalog only when features, screenshots or the listing changed.
 
-Before the first release on this flow: do not tag until these device checks have passed on a phone or the shared emulator, and report them: the About screen (Settings > About, in en-US and one other language), the three tabs unchanged after the main-screen split, and the passphrase migrating to Keystore encryption when installed over a build that stored it in plain text (Connect must still use it). Remove this paragraph once they pass.
-
 First release on this flow: these parts were reviewed but have not yet run against Play. Check each one and remove this paragraph once all three have worked. (1) The fastlane upload with `--release_status draft` lands on production as a draft with every locale's notes. (2) Google generates the universal APK for the draft, so the GitHub step gets its APK (Google's download-apks guide documents this). (3) `publish_draft` finds the draft and commits it.
 
 Report: the version and versionCode, who approved the notes, the commit and tag, the Release URL, the Play draft and publish run results, and anything left for the maintainer.
