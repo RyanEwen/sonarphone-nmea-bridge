@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
   SIBLING_IDENTITIES, PLAY_NOTES_LIMIT, DISCLOSURE_LINE,
-  checkNotesFolder, githubReleaseBody, problemsInNotes, readVersionNotes, versionFromTag, writePlayChangelogs
+  checkNotesFolder, githubReleaseBody, playApkFileName, problemsInNotes, readVersionNotes, versionFromTag, writePlayChangelogs
 } from './release-notes.mjs'
 
 /** A temporary notes folder holding one complete version, with optional overrides. */
@@ -74,9 +74,17 @@ test('Play changelogs cover every listing locale, with Canadian aliases copied',
 })
 
 test('The GitHub body is the en-US notes followed by the disclosure line', () => {
-  const body = githubReleaseBody({ 'en-US': '- Faster reconnects.' })
+  const body = githubReleaseBody({ 'en-US': '- Faster reconnects.' }, '1.2.3')
   assert.ok(body.startsWith('- Faster reconnects.\n'))
   assert.ok(body.trimEnd().endsWith(DISCLOSURE_LINE))
+})
+
+test('The GitHub body names this version\'s APK, never a placeholder', () => {
+  const body = githubReleaseBody({ 'en-US': '- Faster reconnects.' }, '0.2.7')
+  assert.ok(body.includes('`sonarbridge-0.2.7-play.apk`'))
+  assert.ok(!body.includes('X.Y.Z'))
+  assert.throws(() => githubReleaseBody({ 'en-US': '- Faster reconnects.' }), /Expected a version/)
+  assert.throws(() => playApkFileName('v0.2.7'), /Expected a version/)
 })
 
 test('Only vX.Y.Z tags name a version', () => {

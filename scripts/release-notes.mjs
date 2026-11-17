@@ -135,14 +135,30 @@ export function writePlayChangelogs(notes, versionCode, metadataDir) {
   return written
 }
 
-/** The GitHub Release body: en-US notes, where to get the app, then the disclosure line. */
-export function githubReleaseBody(notes) {
+/**
+ * The Play-signed APK's file name on a GitHub Release. play-apk.yml uploads the
+ * asset as `sonarbridge-$VERSION-play.apk`; keep the two in step.
+ */
+export function playApkFileName(version) {
+  if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) throw new Error(`Expected a version like 1.2.3, got "${version}".`)
+  return `sonarbridge-${version}-play.apk`
+}
+
+/**
+ * The GitHub Release body: en-US notes, where to get the app (naming this
+ * version's APK), then the disclosure line.
+ *
+ * @param notes notes by identity, as readVersionNotes returns them.
+ * @param version the X.Y.Z version being released; throws when it is malformed.
+ */
+export function githubReleaseBody(notes, version) {
+  const apk = playApkFileName(version)
   return [
     notes[SOURCE_IDENTITY],
     '',
     '## Get it',
     '',
-    'Install from [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge), or download the Play-signed `sonarbridge-X.Y.Z-play.apk` below.',
+    `Install from [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge), or download the Play-signed \`${apk}\` below.`,
     '',
     DISCLOSURE_LINE,
     ''
@@ -171,7 +187,8 @@ function main(argv) {
   }
 
   if (command === 'github') {
-    process.stdout.write(githubReleaseBody(readVersionNotes(folder, versionFromTag(tag))))
+    const version = versionFromTag(tag)
+    process.stdout.write(githubReleaseBody(readVersionNotes(folder, version), version))
     return
   }
 
