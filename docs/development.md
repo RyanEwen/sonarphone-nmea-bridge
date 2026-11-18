@@ -13,13 +13,15 @@ The root `package.json` holds the entry points; `npm run validate` is the gate C
 
 | Command | Runs |
 | --- | --- |
-| `npm run validate` | `format:check`, `lint`, `test`, `check:l10n`, `check:release-notes`, `check:listings` and `verify:android`, stopping at the first failure |
+| `npm run validate` | `format:check`, `lint`, `test`, `check:l10n`, `check:release-notes`, `check:listings`, `shots:check` and `verify:android`, stopping at the first failure |
 | `npm run format` / `format:check` | Spotless (ktlint) on Kotlin sources and Gradle scripts: rewrite, or fail on a difference |
 | `npm run lint` | Android lint for both debug variants |
 | `npm run test` | Robolectric unit tests for both flavors, then `node --test` for `scripts/*.test.mjs` |
 | `npm run check:l10n` | `android/scripts/check-localization.py` |
 | `npm run check:release-notes` | Every file in `release-notes/` is named correctly, complete for every catalog, and within Play's 500-character limit |
 | `npm run check:listings` | `store-assets/play/listings.json` has every listing locale and fits Play's limits |
+| `npm run shots:check` | The Play screenshots match `store-assets/manifest.json`: names, order, size, RGB without alpha, raw captures, text that fits, alt text for every catalog |
+| `npm run shots:render` / `shots:backdrop` | Frame the raw captures into the Play screenshots, or redraw the backdrop, in a disposable Chromium container (see `store-assets/README.md`) |
 | `npm run verify:android` | Debug builds of both flavors |
 | `npm run build:android` | The installable GitHub-flavor debug APK |
 | `npm run install:android` | Installs that APK on the connected device with `adb install -r` |

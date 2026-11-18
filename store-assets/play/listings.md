@@ -14,7 +14,7 @@ The listing text is `listings.json` (title, short and full description for all n
 | `fullDescription` | 4,000 characters | 1,845 (de-DE) |
 | Release notes | 500 characters per locale | checked by `npm run check:release-notes` |
 
-Graphics: icon 512 x 512, feature graphic 1024 x 500. Phone screenshots are 1440 x 3213 portrait and 3213 x 1440 landscape; tablet screenshots are 1200 x 2000 and 2000 x 1200. All are captured once, in English, in demo mode with a clean status bar, and serve every listing locale. Both sets include a landscape shot that shows the left navigation rail.
+Graphics: icon 512 x 512, feature graphic 1024 x 500. Phone screenshots are 1080 x 1920 portrait and 1920 x 1080 landscape; tablet screenshots are 1200 x 1920 and 1920 x 1200. They are dark-mode demo captures of the released app in a device frame on a backdrop, with an English headline, captured once and serving every listing locale; `store-assets/README.md` has the procedure and `npm run shots:check` checks them. Both sets include a landscape shot that shows the left navigation rail.
 
 ## Claims to keep true
 
@@ -45,6 +45,5 @@ When a change touches one of these, revisit the listing wording in every locale.
 
 ## Open questions
 
-- Play caps a screenshot's side ratio at 2:1, and the full-height phone shots are about 2.23:1. They have been accepted so far; if the API ever rejects them, crop to 2:1 (for example 1440 x 2880) and re-run the workflow with `listing_only`.
 - The privacy policy URL changes when the policy moves to the company site; update it here and in Play Console together.
 - The listing translations still need a native-speaker review.

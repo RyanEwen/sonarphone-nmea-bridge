@@ -18,11 +18,11 @@
 </p>
 
 <p align="center">
-  <img src="store-assets/play/screenshots/phone/01-sonar.png" alt="Sonar view: fish-finder waterfall with fish markers, bottom, and depth scale" width="250">
+  <img src="store-assets/play/screenshots/phone/01-sonar-dark.png" alt="Sonar tab in demo mode: a scrolling waterfall with fish echoes and the bottom, the current depth and water temperature, and the depth scale." width="250">
   &nbsp;
-  <img src="store-assets/play/screenshots/phone/03-status.png" alt="Status view: live depth, temperature, battery and connection state" width="250">
+  <img src="store-assets/play/screenshots/phone/03-status-dark.png" alt="Status tab in demo mode: live depth, water temperature and battery voltage, with the Navionics pairing details (host 127.0.0.1, port 10110, TCP)." width="250">
   &nbsp;
-  <img src="store-assets/play/screenshots/phone/04-settings.png" alt="Settings: network, units, and sonar display controls" width="250">
+  <img src="store-assets/play/screenshots/phone/04-settings-dark.png" alt="Settings tab: app language, the sonar WiFi network and password, and depth and temperature units." width="250">
 </p>
 
 Garmin dropped SonarPhone support from the Navionics Boating app, and Vexilar's own app has not aged well, leaving perfectly good T-Box sonars with nowhere to go. SonarBridge turns your Android phone into both the fish finder *and* the missing link to Navionics: it connects directly to the SonarPhone's WiFi, shows a modern sonar display, and feeds live depth into the Navionics app, all on one phone, without giving up your internet connection. Give your SP200A a second life.

@@ -33,6 +33,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 | ESP32 display driver (intentional local fork) | `esp32-client/components/mipi_rgb/` |
 | ESP32 device config and its secrets template | `esp32-client/sp200a-8048S050.yaml`, `esp32-client/secrets.example.yaml` |
 | Play listing source (text and images, one copy each) | `store-assets/play/`; `store-assets/web/screenshots/` for README-only images |
+| Play screenshots: manifest, raw captures, frame and backdrop renderer | `store-assets/manifest.json`, `store-assets/raw/`, `store-assets/marketing/`, `scripts/store-shots.mjs`; procedure in `store-assets/README.md` |
 | Play publishing, release notes and versioning | `scripts/play-*.mjs`, `scripts/release-notes.mjs`, `scripts/release-version.sh`, `release-notes/`, `.github/workflows/` |
 | Test phone discovery over wireless ADB | `scripts/find-phone.py` |
 | Command entry points and the Gradle runner | `package.json`, `scripts/gradle` |
@@ -77,6 +78,7 @@ The root `package.json` holds the entry points. Gradle tasks run through `script
 | `npm run check:l10n` | Every locale has the same string keys and placeholders | That the translations read well |
 | `npm run check:release-notes` | Release notes are complete for every catalog and fit Play's limit | That they read well |
 | `npm run check:listings` | The Play listing has every locale and fits Play's limits | That a Console upload succeeds |
+| `npm run shots:check` | The Play screenshots match the manifest, are the right size and RGB, and have raw captures and alt text | That they look right; inspect every image |
 
 Test protocol or lifecycle changes on a phone against the relevant state transitions: `WIFI_WAIT`, `DISCOVER`, `RUN`, silence recovery, and reconnect after an AP power cycle. The validation checklist in `docs/development.md` lists what to observe.
 
@@ -93,6 +95,7 @@ Use the `release` skill. Notes are committed per version in `release-notes/` bef
 | `docs/localization.md` | Adding or changing interface text or languages | `android/app/src/main/res/values*/`, `AppLanguage.kt` |
 | `esp32-client/README.md` | Any ESP32 component, display or config change | `esp32-client/` |
 | `store-assets/play/listings.md` | Changing store listing text, graphics or Console answers | `store-assets/`, the generated `fastlane/` tree |
+| `store-assets/README.md` | Capturing, framing or changing the Play screenshots | `store-assets/manifest.json`, `raw/`, `marketing/`, `play/screenshots/` |
 | `build-android` skill | Building the development APK | Android builds |
 | `deploy-android` skill | Installing the development APK on the test phone | ADB installs |
 | `drive-android` skill | Starting, stopping or observing the bridge service over ADB | ADB testing |

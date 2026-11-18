@@ -1,0 +1,144 @@
+{
+  "play": {
+    "phone": [
+      {
+        "file": "play/screenshots/phone/01-sonar-dark.png",
+        "source": "raw/android/phone/01-sonar-dark.png",
+        "orientation": "portrait",
+        "theme": "dark",
+        "headline": "Give your T-Box\na modern fish finder.",
+        "caption": "Fish, bottom and depth, clear at a glance.",
+        "alt": {
+          "en-US": "Sonar tab in demo mode: a scrolling waterfall with fish echoes and the bottom, the current depth and water temperature, and the depth scale.",
+          "es-ES": "Pestaña Sonar en modo de demostración: una cascada desplazable con ecos de peces y el fondo, la profundidad y la temperatura del agua actuales, y la escala de profundidad.",
+          "fr-FR": "Onglet Sonar en mode démo : une cascade défilante avec les échos de poissons et le fond, la profondeur et la température de l’eau actuelles, et l’échelle de profondeur.",
+          "de-DE": "Tab Sonar im Demomodus: ein laufender Wasserfall mit Fischechos und Grund, aktueller Tiefe und Wassertemperatur sowie der Tiefenskala.",
+          "zh-CN": "演示模式下的“声呐”标签页：滚动瀑布图显示鱼群回波和水底，以及当前深度、水温和深度刻度。",
+          "pt-BR": "Aba Sonar no modo de demonstração: uma cascata rolante com ecos de peixes e o fundo, a profundidade e a temperatura da água atuais e a escala de profundidade.",
+          "ja-JP": "デモモードの「ソナー」タブ：魚の反応と水底を表示するスクロール画面に、現在の深度と水温、深度目盛り。"
+        }
+      },
+      {
+        "file": "play/screenshots/phone/02-sonar-landscape-dark.png",
+        "source": "raw/android/phone/02-sonar-landscape-dark.png",
+        "orientation": "landscape",
+        "theme": "dark",
+        "headline": "Turn it sideways\nfor the wide view.",
+        "caption": "More sonar history on one screen.",
+        "alt": {
+          "en-US": "Sonar tab in landscape in demo mode, with the Status, Sonar and Settings rail on the left.",
+          "es-ES": "Pestaña Sonar en horizontal en modo de demostración, con la barra Estado, Sonar y Ajustes a la izquierda.",
+          "fr-FR": "Onglet Sonar en paysage en mode démo, avec la barre État, Sonar et Paramètres à gauche.",
+          "de-DE": "Tab Sonar im Querformat im Demomodus, mit der Leiste Status, Sonar und Einstellungen links.",
+          "zh-CN": "演示模式下横屏的“声呐”标签页，左侧为“状态”、“声呐”和“设置”导航栏。",
+          "pt-BR": "Aba Sonar na horizontal no modo de demonstração, com a barra Status, Sonar e Configurações à esquerda.",
+          "ja-JP": "デモモードで横向きにした「ソナー」タブ。左側に「状態」「ソナー」「設定」のナビゲーション。"
+        }
+      },
+      {
+        "file": "play/screenshots/phone/03-status-dark.png",
+        "source": "raw/android/phone/03-status-dark.png",
+        "orientation": "portrait",
+        "theme": "dark",
+        "headline": "Live depth,\nstraight into Navionics.",
+        "caption": "Pair Navionics on this phone, keep mobile data.",
+        "alt": {
+          "en-US": "Status tab in demo mode: live depth, water temperature and battery voltage, with the Navionics pairing details (host 127.0.0.1, port 10110, TCP).",
+          "es-ES": "Pestaña Estado en modo de demostración: profundidad, temperatura del agua y voltaje de la batería en directo, con los datos para emparejar Navionics (host 127.0.0.1, puerto 10110, TCP).",
+          "fr-FR": "Onglet État en mode démo : profondeur, température de l’eau et tension de batterie en direct, avec les informations d’appairage Navionics (hôte 127.0.0.1, port 10110, TCP).",
+          "de-DE": "Tab Status im Demomodus: Live-Tiefe, Wassertemperatur und Batteriespannung, mit den Angaben zum Koppeln von Navionics (Host 127.0.0.1, Port 10110, TCP).",
+          "zh-CN": "演示模式下的“状态”标签页：实时深度、水温和电池电压，以及 Navionics 配对信息（主机 127.0.0.1，端口 10110，TCP）。",
+          "pt-BR": "Aba Status no modo de demonstração: profundidade, temperatura da água e tensão da bateria ao vivo, com os dados para parear o Navionics (host 127.0.0.1, porta 10110, TCP).",
+          "ja-JP": "デモモードの「状態」タブ：リアルタイムの深度、水温、バッテリー電圧と、Navionics のペアリング情報（ホスト 127.0.0.1、ポート 10110、TCP）。"
+        }
+      },
+      {
+        "file": "play/screenshots/phone/04-settings-dark.png",
+        "source": "raw/android/phone/04-settings-dark.png",
+        "orientation": "portrait",
+        "theme": "dark",
+        "headline": "Set it up\nfor your sonar.",
+        "caption": "Pick your language, sonar network and units.",
+        "alt": {
+          "en-US": "Settings tab: app language, the sonar WiFi network and password, and depth and temperature units.",
+          "es-ES": "Pestaña Ajustes: idioma de la app, la red WiFi y la contraseña del sonar, y las unidades de profundidad y temperatura.",
+          "fr-FR": "Onglet Paramètres : langue de l’application, réseau WiFi et mot de passe du sonar, et unités de profondeur et de température.",
+          "de-DE": "Tab Einstellungen: App-Sprache, Sonar-WLAN und Passwort sowie Einheiten für Tiefe und Temperatur.",
+          "zh-CN": "“设置”标签页：应用语言、声呐 WiFi 网络和密码，以及深度和温度单位。",
+          "pt-BR": "Aba Configurações: idioma do app, a rede WiFi e a senha do sonar, e as unidades de profundidade e temperatura.",
+          "ja-JP": "「設定」タブ：アプリの言語、ソナーの WiFi ネットワークとパスワード、深度と温度の単位。"
+        }
+      }
+    ],
+    "tablet": [
+      {
+        "file": "play/screenshots/tablet/01-sonar-dark.png",
+        "source": "raw/android/tablet/01-sonar-dark.png",
+        "orientation": "portrait",
+        "theme": "dark",
+        "headline": "Give your T-Box\na modern fish finder.",
+        "caption": "Fish, bottom and depth, clear at a glance.",
+        "alt": {
+          "en-US": "Sonar tab in demo mode: a scrolling waterfall with fish echoes and the bottom, the current depth and water temperature, and the depth scale.",
+          "es-ES": "Pestaña Sonar en modo de demostración: una cascada desplazable con ecos de peces y el fondo, la profundidad y la temperatura del agua actuales, y la escala de profundidad.",
+          "fr-FR": "Onglet Sonar en mode démo : une cascade défilante avec les échos de poissons et le fond, la profondeur et la température de l’eau actuelles, et l’échelle de profondeur.",
+          "de-DE": "Tab Sonar im Demomodus: ein laufender Wasserfall mit Fischechos und Grund, aktueller Tiefe und Wassertemperatur sowie der Tiefenskala.",
+          "zh-CN": "演示模式下的“声呐”标签页：滚动瀑布图显示鱼群回波和水底，以及当前深度、水温和深度刻度。",
+          "pt-BR": "Aba Sonar no modo de demonstração: uma cascata rolante com ecos de peixes e o fundo, a profundidade e a temperatura da água atuais e a escala de profundidade.",
+          "ja-JP": "デモモードの「ソナー」タブ：魚の反応と水底を表示するスクロール画面に、現在の深度と水温、深度目盛り。"
+        }
+      },
+      {
+        "file": "play/screenshots/tablet/02-sonar-landscape-dark.png",
+        "source": "raw/android/tablet/02-sonar-landscape-dark.png",
+        "orientation": "landscape",
+        "theme": "dark",
+        "headline": "Turn it sideways\nfor the wide view.",
+        "caption": "More sonar history on one screen.",
+        "alt": {
+          "en-US": "Sonar tab in landscape in demo mode, with the Status, Sonar and Settings rail on the left.",
+          "es-ES": "Pestaña Sonar en horizontal en modo de demostración, con la barra Estado, Sonar y Ajustes a la izquierda.",
+          "fr-FR": "Onglet Sonar en paysage en mode démo, avec la barre État, Sonar et Paramètres à gauche.",
+          "de-DE": "Tab Sonar im Querformat im Demomodus, mit der Leiste Status, Sonar und Einstellungen links.",
+          "zh-CN": "演示模式下横屏的“声呐”标签页，左侧为“状态”、“声呐”和“设置”导航栏。",
+          "pt-BR": "Aba Sonar na horizontal no modo de demonstração, com a barra Status, Sonar e Configurações à esquerda.",
+          "ja-JP": "デモモードで横向きにした「ソナー」タブ。左側に「状態」「ソナー」「設定」のナビゲーション。"
+        }
+      },
+      {
+        "file": "play/screenshots/tablet/03-status-dark.png",
+        "source": "raw/android/tablet/03-status-dark.png",
+        "orientation": "portrait",
+        "theme": "dark",
+        "headline": "Live depth,\nstraight into Navionics.",
+        "caption": "Pair Navionics on this phone, keep mobile data.",
+        "alt": {
+          "en-US": "Status tab in demo mode: live depth, water temperature and battery voltage, with the Navionics pairing details (host 127.0.0.1, port 10110, TCP).",
+          "es-ES": "Pestaña Estado en modo de demostración: profundidad, temperatura del agua y voltaje de la batería en directo, con los datos para emparejar Navionics (host 127.0.0.1, puerto 10110, TCP).",
+          "fr-FR": "Onglet État en mode démo : profondeur, température de l’eau et tension de batterie en direct, avec les informations d’appairage Navionics (hôte 127.0.0.1, port 10110, TCP).",
+          "de-DE": "Tab Status im Demomodus: Live-Tiefe, Wassertemperatur und Batteriespannung, mit den Angaben zum Koppeln von Navionics (Host 127.0.0.1, Port 10110, TCP).",
+          "zh-CN": "演示模式下的“状态”标签页：实时深度、水温和电池电压，以及 Navionics 配对信息（主机 127.0.0.1，端口 10110，TCP）。",
+          "pt-BR": "Aba Status no modo de demonstração: profundidade, temperatura da água e tensão da bateria ao vivo, com os dados para parear o Navionics (host 127.0.0.1, porta 10110, TCP).",
+          "ja-JP": "デモモードの「状態」タブ：リアルタイムの深度、水温、バッテリー電圧と、Navionics のペアリング情報（ホスト 127.0.0.1、ポート 10110、TCP）。"
+        }
+      },
+      {
+        "file": "play/screenshots/tablet/04-settings-dark.png",
+        "source": "raw/android/tablet/04-settings-dark.png",
+        "orientation": "portrait",
+        "theme": "dark",
+        "headline": "Set it up\nfor your sonar.",
+        "caption": "Pick your language, sonar network and units.",
+        "alt": {
+          "en-US": "Settings tab: app language, the sonar WiFi network and password, and depth and temperature units.",
+          "es-ES": "Pestaña Ajustes: idioma de la app, la red WiFi y la contraseña del sonar, y las unidades de profundidad y temperatura.",
+          "fr-FR": "Onglet Paramètres : langue de l’application, réseau WiFi et mot de passe du sonar, et unités de profondeur et de température.",
+          "de-DE": "Tab Einstellungen: App-Sprache, Sonar-WLAN und Passwort sowie Einheiten für Tiefe und Temperatur.",
+          "zh-CN": "“设置”标签页：应用语言、声呐 WiFi 网络和密码，以及深度和温度单位。",
+          "pt-BR": "Aba Configurações: idioma do app, a rede WiFi e a senha do sonar, e as unidades de profundidade e temperatura.",
+          "ja-JP": "「設定」タブ：アプリの言語、ソナーの WiFi ネットワークとパスワード、深度と温度の単位。"
+        }
+      }
+    ]
+  }
+}

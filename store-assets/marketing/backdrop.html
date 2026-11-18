@@ -1,0 +1,31 @@
+<!doctype html>
+<!--
+  The saved studio backdrop for SonarBridge's Play screenshots (LIST-8).
+  `npm run shots:backdrop` renders this page once to studio-background.png
+  (1920 x 1920, so it covers portrait and landscape layouts alike). Keep it calm
+  and dark: no phone, UI, text, logos or decorative objects, with the upper area
+  and centre clear for the caption and the framed capture.
+-->
+<html lang="en">
+<meta charset="utf-8">
+<title>SonarBridge studio backdrop</title>
+<style>
+  html, body { margin: 0; width: 1280px; height: 1280px; overflow: hidden; }
+  body {
+    background:
+      /* Soft key light from the upper right, like light through water. */
+      radial-gradient(ellipse 70% 55% at 78% 18%, #1d4a66cc, transparent 70%),
+      /* A low cool glow on the floor, behind where the phone stands. */
+      radial-gradient(ellipse 60% 18% at 50% 86%, #2a6f8a55, transparent 75%),
+      /* A matte floor meeting a dark wall near the bottom. */
+      linear-gradient(180deg, #0b1d2c 0%, #0a1826 68%, #10283a 74%, #0c1f2e 100%);
+  }
+  /* A faint vignette keeps the edges quiet so the phone carries the eye. */
+  body::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 85% 85% at 50% 50%, transparent 55%, #03080dcc 100%);
+  }
+</style>
+</html>
