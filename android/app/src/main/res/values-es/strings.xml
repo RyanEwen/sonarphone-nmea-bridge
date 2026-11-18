@@ -47,6 +47,7 @@
     <string name="demo_heading">"Modo de demostración"</string>
     <string name="demo_switch">"Generar datos de sonar simulados (sin equipo)"</string>
     <string name="updates_heading">"Actualizaciones"</string>
+    <string name="about_check_for_updates">"Buscar actualizaciones"</string>
     <string name="network_note">"Al conectar, Android muestra las redes compatibles al alcance. Toca tu sonar en esa lista."</string>
     <string name="units_note">"Solo afecta a la pantalla. Los datos NMEA enviados a Navionics siempre usan unidades estándar."</string>
     <string name="style_note">"El estilo clásico imita el aspecto original de SonarPhone (fondo azul marino y ecos multicolor). Los marcadores de peces señalan ecos fuertes y aislados a media agua."</string>
@@ -72,11 +73,6 @@
     <string name="status_nmea">"NMEA: %1$s clientes en 127.0.0.1:10110"</string>
     <string name="status_app">"App: v%1$s"</string>
     <string name="navionics_pairing">"Navionics: Dispositivos emparejados &gt; +\nHost 127.0.0.1  Puerto 10110  TCP"</string>
-    <string name="migration_guidance">"Puedes seguir descargando e instalando el APK manualmente desde GitHub. Las nuevas descargas de GitHub y Google Play ofrecerán la misma app.\n\nAndroid no puede instalar la nueva app sobre esta antigua app de GitHub porque sus claves de firma son distintas. Espera a que GitHub ofrezca un APK cuyo nombre termine en -play.apk, o usa Google Play si está disponible.\n\nAntes de desinstalar, anota tus ajustes: nombre y contraseña WiFi, unidades, controles del sonar, correcciones de calibración y alarma de aguas poco profundas. Guarda los registros de tramas sin procesar que quieras conservar. Desconecta el puente, desinstala esta app antigua e instala la nueva desde cualquiera de las dos fuentes. Vuelve a introducir tus ajustes, concede los permisos solicitados y conecta de nuevo. La desinstalación borra los ajustes locales y los archivos de la app; no se transfieren automáticamente.\n\nLos futuros APK de GitHub actualizarán la nueva app normalmente. La app no descarga actualizaciones APK por sí sola."</string>
-    <string name="download_change">"Cambio en las descargas para Android"</string>
-    <string name="later">"Más tarde"</string>
-    <string name="download_github">"Descargar desde GitHub"</string>
-    <string name="download_play">"Obtener en Google Play"</string>
     <string name="link_no_handler">"Ninguna app puede abrir este enlace"</string>
     <string name="about_heading">"Acerca de"</string>
     <string name="about_version">"Versión %1$s"</string>
@@ -87,7 +83,6 @@
     <string name="about_license">"Licencia"</string>
     <string name="about_third_party_notices">"Avisos de terceros"</string>
     <string name="about_tagline">"Sonar y datos de profundidad para tu Vexilar SonarPhone SP200A."</string>
-    <string name="download_guidance">"Versión %1$s. GitHub y Google Play ofrecen la misma app. Descarga los futuros APK manualmente desde GitHub o usa Google Play para actualizar. La app no descarga actualizaciones APK por sí sola."</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"Idioma de la app"</string>
     <string name="follow_device">"Usar idioma del dispositivo"</string>

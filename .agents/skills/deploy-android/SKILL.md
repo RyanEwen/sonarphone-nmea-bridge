@@ -1,6 +1,6 @@
 ---
 name: deploy-android
-description: Build and install the SonarBridge GitHub debug APK on the Android test phone. Use for deploying, reinstalling, or updating the development app over ADB.
+description: Build and install the SonarBridge debug APK on the Android test phone. Use for deploying, reinstalling, or updating the development app over ADB.
 ---
 
 # Deploy the Android debug APK
@@ -15,7 +15,7 @@ Read the **Build**, **Connect the phone**, and **Install** sections of
   shown on Android's Wireless debugging screen.
 - For demo mode or UI work an emulator can be the install target; see "Emulator for demo mode and UI work" in `docs/development.md`.
 - Install
-  `android/app/build/outputs/apk/github/debug/app-github-debug.apk` with
+  `android/app/build/outputs/apk/debug/app-debug.apk` with
   `adb install -r`.
 - Re-grant `android.permission.POST_NOTIFICATIONS` to
   `ca.dynamicsolutions.sonarbridge`.

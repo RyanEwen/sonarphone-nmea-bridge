@@ -60,7 +60,7 @@ export async function downloadPlayApk({ token, code, trusted, api = 'https://and
     if (selected) break
     if (attempt + 1 < attempts) await sleep(30_000)
   }
-  if (!selected) throw new Error('Play has not generated a trusted universal APK. Retry later; no direct APK will be published.')
+  if (!selected) throw new Error('Play has not generated a trusted universal APK. Retry later.')
   const downloadId = encodeURIComponent(selected.generatedUniversalApk.downloadId)
   const response = await request(`${base}/downloads/${downloadId}:download?alt=media`)
   if (!response.ok) throw new Error(`Could not download Play APK (HTTP ${response.status}).`)

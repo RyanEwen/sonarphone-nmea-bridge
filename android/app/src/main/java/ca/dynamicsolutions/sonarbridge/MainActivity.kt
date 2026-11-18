@@ -173,7 +173,6 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         statusTab.refreshBatteryButton()
         statusTab.render(BridgeState.flow.value)
-        AndroidDownloads.maybeShowMigrationNotice(this)
     }
 
     override fun onPause() {

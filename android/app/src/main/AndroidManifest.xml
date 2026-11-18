@@ -9,8 +9,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Play-sensitive permissions (self-update, direct battery-opt request)
-         live in the `github` flavor manifest only. -->
 
     <!-- Backup stays on so settings restore after a reinstall or on a new phone; the
          rules exclude the T-Box passphrase file (SEC-2). -->
@@ -38,8 +36,8 @@
             android:name=".AboutActivity"
             android:exported="false" />
 
-        <!-- exported=false by default (Play-safe); the github flavor overrides
-             it to true so the dev build can be driven from adb. -->
+        <!-- Unexported in release builds; src/debug/AndroidManifest.xml exports it
+             so debug builds can be driven from adb. -->
         <service
             android:name=".BridgeService"
             android:exported="false"

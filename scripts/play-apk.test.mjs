@@ -60,5 +60,5 @@ test('APK export does not retry permission failures or fall back when universal 
   assert.equal(requests, 1)
   await assert.rejects(downloadPlayApk({ token: 'token', code: 50, trusted, attempts: 2,
     fetchRequest: async () => Response.json({ generatedApks: [] }), sleep: async () => {}
-  }), /no direct APK will be published/)
+  }), /has not generated a trusted universal APK/)
 })

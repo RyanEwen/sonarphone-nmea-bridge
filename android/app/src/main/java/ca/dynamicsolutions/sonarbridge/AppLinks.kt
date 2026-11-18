@@ -9,7 +9,6 @@ import android.widget.Toast
 /** Every web address the app opens, in one place, so a repository move edits one file. */
 object AppLinks {
     const val REPOSITORY = "https://github.com/Dynamic-Solutions-Canada/sonarbridge"
-    const val RELEASES = "$REPOSITORY/releases"
     const val ISSUES = "$REPOSITORY/issues"
     const val LICENSE = "$REPOSITORY/blob/main/LICENSE"
     const val PRIVACY_POLICY = "https://www.dynamic-solutions.ca/privacy/sonarbridge"

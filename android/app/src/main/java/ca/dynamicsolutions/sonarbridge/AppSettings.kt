@@ -83,11 +83,6 @@ class AppSettings(context: Context) {
     /** SSID prefix for a network search started without explicit extras (ADB driving). */
     fun searchPattern(): String = preferences.getString(KEY_PATTERN, NETWORK_PATTERNS[0]) ?: NETWORK_PATTERNS[0]!!
 
-    /** Whether the one-time signing-key migration notice has been shown. */
-    var migrationNoticeSeen: Boolean
-        get() = preferences.getBoolean(KEY_MIGRATION_NOTICE_SEEN, false)
-        set(value) = preferences.edit().putBoolean(KEY_MIGRATION_NOTICE_SEEN, value).apply()
-
     companion object {
         /** The settings file; backed up (see res/xml/backup_rules.xml). */
         const val FILE = "cfg"
@@ -117,6 +112,5 @@ class AppSettings(context: Context) {
         private const val KEY_FISH_MARKERS = "fish_markers"
         private const val KEY_KEEL_OFFSET_M = "keel_offset_m"
         private const val KEY_TEMP_OFFSET_C = "temp_offset_c"
-        private const val KEY_MIGRATION_NOTICE_SEEN = "play_migration_notice_seen"
     }
 }

@@ -53,9 +53,9 @@ class AboutActivity : AppCompatActivity() {
             },
         )
 
-        // Updates: neither flavor updates itself, so this is the download guidance, not a check.
+        // Updates: Google Play delivers them, so the check opens the Play listing (DIST-6).
         column.addView(ListRow.heading(this, getString(R.string.updates_heading), topPadDp = 24))
-        column.addView(AndroidDownloads.buildGuidanceView(this, migration = !BuildConfig.IS_PLAY))
+        column.addView(ListRow.create(this, getString(R.string.about_check_for_updates)) { AppLinks.open(this, AppLinks.PLAY) })
 
         // Links, in BRAND-8 order.
         column.addView(ListRow.heading(this, getString(R.string.about_links), topPadDp = 24))

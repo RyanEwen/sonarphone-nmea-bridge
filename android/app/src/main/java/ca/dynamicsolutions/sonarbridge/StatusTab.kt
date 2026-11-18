@@ -2,7 +2,6 @@ package ca.dynamicsolutions.sonarbridge
 
 import android.content.Intent
 import android.graphics.Typeface
-import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
@@ -112,17 +111,11 @@ class StatusTab(private val activity: AppCompatActivity, private val settings: A
     }
 
     /**
-     * The github build has REQUEST_IGNORE_BATTERY_OPTIMIZATIONS and can ask directly;
-     * the Play build lacks it (policy), so it opens the system list instead.
+     * Open Android's battery-optimization list, where the user sets SonarBridge to unrestricted.
+     * Play policy rules out the permission that would let the app ask directly.
      */
     private fun openBatterySettings() {
-        val intent = if (BuildConfig.IS_PLAY) {
-            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-        } else {
-            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                .setData(Uri.parse("package:${activity.packageName}"))
-        }
-        activity.startActivity(intent)
+        activity.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
     }
 
     /** Hide the battery shortcut once the app is already exempt. */

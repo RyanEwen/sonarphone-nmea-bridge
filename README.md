@@ -12,9 +12,6 @@
   <a href="https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge">
     <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get SonarBridge on Google Play" height="80">
   </a>
-  <a href="https://github.com/Dynamic-Solutions-Canada/sonarbridge/releases/latest">
-    <img src="https://img.shields.io/badge/GitHub-Download%20the%20APK-181717?style=for-the-badge&amp;logo=github" alt="Download the SonarBridge APK from GitHub" height="56">
-  </a>
 </p>
 
 <p align="center">
@@ -35,13 +32,12 @@ Garmin dropped SonarPhone support from the Navionics Boating app, and Vexilar's 
 - **Made for the water:** Big readouts with adjustable text size, screen stays on while open, a shallow-water alarm, feet or meters, and it reconnects by itself if the sonar drops out.
 - **Try it on the couch:** Demo mode generates realistic sonar data so you can explore the display and test the Navionics pairing with no hardware.
 - **Use your language:** Follow your phone or choose English (United States or Canada), Spanish, French (France or Canada), German, Simplified Chinese, Brazilian Portuguese or Japanese in Settings. Your sonar connection continues when you change languages.
-- **Choose your downloads:** GitHub and Google Play offer the same app. Install APK updates manually from GitHub, or use Google Play for updates.
 
 ## Get it
 
-Install from Google Play, or download the APK from GitHub Releases using the badges above. GitHub APKs named `sonarbridge-X.Y.Z-play.apk` are generated and signed by Google Play. You do not need to use the Play Store to install them; you may need to allow installs from your browser.
+Install SonarBridge from [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge), which also keeps it up to date. It is not offered as a download anywhere else.
 
-**Moving from an older GitHub APK:** first install the [final legacy migration update (v0.2.4)](https://github.com/Dynamic-Solutions-Canada/sonarbridge/releases/tag/v0.2.4) when offered, then follow the [migration guide](docs/android-migration-release-notes.md). The new APK cannot replace an older GitHub installation directly. Record your settings and save any raw frame logs first, then disconnect, uninstall and reinstall once. Re-enter settings and grant permissions afterward. Wait for a `-play.apk` before uninstalling. Future GitHub APKs update the new app normally.
+**Moving from an older GitHub download:** earlier versions were also offered as APKs on GitHub. The Play app cannot install over one of those older copies, because they are signed differently, so the move takes one uninstall. First note your WiFi name and password, units, sonar controls, calibration offsets and alarm settings, and save any raw frame logs you need; uninstalling clears them. Then disconnect, uninstall the old app, install SonarBridge from Google Play, re-enter your settings and grant its permissions. Check the sonar readings and the Navionics feed before going out on the water.
 
 You'll need Android 10 or newer and a SonarPhone SP200A (T-Box). Other SonarPhone models speak the same protocol and may work, but only the SP200A has been targeted.
 

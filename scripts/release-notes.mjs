@@ -7,7 +7,7 @@
  *   node scripts/release-notes.mjs play vX.Y.Z <versionCode> <metadataDir>
  *       Write <metadataDir>/<locale>/changelogs/<versionCode>.txt for every Play listing locale.
  *   node scripts/release-notes.mjs github vX.Y.Z
- *       Print the GitHub Release body: the en-US notes, the get-it section and the AI disclosure line.
+ *       Print the GitHub Release body: the en-US notes, the Google Play link and the AI disclosure line.
  *
  * Notes are never generated from commits and never truncated: a missing sibling
  * or over-long text fails the command.
@@ -15,6 +15,7 @@
 import { readFileSync, readdirSync, mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { PLAY_PACKAGE } from './play-apk.mjs'
 
 /** The source catalog: release-notes/<version>.md holds this identity's text. */
 export const SOURCE_IDENTITY = 'en-US'
@@ -135,30 +136,22 @@ export function writePlayChangelogs(notes, versionCode, metadataDir) {
   return written
 }
 
-/**
- * The Play-signed APK's file name on a GitHub Release. play-apk.yml uploads the
- * asset as `sonarbridge-$VERSION-play.apk`; keep the two in step.
- */
-export function playApkFileName(version) {
-  if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) throw new Error(`Expected a version like 1.2.3, got "${version}".`)
-  return `sonarbridge-${version}-play.apk`
-}
+/** Where people get SonarBridge: it is distributed only through Google Play. */
+export const PLAY_LISTING = `https://play.google.com/store/apps/details?id=${PLAY_PACKAGE}`
 
 /**
- * The GitHub Release body: en-US notes, where to get the app (naming this
- * version's APK), then the disclosure line.
+ * The GitHub Release body: en-US notes, the Google Play link, then the
+ * disclosure line. The release carries no APK.
  *
  * @param notes notes by identity, as readVersionNotes returns them.
- * @param version the X.Y.Z version being released; throws when it is malformed.
  */
-export function githubReleaseBody(notes, version) {
-  const apk = playApkFileName(version)
+export function githubReleaseBody(notes) {
   return [
     notes[SOURCE_IDENTITY],
     '',
     '## Get it',
     '',
-    `Install from [Google Play](https://play.google.com/store/apps/details?id=ca.dynamicsolutions.sonarbridge), or download the Play-signed \`${apk}\` below.`,
+    `Install SonarBridge from [Google Play](${PLAY_LISTING}).`,
     '',
     DISCLOSURE_LINE,
     ''
@@ -188,7 +181,7 @@ function main(argv) {
 
   if (command === 'github') {
     const version = versionFromTag(tag)
-    process.stdout.write(githubReleaseBody(readVersionNotes(folder, version), version))
+    process.stdout.write(githubReleaseBody(readVersionNotes(folder, version)))
     return
   }
 

@@ -47,6 +47,7 @@
     <string name="demo_heading">"演示模式"</string>
     <string name="demo_switch">"生成模拟声呐数据（无需硬件）"</string>
     <string name="updates_heading">"更新"</string>
+    <string name="about_check_for_updates">"检查更新"</string>
     <string name="network_note">"连接时，Android 会显示范围内匹配的网络。请在列表中点按您的声呐。"</string>
     <string name="units_note">"仅影响显示。发送给 Navionics 的 NMEA 数据始终使用标准单位。"</string>
     <string name="style_note">"经典样式模仿原版 SonarPhone 的外观（藏蓝色背景和彩虹色回波）。鱼群标记用于标识水体中强烈且孤立的回波。"</string>
@@ -72,11 +73,6 @@
     <string name="status_nmea">"NMEA：%1$s 个客户端，地址 127.0.0.1:10110"</string>
     <string name="status_app">"应用：v%1$s"</string>
     <string name="navionics_pairing">"Navionics：已配对设备 &gt; +\n主机 127.0.0.1  端口 10110  TCP"</string>
-    <string name="migration_guidance">"您仍可从 GitHub 手动下载并安装 APK。今后从 GitHub 和 Google Play 下载的将是同一个应用。\n\n由于签名密钥不同，Android 无法直接将新应用安装在此旧版 GitHub 应用之上。请等待 GitHub 提供文件名以 -play.apk 结尾的 APK，或在可用时使用 Google Play。\n\n卸载前，请记录您的设置，包括 WiFi 名称和密码、单位、声呐控制、校准偏移和浅水警报。保存您想保留的原始帧日志。断开桥接，卸载此旧应用，然后从任一来源安装新应用。重新输入设置、授予所需权限并重新连接。卸载会清除本地设置和应用文件，它们不会自动转移。\n\n今后 GitHub 上的 APK 可以正常更新新应用。应用本身不会下载 APK 更新。"</string>
-    <string name="download_change">"Android 下载方式变更"</string>
-    <string name="later">"稍后"</string>
-    <string name="download_github">"从 GitHub 下载"</string>
-    <string name="download_play">"从 Google Play 获取"</string>
     <string name="link_no_handler">"没有应用可以打开此链接"</string>
     <string name="about_heading">"关于"</string>
     <string name="about_version">"版本 %1$s"</string>
@@ -87,7 +83,6 @@
     <string name="about_license">"许可证"</string>
     <string name="about_third_party_notices">"第三方声明"</string>
     <string name="about_tagline">"将 Vexilar SonarPhone SP200A 变成现代探鱼器和深度数据源。"</string>
-    <string name="download_guidance">"版本 %1$s。GitHub 和 Google Play 提供同一个应用。今后请从 GitHub 手动下载 APK，或通过 Google Play 更新。应用本身不会下载 APK 更新。"</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"应用语言"</string>
     <string name="follow_device">"跟随设备"</string>

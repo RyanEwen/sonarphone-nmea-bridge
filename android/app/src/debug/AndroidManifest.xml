@@ -2,12 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Legacy/development flavor only: the direct battery-optimisation prompt.
-         Public downloads now use the Play flavor and its policy-safe prompt. -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-
     <application>
-        <!-- allow `adb shell am start-foreground-service` to drive it in dev -->
+        <!-- Debug builds only: export the service so `adb shell am start-foreground-service`
+             can drive it during development. Release builds keep it unexported. -->
         <service
             android:name=".BridgeService"
             android:exported="true"

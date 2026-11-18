@@ -47,6 +47,7 @@
     <string name="demo_heading">"デモモード"</string>
     <string name="demo_switch">"模擬ソナーデータを生成（機器不要）"</string>
     <string name="updates_heading">"更新"</string>
+    <string name="about_check_for_updates">"更新プログラムの確認"</string>
     <string name="network_note">"接続時に、Android が範囲内の該当するネットワークを表示します。一覧でソナーをタップしてください。"</string>
     <string name="units_note">"表示のみに適用されます。Navionics への NMEA データは常に標準単位を使用します。"</string>
     <string name="style_note">"クラシックスタイルは、元の SonarPhone の外観（紺色の背景と虹色の反射）を再現します。魚のマーカーは、中層の強く孤立した反射を示します。"</string>
@@ -72,11 +73,6 @@
     <string name="status_nmea">"NMEA：127.0.0.1:10110 に %1$s クライアント"</string>
     <string name="status_app">"アプリ：v%1$s"</string>
     <string name="navionics_pairing">"Navionics：ペアリング済みデバイス &gt; +\nホスト 127.0.0.1  ポート 10110  TCP"</string>
-    <string name="migration_guidance">"引き続き GitHub から APK を手動でダウンロードしてインストールできます。今後 GitHub と Google Play から配布されるアプリは同一になります。\n\n署名鍵が異なるため、Android はこの古い GitHub 版に新しいアプリを上書きインストールできません。名前が -play.apk で終わる APK が GitHub で提供されるまで待つか、利用可能な場合は Google Play を使ってください。\n\nアンインストール前に、WiFi 名とパスワード、単位、ソナーの調整、校正補正値、浅瀬アラームなどの設定を控えてください。保存したい生フレームログも退避してください。ブリッジを切断し、この古いアプリをアンインストールしてから、いずれかの配布元から新しいアプリをインストールしてください。設定を再入力し、必要な権限を許可して再接続してください。アンインストールするとローカル設定とアプリのファイルが削除され、自動では引き継がれません。\n\n今後の GitHub の APK は、新しいアプリを通常どおり更新できます。アプリ自体が APK 更新をダウンロードすることはありません。"</string>
-    <string name="download_change">"Android 版のダウンロードに関する変更"</string>
-    <string name="later">"後で"</string>
-    <string name="download_github">"GitHub からダウンロード"</string>
-    <string name="download_play">"Google Play で入手"</string>
     <string name="link_no_handler">"このリンクを開けるアプリがありません"</string>
     <string name="about_heading">"バージョン情報"</string>
     <string name="about_version">"バージョン %1$s"</string>
@@ -87,7 +83,6 @@
     <string name="about_license">"ライセンス"</string>
     <string name="about_third_party_notices">"サード パーティに関する通知"</string>
     <string name="about_tagline">"Vexilar SonarPhone SP200A のソナー表示と深度データをスマートフォンで。"</string>
-    <string name="download_guidance">"バージョン %1$s。GitHub と Google Play は同じアプリを提供します。今後の APK は GitHub から手動でダウンロードするか、Google Play で更新してください。アプリ自体が APK 更新をダウンロードすることはありません。"</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"アプリの言語"</string>
     <string name="follow_device">"端末の言語に従う"</string>

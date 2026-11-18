@@ -1,9 +1,11 @@
 name: Release
 
 # A vX.Y.Z tag runs the gate, uploads the Play bundle to production as a draft,
-# then publishes Google's verified universal APK on GitHub with the committed
-# release notes. Sending the Play draft to review is a separate, deliberate run of
-# the Publish to Google Play workflow (REL-7). No upload-key APK fallback exists.
+# then publishes a GitHub Release with the committed notes and a link to Google
+# Play. SonarBridge is distributed only through Play, so the release carries no
+# APK; Google's verified APK is kept as a private workflow artifact for store
+# screenshots. Sending the Play draft to review is a separate, deliberate run of
+# the Publish to Google Play workflow (REL-7).
 
 on:
   push:
@@ -41,13 +43,20 @@ jobs:
       listing_only: false
     secrets: inherit
 
-  android:
+  # Google's signed APK, verified and kept as a private artifact (play-apk.yml).
+  apk:
+    needs: play
+    uses: ./.github/workflows/play-apk.yml
+    with:
+      tag: ${{ inputs.version || github.ref_name }}
+    secrets: inherit
+
+  github-release:
     needs: play
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    # Waiting for Google's universal APK can take up to about 30 minutes.
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,37 +68,13 @@ jobs:
           TAG: ${{ inputs.version || github.ref_name }}
         run: bash scripts/release-version.sh "$TAG" >> "$GITHUB_OUTPUT"
 
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
-
-      # explicit so a runner image without android-36 can't fail the tag build
-      - name: Install SDK platform 36
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
-
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           # No lockfile (no dependencies), so nothing to cache; setup-node would fail looking for one.
           package-manager-cache: false
 
-      - name: Download and verify Google-signed APK
-        env:
-          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          PLAY_SIGNING_CERTIFICATE_SHA256: ${{ vars.PLAY_SIGNING_CERTIFICATE_SHA256 }}
-        run: |
-          export AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          export APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          node scripts/play-apk.mjs \
-            --version-code "${{ steps.ver.outputs.code }}" \
-            --version "${{ steps.ver.outputs.name }}" \
-            --output "sonarbridge-${{ steps.ver.outputs.name }}-play.apk"
-
-      # Committed en-US notes, the get-it section and the D-097 disclosure line.
+      # Committed en-US notes, the Google Play link and the D-097 disclosure line.
       - name: Write release notes
         env:
           TAG: ${{ steps.ver.outputs.tag }}
@@ -101,5 +86,4 @@ jobs:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: SonarBridge ${{ steps.ver.outputs.name }}
           body_path: RELEASE_NOTES.md
-          files: sonarbridge-*-play.apk
           make_latest: true

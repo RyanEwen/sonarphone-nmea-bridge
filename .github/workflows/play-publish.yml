@@ -189,7 +189,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_VERSION_NAME: ${{ steps.ver.outputs.name }}
           ANDROID_VERSION_CODE: ${{ steps.ver.outputs.code }}
-        run: ./gradlew --no-daemon bundlePlayRelease
+        run: ./gradlew --no-daemon bundleRelease
 
       # ---- publish via Fastlane supply ----
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
@@ -213,7 +213,7 @@ jobs:
           fastlane supply \
             --package_name ca.dynamicsolutions.sonarbridge \
             --json_key "$RUNNER_TEMP/play-key.json" \
-            --aab android/app/build/outputs/bundle/playRelease/app-play-release.aab \
+            --aab android/app/build/outputs/bundle/release/app-release.aab \
             --track "$PLAY_TRACK" \
             --release_status "$RELEASE_STATUS" \
             --metadata_path fastlane/metadata/android

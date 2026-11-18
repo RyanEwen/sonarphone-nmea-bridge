@@ -3,7 +3,7 @@
 Scope: building, installing, driving, validating and releasing the Android app.
 Governs: `android/`, `.github/workflows/`, `scripts/`.
 
-The GitHub-flavor debug APK can be built and driven entirely over ADB. Its
+The debug APK can be built and driven entirely over ADB. Its
 package is `ca.dynamicsolutions.sonarbridge`. Run commands from the repository
 root unless a section says otherwise.
 
@@ -15,15 +15,15 @@ The root `package.json` holds the entry points; `npm run validate` is the gate C
 | --- | --- |
 | `npm run validate` | `format:check`, `lint`, `test`, `check:l10n`, `check:release-notes`, `check:listings`, `shots:check` and `verify:android`, stopping at the first failure |
 | `npm run format` / `format:check` | Spotless (ktlint) on Kotlin sources and Gradle scripts: rewrite, or fail on a difference |
-| `npm run lint` | Android lint for both debug variants |
-| `npm run test` | Robolectric unit tests for both flavors, then `node --test` for `scripts/*.test.mjs` |
+| `npm run lint` | Android lint for the debug build |
+| `npm run test` | Robolectric unit tests, then `node --test` for `scripts/*.test.mjs` |
 | `npm run check:l10n` | `android/scripts/check-localization.py` |
 | `npm run check:release-notes` | Every file in `release-notes/` is named correctly, complete for every catalog, and within Play's 500-character limit |
 | `npm run check:listings` | `store-assets/play/listings.json` has every listing locale and fits Play's limits |
 | `npm run shots:check` | The Play screenshots match `store-assets/manifest.json`: names, order, size, RGB without alpha, raw captures, text that fits, alt text for every catalog |
 | `npm run shots:render` / `shots:backdrop` | Frame the raw captures into the Play screenshots, or redraw the backdrop, in a disposable Chromium container (see `store-assets/README.md`) |
-| `npm run verify:android` | Debug builds of both flavors |
-| `npm run build:android` | The installable GitHub-flavor debug APK |
+| `npm run verify:android` | The debug build, as the validate gate's last step |
+| `npm run build:android` | The installable debug APK |
 | `npm run install:android` | Installs that APK on the connected device with `adb install -r` |
 | `npm run package:android` | The Play release bundle (signed only when the release signing variables are set) |
 
@@ -36,8 +36,8 @@ Gradle cache warm. Start it if it already exists but is stopped:
 
 ```sh
 docker start sonarbridge-builder
-docker exec sonarbridge-builder ./gradlew assembleGithubDebug
-stat android/app/build/outputs/apk/github/debug/app-github-debug.apk
+docker exec sonarbridge-builder ./gradlew assembleDebug
+stat android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 The Gradle command must finish successfully, and the APK modification time must
@@ -97,7 +97,7 @@ and ADB mDNS does not cross WSL2 NAT.
 ## Install
 
 ```sh
-adb install -r android/app/build/outputs/apk/github/debug/app-github-debug.apk
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 adb shell pm grant ca.dynamicsolutions.sonarbridge android.permission.POST_NOTIFICATIONS
 adb shell dumpsys package ca.dynamicsolutions.sonarbridge | grep lastUpdateTime
 ```
@@ -208,21 +208,21 @@ Everything is on the phone; there is no server and no account. Unconfirmed until
 
 ## Releases & updates
 
-The public APK on GitHub is the universal APK Google Play generates and signs; the app does not download or install updates itself. The full procedure is the `release` skill (`.agents/skills/release/SKILL.md`); in short:
+SonarBridge is distributed only through Google Play, which delivers its updates; GitHub Releases carry the notes and a Play link, never an APK. The app has one build: debug builds differ only in exporting `BridgeService` for ADB driving (`src/debug/AndroidManifest.xml`). The full procedure is the `release` skill (`.agents/skills/release/SKILL.md`); in short:
 
 1. Write the notes for the version in `release-notes/`: `<X.Y.Z>.md` (en-US) plus one `<X.Y.Z>.<identity>.md` for es-ES, fr-FR, de-DE, zh-CN, pt-BR and ja-JP. User-facing bullets only, no heading, at most 500 characters each; Canadian listings reuse en-US and fr-FR. `npm run check:release-notes` checks them. Get the notes approved, then commit them on `main`.
 2. Create an annotated `vX.Y.Z` tag on that commit and push it. The tag is the version; the versionCode is `major*10000 + minor*100 + patch`, with minor and patch below 100.
-3. The Release workflow runs the CI gate, uploads the Play bundle to **production as a draft** with each locale's notes, waits for Google's universal APK, verifies its package, version and signer, and publishes the GitHub Release "SonarBridge X.Y.Z" (marked Latest) with that APK. Missing or over-long notes fail the run before anything is built.
+3. The Release workflow runs the CI gate, uploads the Play bundle to **production as a draft** with each locale's notes, then publishes the GitHub Release "SonarBridge X.Y.Z" (marked Latest) with the notes and the Play link. In parallel, **Export Play APK** (`play-apk.yml`) waits for Google's universal APK, verifies its package, version and signer, and keeps it as a private workflow artifact for 90 days, for store screenshots only. Missing or over-long notes fail the run before anything is built.
 4. Check the draft in Play Console, then run **Publish to Google Play** with the tag and `publish_draft=true`. It sends that draft to review after checking its versionCode against the tag, without uploading anything.
-5. Afterwards, run Play Check and confirm an installed copy updates.
+5. Afterwards, run Play Check and confirm an installed copy updates from Play.
 
 `PLAY_SIGNING_CERTIFICATE_SHA256` (repository variable) is the **app-signing** SHA-256 fingerprint from Play Console, not the upload key; the APK export fails closed if it is missing or differs from Google's metadata or the APK's signer. Release signing credentials stay in GitHub secrets and the git-ignored `android/keystore/release.env`.
 
-If the Play upload succeeded but the GitHub export failed, do not rebuild or re-upload that versionCode: run **Replace GitHub APK** (`play-apk.yml`) for the existing release. It never touches v0.2.4.
+If the APK export failed, or its artifact has expired, run **Export Play APK** by hand with the tag. It never builds or uploads anything.
 
 `play-publish` can also be run by hand: upload a tag to a testing track (`track`, `release_status`), sync only the listing (`listing_only`), or read tracks, codes and signer fingerprints without changing anything (`inspect_only`). Uploads first reject reused or older versionCodes.
 
-Signing-key migration (finished): v0.2.4 was the final APK signed with the old upload key and v0.2.5 the first Play-signed one. v0.2.4 stays on its release for old installs, and `docs/android-migration-release-notes.md` is the user guide.
+Signing-key migration (finished): v0.2.4 was the final APK signed with the old upload key and v0.2.5 the first Play-signed one. Copies installed from those old GitHub APKs cannot update to the Play build; the README's **Get it** section tells their users to uninstall and install from Play.
 
 Verify the release scripts without accessing Play:
 
@@ -245,13 +245,13 @@ npm run package:android
 
 | Key | Lives in | Signs |
 | --- | --- | --- |
-| App signing (Google's) | Google, not exportable | What users install, from Play and from GitHub |
+| App signing (Google's) | Google, not exportable | What users install from Play |
 | Upload (yours) | `android/keystore/release.keystore` (git-ignored) and the write-only `ANDROID_KEYSTORE_BASE64` secret | Bundles sent to Play; also the final legacy APK, v0.2.4 |
 
 The upload key's alias is `sonarbridge` and its SHA-256 fingerprint is `D9:BE:CA:DD:57:3C:DE:44:24:C7:CC:92:A0:88:F7:A7:4F:EC:23:17:61:D3:14:D1:ED:A2:60:1C:C4:BE:F3:C9`. Keep a durable backup of `release.keystore` and `release.env`: the GitHub secret cannot be read back, and losing both means an upload-key reset request to Play support. Never use the upload-key fingerprint for `PLAY_SIGNING_CERTIFICATE_SHA256`; set that from the app-signing certificate in Play Console, or read it from an existing bundle with the Play Check workflow. Do not derive it from the APK being downloaded.
 
-**Distribution decision:** GitHub carries Google's signed universal APK rather than a second public build, so both channels share package, signer and versionCode, and a manual GitHub install can later update from either.
+**Distribution decision (2026-11-18):** SonarBridge is distributed only through Google Play. GitHub Releases carry no APK, and the app has no `github`/`play` flavours. Until then GitHub carried Google's signed universal APK, which kept one signer across both channels.
 
-**Play Integrity API: deliberately not enabled.** Its token must be verified on a server, and this app has no backend; client-side enforcement is removable by the attacker it targets, and there is nothing to protect (free, no accounts, no purchases). Enforcing Play licensing would also block the supported GitHub installs. Revisit only if the app gains a backend.
+**Play Integrity API: deliberately not enabled.** Its token must be verified on a server, and this app has no backend; client-side enforcement is removable by the attacker it targets, and there is nothing to protect (free, no accounts, no purchases). Revisit only if the app gains a backend.
 
-**Automatic protection: available, deliberately skipped.** It prompts users who installed from an unofficial source to reinstall from Play, but the GitHub APK is an intended source, and the protection would ship inside that same artifact.
+**Automatic protection:** Google's universal APK carries Play's license check (`com.pairip.licensecheck`), which sends a sideloaded install to the Play Store; install it with `adb install -i com.android.vending` for screenshots (see `store-assets/README.md`). With Play-only distribution this matches the intent; whether it stays on is a Play Console setting.

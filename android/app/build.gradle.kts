@@ -26,21 +26,6 @@ android {
         versionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.1-dev"
     }
 
-    // Two distribution channels from one codebase:
-    //  - github: development and the final legacy migration APK
-    //  - play:   public APK on both channels, no self-update, softer battery-opt
-    flavorDimensions += "dist"
-    productFlavors {
-        create("github") {
-            dimension = "dist"
-            buildConfigField("boolean", "IS_PLAY", "false")
-        }
-        create("play") {
-            dimension = "dist"
-            buildConfigField("boolean", "IS_PLAY", "true")
-        }
-    }
-
     buildFeatures {
         buildConfig = true
     }

@@ -77,6 +77,7 @@ class AboutActivityTest {
     @Test
     fun linksOpenTheirAddresses() = with(AboutActivity::class.java) { activity ->
         for ((label, url) in listOf(
+            "Check for updates" to AppLinks.PLAY,
             "Source code" to AppLinks.REPOSITORY,
             "Privacy policy" to AppLinks.PRIVACY_POLICY,
             "Support" to AppLinks.ISSUES,

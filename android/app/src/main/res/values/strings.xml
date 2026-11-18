@@ -46,6 +46,7 @@
     <string name="demo_heading">"Demo mode"</string>
     <string name="demo_switch">"Generate fake sonar data (no hardware needed)"</string>
     <string name="updates_heading">"Updates"</string>
+    <string name="about_check_for_updates">"Check for updates"</string>
     <string name="network_note">"When connecting, Android shows the matching networks in range. Tap your sonar in that list."</string>
     <string name="units_note">"Display only. The NMEA feed to Navionics always uses standard units."</string>
     <string name="style_note">"Classic style emulates the original SonarPhone look (navy background, rainbow returns). Fish markers flag strong isolated mid-water echoes."</string>
@@ -71,11 +72,6 @@
     <string name="status_nmea">"NMEA: %1$s clients on 127.0.0.1:10110"</string>
     <string name="status_app">"App: v%1$s"</string>
     <string name="navionics_pairing">"Navionics: Paired devices &gt; +\nHost 127.0.0.1  Port 10110  TCP"</string>
-    <string name="migration_guidance">"You can still download and install the APK manually from GitHub. New downloads from GitHub and Google Play will now offer the same app.\n\nAndroid cannot install the new app over this old GitHub app because their signing keys differ. Wait until GitHub offers an APK whose name ends in -play.apk, or use Google Play if it is available to you.\n\nBefore uninstalling, record your settings, including Wi-Fi name and password, units, sonar controls, calibration offsets and shallow-water alarm. Save any raw frame logs you want to keep. Disconnect the bridge, uninstall this old app, then install the new app from either place. Re-enter your settings, grant the requested permissions and reconnect. Uninstalling clears local settings and app files; they do not transfer automatically.\n\nFuture APKs from GitHub update the new app normally. It does not download APK updates itself."</string>
-    <string name="download_change">"A change to Android downloads"</string>
-    <string name="later">"Later"</string>
-    <string name="download_github">"Download from GitHub"</string>
-    <string name="download_play">"Get it on Google Play"</string>
     <string name="link_no_handler">"No app can open this link"</string>
     <string name="about_heading">"About"</string>
     <string name="about_version">"Version %1$s"</string>
@@ -86,7 +82,6 @@
     <string name="about_license">"License"</string>
     <string name="about_third_party_notices">"Third-party notices"</string>
     <string name="about_tagline">"Turn your Vexilar SonarPhone into a modern fish finder and depth source."</string>
-    <string name="download_guidance">"Version %1$s. GitHub and Google Play offer the same app. Download future APKs manually from GitHub, or use Google Play for updates. The app does not download APK updates itself."</string>
     <string name="app_name">"SonarBridge"</string>
     <string name="language_heading">"App language"</string>
     <string name="follow_device">"Follow device"</string>

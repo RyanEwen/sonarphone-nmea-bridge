@@ -11,9 +11,9 @@ Language changes use activity recreation. Save current tab and draft controls in
 
 Read-only numbers and time follow the phone regional locale independently of app wording. Numeric edit fields retain the existing dot-decimal formatter/parser and explain this limitation. Keep protocol Locale.US, NMEA bytes, checksums, state IDs, SSIDs, credentials, preference keys/values, paths, URLs and diagnostic logs stable. Map phase identity to text at display boundaries. Supplied user, operating-system, product and remote text retains its original wording.
 
-Translate all first-party Android settings, status, notifications, Canvas labels, download/migration guidance and accessibility descriptions. Initial translations are AI-assisted and need human language review. No native-speaker, device, clipping or on-water validation is implied by automated checks.
+Translate all first-party Android settings, status, notifications, Canvas labels, About labels and accessibility descriptions. Initial translations are AI-assisted and need human language review. No native-speaker, device, clipping or on-water validation is implied by automated checks.
 
-Validation covers resource and placeholder parity, native resource fallback including Chinese scripts, selection/default/clear/restore/malformed aliases, cold service contexts, regional formatting, recreation drafts/current tab, both debug APK flavors. The initial implementation validation excluded phone, ADB, installs, launches, hardware connections and publishing. Releases follow the repository’s separate tagged publishing workflow.
+Validation covers resource and placeholder parity, native resource fallback including Chinese scripts, selection/default/clear/restore/malformed aliases, cold service contexts, regional formatting, recreation drafts/current tab, and the debug APK. The initial implementation validation excluded phone, ADB, installs, launches, hardware connections and publishing. Releases follow the repository’s separate tagged publishing workflow.
 
 References: [Android app languages](https://developer.android.com/guide/topics/resources/app-languages), [Android multilingual resources](https://developer.android.com/guide/topics/resources/multilingual-support). AppCompat on API 32 and earlier applies to Activity contexts; service resources need an explicit configuration context.
 

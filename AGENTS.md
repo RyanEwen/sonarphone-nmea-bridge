@@ -1,6 +1,6 @@
 # SonarBridge: Agent Instructions
 
-SonarBridge gives owners of a Vexilar SonarPhone SP200A (T-Box) a modern sonar display and feeds live NMEA 0183 depth and temperature to Garmin Navionics. It has two clients: the primary Android app, shipped on Google Play and as the Play-signed APK on GitHub Releases, and an ESPHome-based standalone display and NMEA bridge for an ESP32-8048S050 panel. It builds on no shared kits.
+SonarBridge gives owners of a Vexilar SonarPhone SP200A (T-Box) a modern sonar display and feeds live NMEA 0183 depth and temperature to Garmin Navionics. It has two clients: the primary Android app, distributed only through Google Play, and an ESPHome-based standalone display and NMEA bridge for an ESP32-8048S050 panel. It builds on no shared kits.
 
 ## Standards
 
@@ -25,10 +25,9 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 | About screen (name, version, updates, links, third-party notices) | `AboutActivity.kt`, reached from the last row of Settings |
 | Every web address the app opens | `AppLinks.kt` |
 | Shared list row and section heading | `ListRow.kt` |
-| GitHub and Play download guidance | `AndroidDownloads.kt` |
 | T-Box passphrase, encrypted with an Android Keystore key and excluded from backup | `SonarPassphrase.kt`, `res/xml/backup_rules.xml`, `res/xml/data_extraction_rules.xml` |
 | Generated third-party notices | The `generate<Variant>ThirdPartyNotices` task in `android/app/build.gradle.kts` |
-| Flavor-only manifest entries | `android/app/src/github/AndroidManifest.xml` |
+| Debug-only manifest entries (the service exported for ADB driving) | `android/app/src/debug/AndroidManifest.xml` |
 | ESP32 sonar client, display and NMEA bridge | `esp32-client/components/sp200a/` |
 | ESP32 display driver (intentional local fork) | `esp32-client/components/mipi_rgb/` |
 | ESP32 device config and its secrets template | `esp32-client/sp200a-8048S050.yaml`, `esp32-client/secrets.example.yaml` |
@@ -42,7 +41,7 @@ This repo follows the shared standards at https://github.com/Dynamic-Solutions-C
 
 - The Android app must keep the phone's normal internet route while connected to the T-Box access point. Use `WifiNetworkSpecifier` with `ConnectivityManager.requestNetwork()` and bind sonar UDP sockets to the returned local-only `Network`. Do not replace this with legacy `WifiManager` connection APIs or `WifiNetworkSuggestion`.
 - The Android NMEA server listens on `127.0.0.1:10110` over TCP. It emits `$SDDPT`, `$SDDBT`, and `$YXMTW`, including keepalive emissions no more than five seconds apart so Navionics does not clear an unchanged depth. This path is verified on the water.
-- Preserve the separate `github` and `play` product flavors. `github` is for development and the final legacy migration update. Public downloads from both GitHub and Google Play use Google's verified Play-flavor universal APK. Neither flavor downloads APK updates itself. Keep legacy-only battery permission and ADB service access out of the Play flavor.
+- SonarBridge is distributed only through Google Play (decided 2026-11-18). The app has one build with no product flavors, never downloads updates itself, and must stay within Play policy (for example, no `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`). GitHub Releases carry notes and a Play link, never an APK; Google's universal APK is kept only as a private workflow artifact for store screenshots. The exported `BridgeService` for ADB driving lives in the debug source set only.
 
 ## Conventions and gotchas
 
@@ -74,7 +73,7 @@ The root `package.json` holds the entry points. Gradle tasks run through `script
 | `npm run build:android` | The development APK compiles and packages | That it installs or connects to a T-Box |
 | `npm run format:check` | Kotlin sources and Gradle scripts match the ktlint format (`npm run format` rewrites them) | Behaviour |
 | `npm run lint` | Android lint passes for both debug variants | Runtime behaviour |
-| `npm run test` | The Robolectric unit tests (both flavors) and the Play and release script tests pass | Device behaviour, or that a real Play upload succeeds |
+| `npm run test` | The Robolectric unit tests and the Play and release script tests pass | Device behaviour, or that a real Play upload succeeds |
 | `npm run check:l10n` | Every locale has the same string keys and placeholders | That the translations read well |
 | `npm run check:release-notes` | Release notes are complete for every catalog and fit Play's limit | That they read well |
 | `npm run check:listings` | The Play listing has every locale and fits Play's limits | That a Console upload succeeds |
