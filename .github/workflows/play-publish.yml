@@ -65,11 +65,11 @@ on:
 permissions:
   contents: read
 
-# Uploads publish; never cancel. When called from release.yml the caller's
-# concurrency group applies as well.
+# CI-6: Play allows one open edit per app, so edit-opening workflows queue here, never cancel, and queue: max keeps a waiting release from being dropped.
 concurrency:
-  group: play-publish-${{ inputs.version || github.ref }}
+  group: google-play-edit
   cancel-in-progress: false
+  queue: max
 
 jobs:
   # Second, deliberate release step (REL-7): commit the tag's production draft for review.
